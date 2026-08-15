@@ -1,0 +1,146 @@
+/* ============================================================
+   SweetAlert2 — thème « Suivie Chantier » (modales centrées)
+   ============================================================
+   Messages de succès / erreur / info / avertissement et
+   confirmations : affichés au centre, avec titre + description.
+   ============================================================ */
+
+/* Arrière-plan : assombri + léger flou */
+.swal2-backdrop-show {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(6px);
+}
+
+/* Popup centré — carte professionnelle */
+.swal2-popup {
+  border-radius: 20px !important;
+  padding: 34px 30px 26px !important;
+  font-family: var(--font) !important;
+  background: #fff !important;
+  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.35) !important;
+  max-width: 460px !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Animation d'apparition / disparition douce */
+.swal2-popup.swal2-show {
+  animation: swal-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.swal2-popup.swal2-hide {
+  animation: swal-fade-out 0.16s ease-in forwards !important;
+}
+@keyframes swal-fade-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes swal-fade-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+
+/* Icône — pastille colorée douce (pas de bordure épaisse) */
+.swal2-icon {
+  border: none !important;
+  width: 76px !important;
+  height: 76px !important;
+  margin: 0 auto 18px !important;
+}
+.swal2-icon .swal2-icon-content { font-size: 36px !important; }
+
+.swal2-icon.swal2-success {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #059669 !important;
+}
+.swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(5, 150, 105, 0.35) !important;
+}
+.swal2-icon.swal2-success .swal2-success-line-tip,
+.swal2-icon.swal2-success .swal2-success-line-long {
+  background-color: #059669 !important;
+}
+
+.swal2-icon.swal2-error {
+  background: rgba(239, 68, 68, 0.13) !important;
+  color: #dc2626 !important;
+}
+.swal2-icon.swal2-error .swal2-x-mark-line-left,
+.swal2-icon.swal2-error .swal2-x-mark-line-right {
+  background-color: #dc2626 !important;
+}
+
+.swal2-icon.swal2-warning {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #d97706 !important;
+}
+.swal2-icon.swal2-info {
+  background: rgba(59, 130, 246, 0.13) !important;
+  color: #2563eb !important;
+}
+.swal2-icon.swal2-question {
+  background: rgba(100, 116, 139, 0.13) !important;
+  color: #475569 !important;
+}
+
+/* Titre */
+.swal2-title {
+  color: var(--text) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.3 !important;
+  padding: 0 8px 6px !important;
+}
+
+/* Description */
+.swal2-html-container {
+  color: var(--text-secondary) !important;
+  font-size: 14.5px !important;
+  line-height: 1.55 !important;
+  padding: 0 6px !important;
+}
+
+/* Boutons d'action */
+.swal2-actions { margin-top: 22px !important; }
+.swal2-confirm {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light)) !important;
+  border-radius: 12px !important;
+  padding: 11px 28px !important;
+  font-weight: 600 !important;
+  font-size: 14.5px !important;
+  box-shadow: 0 6px 16px -6px rgba(30, 58, 95, 0.5) !important;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
+}
+.swal2-confirm:hover {
+  filter: brightness(1.06) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 22px -8px rgba(30, 58, 95, 0.55) !important;
+}
+.swal2-cancel {
+  background: #eef1f4 !important;
+  color: var(--text) !important;
+  border-radius: 12px !important;
+  padding: 11px 24px !important;
+  font-weight: 600 !important;
+  font-size: 14.5px !important;
+  transition: background 0.15s ease, transform 0.12s ease !important;
+}
+.swal2-cancel:hover { background: #e2e8f0 !important; }
+
+/* Bouton danger (suppressions) — rouge */
+.swal-confirm-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  box-shadow: 0 6px 16px -6px rgba(220, 38, 38, 0.5) !important;
+}
+.swal-confirm-danger:hover {
+  filter: brightness(1.05) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 22px -8px rgba(220, 38, 38, 0.55) !important;
+}
+
+/* Barre de progression (auto-fermeture) */
+.swal2-timer-progress-bar-container { padding: 0 6px !important; }
+.swal2-timer-progress-bar {
+  height: 3px !important;
+  border-radius: 99px !important;
+  background: linear-gradient(90deg, var(--primary), var(--accent)) !important;
+}

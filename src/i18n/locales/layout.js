@@ -1,0 +1,280 @@
+/**
+ * Namespace `layout` — navigation, mise en page et composants partagés.
+ *
+ * Couvre AdminLayout (barre latérale, barre supérieure, déconnexion) et les
+ * composants transverses : Spinner, EmptyState, Modal, Pagination,
+ * AccessDenied, FormControls, ErrorBoundary, MesChantiersCard, StatCard.
+ *
+ * Les chaînes réellement génériques (actions, états, champs, messages) restent
+ * dans `common`, disponible ici par repli automatique : depuis ce namespace,
+ * t('actions.fermer') résout sur common.actions.fermer.
+ */
+export default {
+  fr: {
+    sidebar: {
+      espaceAdmin: 'Espace admin',
+      groupePilotage: 'Pilotage',
+      groupePlateforme: 'Plateforme',
+      ouvrirMenu: 'Ouvrir le menu',
+      basculerMenu: 'Réduire / agrandir le menu',
+    },
+    nav: {
+      tableauDeBord: 'Tableau de bord',
+      chantiers: 'Chantiers',
+      membres: 'Membres',
+      equipes: 'Équipes',
+      partenaires: 'Partenaires',
+      organisation: 'Organisation',
+      notifications: 'Notifications',
+      monProfil: 'Mon profil',
+      vuePlateforme: 'Vue plateforme',
+      utilisateurs: 'Utilisateurs',
+      organisations: 'Organisations',
+      journalAudit: "Journal d'audit",
+    },
+    topbar: {
+      titreParDefaut: 'Suivie Chantier',
+      notifications: 'Notifications',
+      abonnementActif: 'Abonnement actif',
+      planActif: 'Actif',
+      essaiRestant: 'Essai gratuit — {{count}} jour restant',
+      essaiRestant_other: 'Essai gratuit — {{count}} jours restants',
+      essaiCourt: 'Essai : {{jours}}j',
+      essaiExpire: 'Essai expiré',
+      essaiExpireTitre: 'Essai expiré — souscrivez un abonnement',
+    },
+    deconnexion: {
+      titre: 'Déconnexion',
+      confirmation: 'Voulez-vous vraiment vous déconnecter ?',
+      succes: 'Vous êtes déconnecté.',
+    },
+    vide: {
+      message: 'Aucun élément à afficher pour le moment.',
+    },
+    accesRefuse: {
+      ressource: "Vous n'avez pas les droits nécessaires pour accéder à cette ressource.",
+    },
+    erreur: {
+      titre: 'Une erreur est survenue',
+      inattendue: 'Erreur inattendue',
+      reessayer: 'Réessayer',
+    },
+    formulaire: {
+      selectionner: '— Sélectionner —',
+    },
+    pagination: {
+      intervalle: '{{from}}–{{to}} sur {{total}}',
+    },
+    mesChantiers: {
+      titre: 'Mes chantiers',
+      affectations: 'Affectations sur {{count}} projet',
+      affectations_other: 'Affectations sur {{count}} projets',
+      erreurChargement: 'Impossible de charger vos chantiers',
+      aucunTitre: 'Aucun chantier affecté',
+      aucunMessage: "Un administrateur peut vous affecter à des chantiers pour qu'ils apparaissent ici.",
+      affecte: 'Affecté',
+      ouvrir: 'Ouvrir',
+    },
+  },
+
+  en: {
+    sidebar: {
+      espaceAdmin: 'Admin area',
+      groupePilotage: 'Management',
+      groupePlateforme: 'Platform',
+      ouvrirMenu: 'Open menu',
+      basculerMenu: 'Collapse / expand menu',
+    },
+    nav: {
+      tableauDeBord: 'Dashboard',
+      chantiers: 'Projects',
+      membres: 'Members',
+      equipes: 'Teams',
+      partenaires: 'Partners',
+      organisation: 'Organization',
+      notifications: 'Notifications',
+      monProfil: 'My profile',
+      vuePlateforme: 'Platform overview',
+      utilisateurs: 'Users',
+      organisations: 'Organizations',
+      journalAudit: 'Audit log',
+    },
+    topbar: {
+      titreParDefaut: 'Suivie Chantier',
+      notifications: 'Notifications',
+      abonnementActif: 'Active subscription',
+      planActif: 'Active',
+      essaiRestant: 'Free trial — {{count}} day left',
+      essaiRestant_other: 'Free trial — {{count}} days left',
+      essaiCourt: 'Trial: {{jours}}d',
+      essaiExpire: 'Trial expired',
+      essaiExpireTitre: 'Trial expired — subscribe to a plan',
+    },
+    deconnexion: {
+      titre: 'Sign out',
+      confirmation: 'Are you sure you want to sign out?',
+      succes: 'You have been signed out.',
+    },
+    vide: {
+      message: 'Nothing to display for now.',
+    },
+    accesRefuse: {
+      ressource: 'You do not have permission to access this resource.',
+    },
+    erreur: {
+      titre: 'Something went wrong',
+      inattendue: 'Unexpected error',
+      reessayer: 'Try again',
+    },
+    formulaire: {
+      selectionner: '— Select —',
+    },
+    pagination: {
+      intervalle: '{{from}}–{{to}} of {{total}}',
+    },
+    mesChantiers: {
+      titre: 'My projects',
+      affectations: 'Assigned to {{count}} project',
+      affectations_other: 'Assigned to {{count}} projects',
+      erreurChargement: 'Unable to load your projects',
+      aucunTitre: 'No project assigned',
+      aucunMessage: 'An administrator can assign you to projects so they appear here.',
+      affecte: 'Assigned',
+      ouvrir: 'Open',
+    },
+  },
+
+  de: {
+    sidebar: {
+      espaceAdmin: 'Admin-Bereich',
+      groupePilotage: 'Steuerung',
+      groupePlateforme: 'Plattform',
+      ouvrirMenu: 'Menü öffnen',
+      basculerMenu: 'Menü ein-/ausklappen',
+    },
+    nav: {
+      tableauDeBord: 'Übersicht',
+      chantiers: 'Baustellen',
+      membres: 'Mitglieder',
+      equipes: 'Teams',
+      partenaires: 'Partner',
+      organisation: 'Organisation',
+      notifications: 'Benachrichtigungen',
+      monProfil: 'Mein Profil',
+      vuePlateforme: 'Plattformübersicht',
+      utilisateurs: 'Benutzer',
+      organisations: 'Organisationen',
+      journalAudit: 'Audit-Protokoll',
+    },
+    topbar: {
+      titreParDefaut: 'Suivie Chantier',
+      notifications: 'Benachrichtigungen',
+      abonnementActif: 'Aktives Abonnement',
+      planActif: 'Aktiv',
+      essaiRestant: 'Kostenlose Testphase — noch {{count}} Tag',
+      essaiRestant_other: 'Kostenlose Testphase — noch {{count}} Tage',
+      essaiCourt: 'Test: {{jours}} T',
+      essaiExpire: 'Testphase abgelaufen',
+      essaiExpireTitre: 'Testphase abgelaufen — schließen Sie ein Abonnement ab',
+    },
+    deconnexion: {
+      titre: 'Abmelden',
+      confirmation: 'Möchten Sie sich wirklich abmelden?',
+      succes: 'Sie wurden abgemeldet.',
+    },
+    vide: {
+      message: 'Derzeit gibt es nichts anzuzeigen.',
+    },
+    accesRefuse: {
+      ressource: 'Sie haben keine Berechtigung für diese Ressource.',
+    },
+    erreur: {
+      titre: 'Ein Fehler ist aufgetreten',
+      inattendue: 'Unerwarteter Fehler',
+      reessayer: 'Erneut versuchen',
+    },
+    formulaire: {
+      selectionner: '— Auswählen —',
+    },
+    pagination: {
+      intervalle: '{{from}}–{{to}} von {{total}}',
+    },
+    mesChantiers: {
+      titre: 'Meine Baustellen',
+      affectations: 'Zuweisungen zu {{count}} Projekt',
+      affectations_other: 'Zuweisungen zu {{count}} Projekten',
+      erreurChargement: 'Ihre Baustellen konnten nicht geladen werden',
+      aucunTitre: 'Keine Baustelle zugewiesen',
+      aucunMessage: 'Ein Administrator kann Ihnen Baustellen zuweisen, damit sie hier erscheinen.',
+      affecte: 'Zugewiesen',
+      ouvrir: 'Öffnen',
+    },
+  },
+
+  es: {
+    sidebar: {
+      espaceAdmin: 'Área de administración',
+      groupePilotage: 'Gestión',
+      groupePlateforme: 'Plataforma',
+      ouvrirMenu: 'Abrir el menú',
+      basculerMenu: 'Contraer / expandir el menú',
+    },
+    nav: {
+      tableauDeBord: 'Panel de control',
+      chantiers: 'Obras',
+      membres: 'Miembros',
+      equipes: 'Equipos',
+      partenaires: 'Socios',
+      organisation: 'Organización',
+      notifications: 'Notificaciones',
+      monProfil: 'Mi perfil',
+      vuePlateforme: 'Vista de plataforma',
+      utilisateurs: 'Usuarios',
+      organisations: 'Organizaciones',
+      journalAudit: 'Registro de auditoría',
+    },
+    topbar: {
+      titreParDefaut: 'Suivie Chantier',
+      notifications: 'Notificaciones',
+      abonnementActif: 'Suscripción activa',
+      planActif: 'Activo',
+      essaiRestant: 'Prueba gratuita — queda {{count}} día',
+      essaiRestant_other: 'Prueba gratuita — quedan {{count}} días',
+      essaiCourt: 'Prueba: {{jours}} d',
+      essaiExpire: 'Prueba caducada',
+      essaiExpireTitre: 'Prueba caducada — suscríbase a un plan',
+    },
+    deconnexion: {
+      titre: 'Cerrar sesión',
+      confirmation: '¿Seguro que quiere cerrar sesión?',
+      succes: 'Ha cerrado la sesión.',
+    },
+    vide: {
+      message: 'No hay nada que mostrar por el momento.',
+    },
+    accesRefuse: {
+      ressource: 'No tiene permisos para acceder a este recurso.',
+    },
+    erreur: {
+      titre: 'Se ha producido un error',
+      inattendue: 'Error inesperado',
+      reessayer: 'Reintentar',
+    },
+    formulaire: {
+      selectionner: '— Seleccionar —',
+    },
+    pagination: {
+      intervalle: '{{from}}–{{to}} de {{total}}',
+    },
+    mesChantiers: {
+      titre: 'Mis obras',
+      affectations: 'Asignaciones en {{count}} proyecto',
+      affectations_other: 'Asignaciones en {{count}} proyectos',
+      erreurChargement: 'No se han podido cargar sus obras',
+      aucunTitre: 'Ninguna obra asignada',
+      aucunMessage: 'Un administrador puede asignarle obras para que aparezcan aquí.',
+      affecte: 'Asignado',
+      ouvrir: 'Abrir',
+    },
+  },
+};

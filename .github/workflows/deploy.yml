@@ -1,0 +1,95 @@
+name: Build & Deploy Admin
+
+# Correctif (audit — Admin §1) : ce dépôt n'avait AUCUN pipeline — pas de
+# lint gate, pas de build check, pas de déploiement documenté. Le seul
+# moyen de savoir comment l'admin arrivait en production était de demander
+# à la personne qui l'avait fait à la main. Ce workflow reproduit, côté
+# admin, exactement ce que backend/.github/workflows/deploy.yml fait déjà
+# côté API : un job qui doit réussir (lint + build) avant tout déploiement.
+#
+# Prérequis à configurer une fois, dans les secrets GitHub de CE dépôt
+# (Settings → Secrets and variables → Actions) — les secrets ne sont PAS
+# partagés entre dépôts, même sur le même VPS :
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY — mêmes valeurs que le dépôt backend.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # ── Vérification (lint + build) ─────────────────────────────────────────
+  build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # ── Déploiement (uniquement si le build ci-dessus a réussi) ─────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build   # jamais de déploiement d'un build cassé ou non lintré
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: "15m"
+          script: |
+            set -e
+
+            APP_DIR="/var/www/suivie-chantier-admin"
+            TARGET_DIR="/var/www/suivie-chantier-admin/dist"
+
+            # Même hypothèse que backend/.github/workflows/deploy.yml pour
+            # /var/www/suivie-chantier : le dépôt est déjà cloné une première
+            # fois à la main sur le VPS (`git clone` + `cp .env.example .env`
+            # rempli). Ce workflow ne fait que le mettre à jour ensuite.
+            if [ ! -d "${APP_DIR}/.git" ]; then
+              echo "ERREUR : ${APP_DIR} n'est pas encore un dépôt git." >&2
+              echo "Premier déploiement : cloner manuellement une fois — 'git clone <url> ${APP_DIR}'" >&2
+              echo "puis copier .env.example vers .env et le remplir." >&2
+              exit 1
+            fi
+
+            cd "${APP_DIR}"
+            git pull --rebase origin main
+
+            # .env n'est jamais committé (voir .gitignore) — doit déjà exister
+            # sur le VPS avec VITE_API_BASE_URL, VITE_STRIPE_PUBLISHABLE_KEY,
+            # etc. remplis. Sans lui, le build embarque les valeurs par défaut
+            # de développement (proxy localhost).
+            if [ ! -f ".env" ]; then
+              echo "ERREUR : ${APP_DIR}/.env manquant — copier .env.example et le remplir avant le premier déploiement." >&2
+              exit 1
+            fi
+
+            npm ci
+            npm run build
+
+            # dist/ est déjà la cible finale de nginx (root dans nginx.conf) —
+            # `npm run build` écrit directement dedans, rien à synchroniser.
+            echo "Build déposé dans ${TARGET_DIR}"
+            ls -la "${TARGET_DIR}" | head -5
+
+            echo "Déploiement admin terminé."

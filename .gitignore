@@ -1,0 +1,29 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+
+# Environnement local (garder .env.example)
+# CORRECTIF : `.env` n'était pas ignoré (seuls .env.local / .env.production
+# l'étaient) — le fichier de config réel, secrets compris, pouvait donc être
+# committé par mégarde. Aligné sur le .gitignore du backend.
+.env
+.env.local
+.env.production
+.env.*.local
+*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Éditeurs
+.vscode/
+.idea/
+.DS_Store
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
