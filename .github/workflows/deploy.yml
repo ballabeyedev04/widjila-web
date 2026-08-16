@@ -87,7 +87,7 @@ jobs:
             npm ci
             npm run build
 
-            # dist/ est déjà la cible finale de nginx (root dans nginx.conf) —
+            # dist/ est déjà la cible finale de nginx (root dans nginx-admin.conf, dépôt backend) —
             # `npm run build` écrit directement dedans, rien à synchroniser.
             echo "Build déposé dans ${TARGET_DIR}"
             ls -la "${TARGET_DIR}" | head -5
