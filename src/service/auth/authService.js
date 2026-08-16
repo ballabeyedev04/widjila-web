@@ -1,5 +1,6 @@
 import api, { setUser, clearUser, setStoredToken } from '../api.js';
 import { unwrap } from '../helpers.js';
+import i18n from '../../i18n/index.js';
 
 /**
  * Service d'authentification — couvre le flux complet :
@@ -74,9 +75,9 @@ export const validateIdentifiant = (value) => {
 
 export const validateLoginForm = (identifiant, motDePasse) => {
   const errors = {};
-  if (!identifiant.trim()) errors.identifiant = "L'identifiant est requis";
-  else if (!validateIdentifiant(identifiant)) errors.identifiant = 'Email ou téléphone invalide';
-  if (!motDePasse) errors.motDePasse = 'Le mot de passe est requis';
+  if (!identifiant.trim()) errors.identifiant = i18n.t('auth:login.validation.identifiantRequis');
+  else if (!validateIdentifiant(identifiant)) errors.identifiant = i18n.t('auth:login.validation.identifiantInvalide');
+  if (!motDePasse) errors.motDePasse = i18n.t('auth:login.validation.motDePasseRequis');
   return errors;
 };
 

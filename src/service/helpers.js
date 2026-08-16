@@ -1,3 +1,5 @@
+import i18n from '../i18n/index.js';
+
 /**
  * Helpers partagés de la couche API.
  *
@@ -14,17 +16,26 @@ export const unwrap = (response) => {
   return body;
 };
 
-/** Extrait un message d'erreur lisible depuis une exception axios. */
-export const getErrorMessage = (error, fallback = 'Une erreur est survenue') => {
+/**
+ * Extrait un message d'erreur lisible depuis une exception axios.
+ *
+ * Priorité au message du BACKEND (`data.message`, déjà rédigé côté serveur) —
+ * les replis ci-dessous (traduits, respectent la langue active) ne servent
+ * que quand le backend n'a physiquement pas pu répondre avec un message :
+ * panne réseau, timeout, ou proxy qui coupe la requête avant Express (nginx).
+ * `i18n.t()` (pas useTranslation) : ce module n'est pas un composant React,
+ * mais retourne bien la traduction de la langue active à l'instant de l'appel.
+ */
+export const getErrorMessage = (error, fallback = i18n.t('common:messages.erreurGenerique')) => {
   const data = error?.response?.data;
   if (typeof data === 'string' && data) return data;
   if (data?.message) return data.message;
-  if (error?.response?.status === 401) return 'Session expirée, veuillez vous reconnecter.';
-  if (error?.response?.status === 403) return 'Accès refusé.';
-  if (error?.response?.status === 404) return 'Ressource introuvable.';
-  if (error?.response?.status === 429) return 'Trop de requêtes. Réessayez dans 15 minutes.';
-  if (!error?.response && error?.request) return 'Erreur réseau, vérifiez votre connexion.';
-  if (error?.message?.includes('timeout')) return 'Le serveur met trop de temps à répondre.';
+  if (error?.response?.status === 401) return i18n.t('common:messages.sessionExpiree');
+  if (error?.response?.status === 403) return i18n.t('common:messages.accesRefuse');
+  if (error?.response?.status === 404) return i18n.t('common:messages.ressourceIntrouvable');
+  if (error?.response?.status === 429) return i18n.t('common:messages.tropDeRequetes');
+  if (!error?.response && error?.request) return i18n.t('common:messages.erreurReseau');
+  if (error?.message?.includes('timeout')) return i18n.t('common:messages.delaiDepasse');
   return fallback;
 };
 

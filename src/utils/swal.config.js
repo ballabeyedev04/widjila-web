@@ -1,4 +1,5 @@
 import Swal from 'sweetalert2';
+import i18n from '../i18n/index.js';
 
 /**
  * SweetAlert2 — instance partagée pour TOUTES les retours utilisateur de l'admin.
@@ -20,37 +21,42 @@ import Swal from 'sweetalert2';
  *   - error('…')                     → titre = « Une erreur est survenue »,
  *                                       description = la chaîne fournie.
  *
+ * i18n : ce module n'est pas un composant React (pas de hook `useTranslation`
+ * possible) — `i18n.t()` est appelé DANS chaque fonction, jamais au chargement
+ * du module, pour refléter la langue active AU MOMENT de l'affichage (un
+ * changement de langue en cours de session doit s'appliquer immédiatement,
+ * pas seulement après un rechargement de page).
+ *
  * Ne plus utiliser `toast` (react-toastify) ni `window.confirm`.
  */
 
-/* Description par défaut quand seul un titre (ou une chaîne) est fourni. */
-const DEFAULTS = {
-  success: { title: 'Opération réussie', text: "L'opération s'est déroulée avec succès." },
-  error: { title: 'Une erreur est survenue', text: 'Merci de réessayer ou de vérifier votre saisie.' },
-  info: { title: 'Information', text: '' },
-  warning: { title: 'Attention', text: '' },
-};
+/** Description par défaut quand seul un titre (ou une chaîne) est fourni. */
+const defaultsFor = (type) => ({
+  success: { title: i18n.t('common:messages.operationReussie'), text: i18n.t('common:messages.operationReussieTexte') },
+  error: { title: i18n.t('common:messages.uneErreurEstSurvenue'), text: i18n.t('common:messages.veuillezReessayerOuVerifier') },
+  info: { title: i18n.t('common:messages.information'), text: '' },
+  warning: { title: i18n.t('common:messages.attention'), text: '' },
+}[type]);
 
 /** Normalise l'argument (objet {title,text} ou chaîne) en { title, text }. */
 const normalize = (input, type) => {
+  const defaults = defaultsFor(type);
   if (typeof input === 'string') {
     // Erreur : la chaîne est le détail → elle devient la description.
-    if (type === 'error') return { title: DEFAULTS.error.title, text: input };
+    if (type === 'error') return { title: defaults.title, text: input };
     // Succès / info / warning : la chaîne devient le titre.
-    return { title: input, text: DEFAULTS[type].text };
+    return { title: input, text: defaults.text };
   }
   const obj = input || {};
   return {
-    title: obj.title ?? DEFAULTS[type].title,
-    text: obj.text ?? DEFAULTS[type].text,
+    title: obj.title ?? defaults.title,
+    text: obj.text ?? defaults.text,
   };
 };
 
 const SwalCustom = Swal.mixin({
   confirmButtonColor: '#1e3a5f',
   cancelButtonColor: '#eef1f4',
-  confirmButtonText: 'Confirmer',
-  cancelButtonText: 'Annuler',
   reverseButtons: true,
   focusConfirm: false,
   customClass: {
@@ -68,7 +74,7 @@ const notifier = (type, input, timer) => {
     timer,
     timerProgressBar: true,
     showConfirmButton: true,
-    confirmButtonText: 'OK',
+    confirmButtonText: i18n.t('common:actions.ok'),
     showCloseButton: false,
     allowOutsideClick: true,
     didOpen: (el) => {
@@ -96,18 +102,19 @@ SwalCustom.warning = (input) => notifier('warning', input, 3200);
  * Résout `true` si confirmé, `false` si annulé.
  */
 SwalCustom.confirm = async ({
-  title = 'Confirmation',
+  title,
   text = '',
   icon = 'warning',
   danger = false,
-  confirmText = 'Confirmer',
+  confirmText,
 } = {}) => {
   const result = await SwalCustom.fire({
-    title,
+    title: title ?? i18n.t('common:messages.confirmationTitre'),
     text,
     icon,
     showCancelButton: true,
-    confirmButtonText: confirmText,
+    confirmButtonText: confirmText ?? i18n.t('common:actions.confirmer'),
+    cancelButtonText: i18n.t('common:actions.annuler'),
     customClass: { confirmButton: danger ? 'swal-confirm-danger' : undefined },
   });
   return Boolean(result.isConfirmed);

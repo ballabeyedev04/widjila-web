@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import SwalCustom from '../utils/swal.config.js';
+import i18n from '../i18n/index.js';
 
 /**
  * Hook générique de liste paginée côté serveur (recherche + filtres).
@@ -103,7 +104,7 @@ export function useServerList(fetchFn, {
         const message =
           err?.response?.data?.message ||
           err?.message ||
-          'Erreur lors du chargement des données';
+          i18n.t('common:messages.erreurChargementDonnees');
         setError(message);
         SwalCustom.error(message);
       }

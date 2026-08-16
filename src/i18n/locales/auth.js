@@ -20,6 +20,13 @@ export default {
       copyright: '© {{annee}} Suivie Chantier — Plateforme de pilotage de chantier',
       pasDeCompte: 'Pas encore de compte ?',
       creerCompte: 'Créer un compte',
+      // Validation client (service/auth/authService.js#validateLoginForm),
+      // avant tout appel API — pas de message backend possible ici.
+      validation: {
+        identifiantRequis: "L'identifiant est requis",
+        identifiantInvalide: 'Email ou téléphone invalide',
+        motDePasseRequis: 'Le mot de passe est requis',
+      },
       mfa: {
         info: 'Authentification à deux facteurs : saisissez votre code.',
         titre: 'Double authentification',
@@ -153,6 +160,11 @@ export default {
       copyright: '© {{annee}} Suivie Chantier — Construction site management platform',
       pasDeCompte: 'No account yet?',
       creerCompte: 'Create an account',
+      validation: {
+        identifiantRequis: 'Identifier is required',
+        identifiantInvalide: 'Invalid email or phone number',
+        motDePasseRequis: 'Password is required',
+      },
       mfa: {
         info: 'Two-factor authentication: enter your code.',
         titre: 'Two-factor authentication',
@@ -286,6 +298,11 @@ export default {
       copyright: '© {{annee}} Suivie Chantier — Plattform für Baustellensteuerung',
       pasDeCompte: 'Noch kein Konto?',
       creerCompte: 'Konto erstellen',
+      validation: {
+        identifiantRequis: 'Kennung ist erforderlich',
+        identifiantInvalide: 'Ungültige E-Mail oder Telefonnummer',
+        motDePasseRequis: 'Passwort ist erforderlich',
+      },
       mfa: {
         info: 'Zwei-Faktor-Authentifizierung: Geben Sie Ihren Code ein.',
         titre: 'Zwei-Faktor-Authentifizierung',
@@ -421,6 +438,11 @@ export default {
       copyright: '© {{annee}} Suivie Chantier — Plataforma de gestión de obras',
       pasDeCompte: '¿Aún no tiene cuenta?',
       creerCompte: 'Crear una cuenta',
+      validation: {
+        identifiantRequis: 'El identificador es obligatorio',
+        identifiantInvalide: 'Correo electrónico o teléfono no válido',
+        motDePasseRequis: 'La contraseña es obligatoria',
+      },
       mfa: {
         info: 'Autenticación de dos factores: introduzca su código.',
         titre: 'Doble autenticación',
