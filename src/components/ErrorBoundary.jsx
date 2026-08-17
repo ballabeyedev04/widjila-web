@@ -48,7 +48,7 @@ export default class ErrorBoundary extends Component {
               onClick={this.handleReload}
               style={{
                 marginTop: 12, padding: '10px 22px', borderRadius: 10, border: 'none',
-                background: '#1e3a5f', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14,
+                background: '#f2600c', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14,
               }}
             >
               {i18n.t('layout:erreur.reessayer')}

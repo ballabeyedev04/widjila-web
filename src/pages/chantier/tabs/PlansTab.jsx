@@ -207,7 +207,7 @@ function PlanViewerModal({ plan, onClose, canManage, onChanged }) {
                 <span
                   key={a.id}
                   className="annotation-marker"
-                  style={{ left: `${a.x ?? 50}%`, top: `${a.y ?? 50}%`, background: a.donnees?.couleur || '#1e3a5f' }}
+                  style={{ left: `${a.x ?? 50}%`, top: `${a.y ?? 50}%`, background: a.donnees?.couleur || '#f2600c' }}
                   title={a.donnees?.libelle || enumLabel(a.type, a.type)}
                 >
                   <MapPin size={14} />

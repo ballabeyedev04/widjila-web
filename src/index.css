@@ -1,23 +1,29 @@
 /* ============================================================
-   Suivie Chantier — Admin
-   Design system : thème "chantier" (bleu nuit + orange sécurité)
+   Suivie Chantier — Admin (Widjila)
+   Design system : thème "chantier" (orange Widjila + or chaleureux)
    Variables CSS globales + reset + base
+
+   Rebrand (client) : la marque impose l'orange comme couleur principale,
+   identique entre web et mobile (voir mobile/lib/core/theme/app_colors.dart
+   — les deux fichiers doivent rester synchronisés à chaque évolution de
+   palette). Tout le design system étant basé sur ces variables CSS, ce seul
+   bloc suffit à propager la couleur dans toute l'application.
    ============================================================ */
 
 :root {
-  /* Palette principale — bleu nuit chantier */
-  --primary: #1e3a5f;
-  --primary-dark: #142a47;
-  --primary-darker: #0f2338;
-  --primary-light: #2b4e7f;
-  --primary-100: #e3eaf3;
-  --primary-200: #c9d8ea;
+  /* Palette principale — orange Widjila */
+  --primary: #f2600c;
+  --primary-dark: #c94e09;
+  --primary-darker: #9c3d07;
+  --primary-light: #ff7a2e;
+  --primary-100: #ffeee3;
+  --primary-200: #ffd3b0;
 
-  /* Accent — orange sécurité (casque, balisage) */
-  --accent: #f59e0b;
-  --accent-dark: #d97706;
-  --accent-light: #fbbf24;
-  --accent-100: #fef3c7;
+  /* Accent — or chaleureux (complète l'orange sans s'y confondre) */
+  --accent: #ffb020;
+  --accent-dark: #e08e00;
+  --accent-light: #ffcb66;
+  --accent-100: #fff6e0;
 
   /* Sémantique */
   --success: #16a34a;
@@ -42,13 +48,14 @@
   --border: #e4e9ef;
   --border-strong: #cdd6e0;
 
-  /* Sidebar */
-  --sidebar-bg: #0f2338;
-  --sidebar-text: #9fb3c8;
+  /* Sidebar — neutre chaud (charbon) pour rester lisible sur de longues
+     sessions ; l'orange de marque reste la couleur active/d'accent. */
+  --sidebar-bg: #241a14;
+  --sidebar-text: #d9c4b5;
   --sidebar-text-active: #ffffff;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(255, 255, 255, 0.12);
-  --sidebar-accent: #f59e0b;
+  --sidebar-hover: rgba(255, 255, 255, 0.07);
+  --sidebar-active: rgba(242, 96, 12, 0.22);
+  --sidebar-accent: #f2600c;
 
   /* Geometry */
   --radius: 12px;
@@ -60,6 +67,9 @@
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  /* Titrage des écrans d'authentification — voix distincte de l'Inter
+     utilitaire du reste de l'app, chargée dans index.html. */
+  --font-display: 'Outfit', var(--font);
   --sidebar-width: 250px;
   --sidebar-width-collapsed: 78px;
   --topbar-height: 64px;

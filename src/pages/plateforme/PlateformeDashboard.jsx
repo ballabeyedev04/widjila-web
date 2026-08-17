@@ -50,7 +50,7 @@ export default function PlateformeDashboard() {
         <StatCard icon={AlertTriangle} label={t('superAdmin.stats.reservesOuvertes')} value={stats.reservesOuvertes} tone="red" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="grid-2-panel">
         <div className="card">
           <div className="card-header"><h2>{t('superAdmin.orgParAbonnement')}</h2></div>
           <div className="card-body">

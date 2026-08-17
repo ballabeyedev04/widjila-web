@@ -8,42 +8,45 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background:
-    radial-gradient(1000px 500px at 80% -10%, rgba(245, 158, 11, 0.12), transparent 60%),
-    radial-gradient(900px 500px at 10% 110%, rgba(30, 58, 95, 0.18), transparent 55%),
-    linear-gradient(160deg, #f4f6f9 0%, #e9eef4 100%);
   position: relative;
   overflow: hidden;
+  /* Photo de chantier en fond plein cadre — fichier attendu à
+     public/images/login-hero.jpg (voir commentaire dans le repo). Le
+     dégradé sombre superposé via ::before garantit la lisibilité de la
+     carte quelle que soit la photo, sans jamais dépendre de son contenu. */
+  background-color: #1b1410;
+  background-image: url('/images/login-hero.jpg');
+  background-size: cover;
+  background-position: center;
 }
 .auth-page::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(30, 58, 95, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 58, 95, 0.04) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: radial-gradient(700px 500px at 50% 20%, #000 30%, transparent 100%);
+  background:
+    linear-gradient(155deg, rgba(18, 12, 8, 0.78) 0%, rgba(24, 15, 8, 0.55) 45%, rgba(30, 18, 8, 0.72) 100%);
 }
 
 .auth-card {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 430px;
   background: #fff;
-  border-radius: 18px;
-  box-shadow: var(--shadow-lg);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px -12px rgba(15, 10, 5, 0.45), 0 2px 8px rgba(15, 10, 5, 0.12);
   overflow: hidden;
-  animation: modal-in 0.25s ease;
+  animation: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .auth-accent-bar { height: 5px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
 
-.auth-body { padding: 34px 34px 28px; }
+.auth-body { padding: 38px 36px 30px; }
 
 .auth-logo {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 26px;
+  margin-bottom: 28px;
 }
 .auth-logo .logo-icon {
   width: 46px;
@@ -56,12 +59,21 @@
   color: #fff;
   font-weight: 800;
   font-size: 20px;
+  flex-shrink: 0;
 }
-.auth-logo .auth-title { font-size: 18px; font-weight: 800; color: var(--primary-darker); }
+.auth-logo .auth-title { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--primary-darker); letter-spacing: -0.01em; }
 .auth-logo .auth-subtitle { font-size: 12px; color: var(--text-muted); }
 
-.auth-title-lg { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
-.auth-subtitle { color: var(--text-secondary); font-size: 13.5px; margin-bottom: 24px; }
+.auth-title-lg {
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  margin-bottom: 7px;
+}
+.auth-subtitle { color: var(--text-secondary); font-size: 13.5px; margin-bottom: 26px; }
 
 .auth-footer {
   text-align: center;
@@ -91,7 +103,7 @@
 }
 .mfa-code .mfa-digit:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.18);
 }
 .mfa-hint {
   text-align: center;
@@ -110,3 +122,9 @@
   font-size: 13px;
 }
 .auth-link:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .auth-page { padding: 12px; }
+  .auth-body { padding: 24px 18px 22px; }
+  .mfa-code .mfa-digit { width: 38px; height: 48px; font-size: 19px; }
+}

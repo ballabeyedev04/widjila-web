@@ -58,7 +58,7 @@ export default function Profile() {
     <>
       <PageHeader title={t('titre')} subtitle={t('sousTitre', { role: roleLabel(profil.role) })} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="grid-2-panel side-fixed">
         {/* Carte identité */}
         <div className="card">
           <div className="card-body" style={{ textAlign: 'center' }}>

@@ -55,7 +55,7 @@ const normalize = (input, type) => {
 };
 
 const SwalCustom = Swal.mixin({
-  confirmButtonColor: '#1e3a5f',
+  confirmButtonColor: '#f2600c',
   cancelButtonColor: '#eef1f4',
   reverseButtons: true,
   focusConfirm: false,

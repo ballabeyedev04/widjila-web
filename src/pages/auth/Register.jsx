@@ -46,69 +46,92 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const validateField = (name, value) => {
-    const newErrors = { ...errors };
+  // Fonction pure (ne touche pas à l'état) : retourne le message d'erreur pour
+  // un champ donné, ou `undefined` s'il est valide. Utilisée à la fois par la
+  // validation au fil de la saisie et par la validation finale à la
+  // soumission — une seule source de vérité, plus de désynchronisation
+  // possible entre les deux.
+  const getFieldError = (name, value, formValues) => {
     switch (name) {
       case 'nom':
-        if (!value.trim()) newErrors.nom = t('register.validation.nomRequis');
-        break;
+        return !value.trim() ? t('register.validation.nomRequis') : undefined;
       case 'prenom':
-        if (!value.trim()) newErrors.prenom = t('register.validation.prenomRequis');
-        break;
+        return !value.trim() ? t('register.validation.prenomRequis') : undefined;
       case 'email':
-        if (!value.trim()) newErrors.email = t('register.validation.emailRequis');
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) newErrors.email = t('validation.emailInvalide');
-        break;
+        if (!value.trim()) return t('register.validation.emailRequis');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('validation.emailInvalide');
+        return undefined;
       case 'telephone':
-        if (value && !/^\+?[0-9\s-]{7,20}$/.test(value)) newErrors.telephone = t('register.validation.telephoneInvalide');
-        break;
+        return value && !/^\+?[0-9\s-]{7,20}$/.test(value) ? t('register.validation.telephoneInvalide') : undefined;
       case 'mot_de_passe':
-        if (!value) newErrors.mot_de_passe = t('register.validation.motDePasseRequis');
-        else if (!validatePassword(value)) newErrors.mot_de_passe = t('register.validation.motDePasseFormat');
-        break;
+        if (!value) return t('register.validation.motDePasseRequis');
+        if (!validatePassword(value)) return t('register.validation.motDePasseFormat');
+        return undefined;
       case 'confirm_mot_de_passe':
-        if (!value) newErrors.confirm_mot_de_passe = t('register.validation.confirmationRequise');
-        else if (value !== form.mot_de_passe) newErrors.confirm_mot_de_passe = t('validation.motsDePasseDifferents');
-        break;
+        if (!value) return t('register.validation.confirmationRequise');
+        if (value !== formValues.mot_de_passe) return t('validation.motsDePasseDifferents');
+        return undefined;
       case 'organisationNom':
-        if (!value.trim()) newErrors.organisationNom = t('register.validation.organisationRequise');
-        break;
+        return !value.trim() ? t('register.validation.organisationRequise') : undefined;
       case 'siret':
-        if (value && !/^\d{14}$/.test(value.replace(/\s/g, ''))) newErrors.siret = t('register.validation.siretInvalide');
-        break;
-      // Acceptation des CGU / politique de confidentialité : seul champ dont
-      // l'erreur est retirée dès qu'il redevient valide, pour que le message
-      // disparaisse au moment où l'utilisateur coche la case.
+        return value && !/^\d{14}$/.test(value) ? t('register.validation.siretInvalide') : undefined;
       case 'consentement':
-        if (!value) newErrors.consentement = t('register.validation.consentementRequis');
-        else delete newErrors.consentement;
-        break;
+        return !value ? t('register.validation.consentementRequis') : undefined;
+      default:
+        return undefined;
     }
-    setErrors(newErrors);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const valeur = type === 'checkbox' ? checked : value;
-    setForm((prev) => ({ ...prev, [name]: valeur }));
-    validateField(name, valeur);
+    let valeur = type === 'checkbox' ? checked : value;
+    // SIRET : la saisie n'accepte que des chiffres et se bloque à 14 —
+    // impossible de taper un 15e caractère ou de coller un texte plus long.
+    if (name === 'siret') valeur = value.replace(/\D/g, '').slice(0, 14);
+
+    const nextForm = { ...form, [name]: valeur };
+    setForm(nextForm);
+
+    // Correction du bug « le message d'erreur ne disparaît pas » : on repart
+    // à chaque frappe des erreurs précédentes et on RETIRE la clé dès que le
+    // champ redevient valide, au lieu de ne faire qu'ajouter des erreurs.
+    setErrors((prev) => {
+      const next = { ...prev };
+      const error = getFieldError(name, valeur, nextForm);
+      if (error) next[name] = error;
+      else delete next[name];
+
+      // Si le mot de passe change, la confirmation déjà saisie doit être
+      // revérifiée (elle peut devenir valide ou invalide selon la nouvelle
+      // valeur), sinon son message reste figé sur l'ancien mot de passe.
+      if (name === 'mot_de_passe' && nextForm.confirm_mot_de_passe) {
+        const confirmError = getFieldError('confirm_mot_de_passe', nextForm.confirm_mot_de_passe, nextForm);
+        if (confirmError) next.confirm_mot_de_passe = confirmError;
+        else delete next.confirm_mot_de_passe;
+      }
+      return next;
+    });
   };
+
+  // Récapitule si le formulaire est actuellement soumettable — recalculé à
+  // chaque rendu à partir de `form` uniquement (jamais de `errors`, qui peut
+  // contenir des messages pour des champs pas encore touchés). Sert à la fois
+  // à griser le bouton et à la garde de soumission ci-dessous.
+  const isFormValid = Object.keys(form).every((key) => !getFieldError(key, form[key], form));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Consentement obligatoire (RGPD art. 7) — contrôlé AVANT tout le reste et
-    // directement sur `form` : `errors` est un état React encore périmé à cet
-    // instant, s'appuyer dessus laisserait passer une soumission non consentie.
-    if (!form.consentement) {
-      setErrors((prev) => ({ ...prev, consentement: t('register.validation.consentementRequis') }));
-      return;
-    }
-
-    // Validation finale
-    const newErrors = {};
-    Object.keys(form).forEach((key) => validateField(key, form[key]));
-    if (Object.keys(errors).length > 0) return;
+    // Validation finale : reconstruite entièrement à partir de `form` (pas de
+    // `errors`, périmé d'un cycle de rendu) pour éviter qu'une soumission
+    // passe alors qu'un champ est en fait invalide.
+    const freshErrors = {};
+    Object.keys(form).forEach((key) => {
+      const error = getFieldError(key, form[key], form);
+      if (error) freshErrors[key] = error;
+    });
+    setErrors(freshErrors);
+    if (Object.keys(freshErrors).length > 0) return;
 
     setLoading(true);
     try {
@@ -144,7 +167,7 @@ export default function Register() {
   const orgFields = [
     { name: 'organisationNom', label: t('register.champs.organisationNom'), icon: Building, required: true },
     { name: 'raison_sociale', label: t('register.champs.raisonSociale'), icon: Building, required: false },
-    { name: 'siret', label: t('register.champs.siret'), icon: Building, required: false },
+    { name: 'siret', label: t('register.champs.siret'), icon: Building, required: false, maxLength: 14, inputMode: 'numeric' },
     { name: 'rccm', label: t('register.champs.rccm'), icon: Building, required: false },
     { name: 'ninea', label: t('register.champs.ninea'), icon: Building, required: false },
     { name: 'organisationTelephone', label: t('register.champs.organisationTelephone'), icon: Phone, required: false },
@@ -176,7 +199,7 @@ export default function Register() {
               <legend style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)', padding: '0 8px' }}>
                 <User size={15} style={{ verticalAlign: -2, marginRight: 6 }} /> {t('register.sectionUtilisateur')}
               </legend>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid-2">
                 {userFields.map(({ name, label, icon: Icon, type = 'text', required }) => (
                   <div key={name} className="field" style={{ marginBottom: 0 }}>
                     <label>
@@ -261,8 +284,8 @@ export default function Register() {
               <legend style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)', padding: '0 8px' }}>
                 <Building size={15} style={{ verticalAlign: -2, marginRight: 6 }} /> {t('register.sectionOrganisation')}
               </legend>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                {orgFields.map(({ name, label, icon: Icon, type = 'text', required }) => (
+              <div className="grid-2">
+                {orgFields.map(({ name, label, icon: Icon, type = 'text', required, maxLength, inputMode }) => (
                   <div key={name} className="field" style={{ marginBottom: 0 }}>
                     <label>
                       {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
@@ -278,6 +301,8 @@ export default function Register() {
                         onChange={handleChange}
                         placeholder={label}
                         required={required}
+                        maxLength={maxLength}
+                        inputMode={inputMode}
                         autoComplete={name === 'organisationEmail' ? 'email' : 'off'}
                       />
                     </div>
@@ -288,10 +313,7 @@ export default function Register() {
             </fieldset>
 
             {/* RGPD art. 7 — acceptation explicite, active et bloquante.
-                Remplace la mention passive « en vous inscrivant vous acceptez… ».
-                Les deux liens pointent encore sur « # » : les pages Conditions
-                d'utilisation et Politique de confidentialité RESTENT À ÉCRIRE
-                (contenu juridique + routes), hors périmètre de ce correctif. */}
+                Remplace la mention passive « en vous inscrivant vous acceptez… ». */}
             <div className="field" style={{ marginBottom: 16 }}>
               <label
                 htmlFor="consentement"
@@ -311,9 +333,9 @@ export default function Register() {
                 <span>
                   <KeyRound size={13} style={{ verticalAlign: -1, marginRight: 4 }} />
                   {t('register.consentementAvant')}
-                  <Link to="#" className="auth-link">{t('register.cguLien')}</Link>
+                  <Link to="/condition-utilisation" target="_blank" rel="noopener noreferrer" className="auth-link">{t('register.cguLien')}</Link>
                   {t('register.consentementEntre')}
-                  <Link to="#" className="auth-link">{t('register.confidentialiteLien')}</Link>
+                  <Link to="/politique-confidentialite" target="_blank" rel="noopener noreferrer" className="auth-link">{t('register.confidentialiteLien')}</Link>
                   {t('register.consentementApres')}
                   <span style={{ color: 'var(--danger)' }}> *</span>
                 </span>
@@ -321,7 +343,7 @@ export default function Register() {
               {errors.consentement && <div className="error" id="consentement-error">{errors.consentement}</div>}
             </div>
 
-            <button className="btn btn-primary w-full btn-lg" type="submit" disabled={loading} style={{ marginTop: 8 }}>
+            <button className="btn btn-primary w-full btn-lg" type="submit" disabled={loading || !isFormValid} style={{ marginTop: 8 }}>
               {loading ? t('register.creationEnCours') : t('register.creerMonCompte')}
               {!loading && <ArrowRight size={18} />}
             </button>

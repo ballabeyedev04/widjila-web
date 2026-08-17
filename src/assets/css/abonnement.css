@@ -72,12 +72,12 @@
 }
 .plan-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 8px 24px rgba(30, 58, 95, 0.1);
+  box-shadow: 0 8px 24px rgba(242, 96, 12, 0.1);
   transform: translateY(-2px);
 }
 .plan-card.popular {
   border-color: var(--accent);
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 8px 24px rgba(255, 176, 32, 0.15);
 }
 
 .plan-popular-badge {
@@ -110,8 +110,8 @@
   color: #fff;
 }
 .plan-card[data-plan="starter"] .plan-icon-wrapper { background: linear-gradient(135deg, #64748b, #475569); }
-.plan-card[data-plan="pro"] .plan-icon-wrapper { background: linear-gradient(135deg, var(--accent), #d97706); }
-.plan-card[data-plan="business"] .plan-icon-wrapper { background: linear-gradient(135deg, var(--primary), #1e3a5f); }
+.plan-card[data-plan="pro"] .plan-icon-wrapper { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); }
+.plan-card[data-plan="business"] .plan-icon-wrapper { background: linear-gradient(135deg, var(--primary), var(--primary-darker)); }
 
 .plan-name { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
 .plan-description { font-size: 13px; color: var(--text-secondary); }

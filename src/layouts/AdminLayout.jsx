@@ -247,7 +247,7 @@ export default function AdminLayout() {
               {nonLues > 0 && <span className="bell-badge">{nonLues > 99 ? '99+' : nonLues}</span>}
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
-              <LogOut size={15} /> {t('deconnexion.titre')}
+              <LogOut size={15} /> <span className="btn-label-responsive">{t('deconnexion.titre')}</span>
             </button>
           </div>
         </header>

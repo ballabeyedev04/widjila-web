@@ -37,7 +37,10 @@
 
 .btn-sm { padding: 6px 11px; font-size: 12.5px; }
 .btn-lg { padding: 12px 22px; font-size: 15px; }
-.btn-icon { padding: 7px; width: 34px; height: 34px; }
+.btn-icon, .btn-icon-only { padding: 7px; width: 34px; height: 34px; flex-shrink: 0; }
+/* Variante utilisée sur les boutons de suppression (souvent `btn-ghost`) :
+   ne rougit qu'au survol, pour ne pas alarmer l'œil en permanence. */
+.btn-danger-hover:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); }
 
 /* ---------- Cartes ---------- */
 .card {
@@ -210,7 +213,7 @@
 .select:focus,
 .textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.12);
+  box-shadow: 0 0 0 3px rgba(242, 96, 12, 0.12);
 }
 .input.invalid, .select.invalid, .textarea.invalid { border-color: var(--danger); }
 .textarea { resize: vertical; min-height: 90px; }
@@ -275,6 +278,14 @@
   gap: 10px;
   padding: 16px 22px;
   border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .modal-backdrop { padding: 0; align-items: stretch; }
+  .modal { max-width: 100%; min-height: 100%; border-radius: 0; }
+  .modal-header, .modal-body, .modal-footer { padding: 16px; }
+  .modal-footer { flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1; }
 }
 
 /* ---------- États vides & chargements ---------- */
@@ -346,15 +357,80 @@
   flex-wrap: wrap;
 }
 .filter-bar .input, .filter-bar .select { width: auto; min-width: 170px; }
-.filter-bar .search-input { flex: 1; min-width: 220px; }
+.filter-bar .search-box { flex: 1; min-width: 220px; }
+@media (max-width: 600px) {
+  /* Sous 600px, chaque filtre prend sa propre ligne pleine largeur plutôt
+     que de se tasser à côté des autres. */
+  .filter-bar .input, .filter-bar .select, .filter-bar .search-box { width: 100%; min-width: 0; }
+}
+
+/* ---------- Champ de recherche avec icône + bouton d'effacement ---------- */
+.search-box { position: relative; display: flex; align-items: center; }
+.search-box > svg:first-child {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.search-box .input { padding-left: 36px; padding-right: 34px; width: 100%; }
+.icon-clear {
+  position: absolute;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.icon-clear:hover { background: var(--bg); color: var(--text); }
+
+/* ---------- Étiquette « chip » (adresse, dates, budget, zone…) ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  max-width: 100%;
+}
+.chip strong { color: var(--text); }
+
+/* ---------- Lien texte (titre cliquable dans une liste/tableau) ---------- */
+.link {
+  display: inline;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.link:hover { text-decoration: underline; }
 
 /* ---------- Détail / onglets ---------- */
-.tabs {
+.tabs, .tabs-bar {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
   overflow-x: auto;
+  /* La barre défile horizontalement plutôt que de casser sur plusieurs
+     lignes : plus lisible sur mobile qu'une grille d'onglets empilée, et
+     évite que les onglets ne débordent du conteneur. */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 .tab-btn {
   padding: 10px 16px;
@@ -373,12 +449,36 @@
 .tab-btn:hover { color: var(--primary); }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--accent); }
 
+/* ---------- Resserrement général sous 480px ----------
+   Les paddings pensés pour desktop (20-22px) mangent une part trop grande
+   d'un écran de 320-375px de large ; on les resserre sans changer la mise
+   en page elle-même. */
+@media (max-width: 480px) {
+  .card-pad, .card-body { padding: 14px; }
+  .card-header { padding: 14px 16px; }
+  .modal-header, .modal-body, .modal-footer { padding: 14px; }
+  .stat-card { padding: 14px; gap: 12px; }
+  .page-header { margin-bottom: 16px; }
+  .filter-bar { padding: 12px; }
+}
+
 /* ---------- Grid utilitaire ---------- */
 .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 @media (max-width: 900px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+/* Grilles « deux panneaux » (fiche + contenu, aperçu, dashboard) : les
+   ratios (colonne latérale fixe, colonne principale élargie) ne tiennent
+   que sur grand écran — sous 900px (bascule tablette/mobile de la sidebar,
+   voir layout.css) tout repasse sur une seule colonne empilée. */
+.grid-2-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.grid-2-panel.side-fixed { grid-template-columns: 340px 1fr; }
+.grid-2-panel.main-wide { grid-template-columns: 1.1fr 1fr; }
+@media (max-width: 900px) {
+  .grid-2-panel { grid-template-columns: 1fr !important; }
+}
 
 /* ---------- Liste d'infos clés / valeur ---------- */
 .kv-list { display: flex; flex-direction: column; }
@@ -430,7 +530,7 @@
 }
 .chantier-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 14px rgba(30, 58, 95, 0.08);
+  box-shadow: 0 4px 14px rgba(242, 96, 12, 0.08);
 }
 .chantier-card-top { display: flex; align-items: center; gap: 10px; }
 .chantier-card-nom {
@@ -468,7 +568,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(30, 58, 95, 0.07);
+  box-shadow: 0 1px 3px rgba(242, 96, 12, 0.07);
 }
 /* Ligne verticale du parent vers ses enfants */
 .org-tree-node.has-children::after {
@@ -576,6 +676,41 @@
   .compare-arrow { display: none; }
 }
 
+/* ---------- Vignettes média (photos réserves / inspections) ----------
+   `<img>` bruts sans cette règle prennent leur taille native (souvent
+   plusieurs milliers de px pour une photo de chantier) : la vignette et
+   toute sa grille débordent alors du conteneur, en particulier visible sur
+   mobile où le viewport est étroit. `object-fit: cover` force un carré
+   propre quelle que soit la taille/l'orientation d'origine de la photo. */
+.media-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f1f4f8;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-thumb img,
+.media-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.media-thumb .btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  border-color: transparent;
+  backdrop-filter: blur(2px);
+}
+.media-thumb .btn:hover { background: rgba(220, 38, 38, 0.85); }
+
 /* ---------- Upload ---------- */
 .upload-drop {
   border: 2px dashed var(--border-strong);
@@ -589,6 +724,314 @@
 .upload-drop:hover { border-color: var(--primary); background: var(--primary-100); }
 .upload-drop.has-file { border-color: var(--success); background: var(--success-bg); }
 .upload-drop .u-icon { color: var(--text-muted); margin-bottom: 8px; }
+
+/* ---------- Graphique en barres (inscriptions/mois, etc.) ---------- */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 160px;
+  padding-top: 6px;
+}
+.bar-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.bar-track {
+  flex: 1;
+  width: 100%;
+  max-width: 32px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg);
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+}
+.bar-fill {
+  width: 100%;
+  min-height: 3px;
+  background: linear-gradient(180deg, var(--accent-light), var(--primary));
+  border-radius: 6px 6px 0 0;
+  transition: height 0.4s ease;
+}
+.bar-label { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; }
+.bar-value { font-size: 12.5px; font-weight: 700; color: var(--text); }
+@media (max-width: 480px) {
+  .bar-chart { height: 120px; gap: 5px; }
+  .bar-label { font-size: 9.5px; }
+}
+
+/* ---------- Checklist (points de contrôle inspection) ---------- */
+.checklist-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.checklist-row:last-child { border-bottom: none; }
+.check-box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.check-box:hover:not(:disabled) { border-color: var(--primary); }
+.check-box.checked { background: var(--primary); border-color: var(--primary); }
+.check-box:disabled { cursor: not-allowed; opacity: 0.7; }
+
+/* ---------- Ligne de modèle (checklist / rapport réutilisable) ---------- */
+.model-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  flex-wrap: wrap;
+}
+
+/* ---------- Bulle de commentaire (réserves) ---------- */
+.comment-bubble {
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 12px 3px;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+/* ---------- Liste de notifications ---------- */
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.notification-item:last-child { border-bottom: none; }
+.notification-item:hover { background: #f8fafc; }
+.notification-item.unread { background: var(--primary-100); }
+.notification-item.unread:hover { background: var(--primary-200); }
+.notification-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--primary-100);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.notification-item.unread .notification-icon { background: var(--primary); color: #fff; }
+
+/* ---------- Phases du chantier (aperçu) ---------- */
+.phase-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+.phase-item:last-child { border-bottom: none; }
+
+/* ---------- Timeline (échéances à venir) ---------- */
+.timeline { display: flex; flex-direction: column; padding-left: 2px; }
+.timeline-item {
+  position: relative;
+  padding: 0 0 18px 20px;
+  border-left: 2px solid var(--border);
+}
+.timeline-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline-dot {
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.timeline-dot.reserve { background: var(--warning); }
+.timeline-dot.inspection { background: var(--info); }
+
+/* ---------- Structure du chantier (bâtiments / étages / zones) ---------- */
+.structure-node {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.structure-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.structure-title strong { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---------- Page 404 ---------- */
+.not-found {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 40px 20px;
+}
+.not-found-code { font-size: 84px; font-weight: 800; color: var(--primary-100); line-height: 1; }
+.not-found h1 { color: var(--text); font-size: 20px; }
+@media (max-width: 480px) { .not-found-code { font-size: 60px; } }
+
+/* ---------- Vignettes média (photos réserves / inspections) ----------
+   `<img>` bruts sans cette règle prennent leur taille native (souvent
+   plusieurs milliers de px pour une photo de chantier) : la vignette et
+   toute sa grille débordent alors du conteneur, en particulier visible sur
+   mobile où le viewport est étroit. `object-fit: cover` force un carré
+   propre quelle que soit la taille/l'orientation d'origine de la photo. */
+.media-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f1f4f8;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-thumb img,
+.media-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.media-thumb .btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  border-color: transparent;
+  backdrop-filter: blur(2px);
+}
+.media-thumb .btn:hover { background: rgba(220, 38, 38, 0.85); }
+
+/* ---------- Plans (cartes, visionneuse, annotations) ---------- */
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.plan-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-100), #eef1f6);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.plan-format {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: var(--primary-darker);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.plan-meta strong {
+  display: block;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-viewer { display: grid; grid-template-columns: 1fr 280px; gap: 18px; }
+.plan-stage {
+  position: relative;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+  border-radius: 12px;
+  overflow: auto;
+  padding: 12px;
+}
+.plan-stage img { display: block; max-width: 100%; }
+.plan-side { min-width: 0; }
+.annotation-marker {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  transform: translate(-50%, -100%) rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.annotation-marker svg { transform: rotate(45deg); }
+.annotation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 13px;
+}
+.annotation-item:last-child { border-bottom: none; }
+.annotation-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+@media (max-width: 700px) {
+  .plan-viewer { grid-template-columns: 1fr; }
+  .plan-side { border-top: 1px solid var(--border); padding-top: 14px; }
+}
 
 /* ---------- Toast React-Toastify ---------- */
 .Toastify__toast { font-family: var(--font); border-radius: var(--radius); font-size: 13.5px; }

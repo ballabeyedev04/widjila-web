@@ -6,6 +6,8 @@ import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
 import ResetPassword from '../pages/auth/ResetPassword.jsx';
 import VerifyEmail from '../pages/auth/VerifyEmail.jsx';
 import Abonnement from '../pages/abonnement/Abonnement.jsx';
+import ConditionsUtilisation from '../pages/legal/ConditionsUtilisation.jsx';
+import PolitiqueConfidentialite from '../pages/legal/PolitiqueConfidentialite.jsx';
 
 import AdminLayout from '../layouts/AdminLayout.jsx';
 // Rappel (voir ProtectedRoute.jsx) : ces gardes ne font que masquer l'UI. Les
@@ -48,6 +50,8 @@ export default function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/abonnement" element={<Abonnement />} />
+      <Route path="/condition-utilisation" element={<ConditionsUtilisation />} />
+      <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
 
       {/* ---------- Protégé (layout admin) ---------- */}
       <Route

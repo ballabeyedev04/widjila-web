@@ -191,8 +191,9 @@
   gap: 16px;
   padding: 0 24px;
 }
-.topbar-title { font-size: 17px; font-weight: 700; flex: 1; }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; }
+.topbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.topbar-subscription { display: flex; align-items: center; flex-shrink: 0; }
 .bell-btn {
   position: relative;
   width: 38px;
@@ -224,7 +225,7 @@
   justify-content: center;
 }
 
-.content { padding: 24px; flex: 1; }
+.content { padding: 24px; flex: 1; min-width: 0; }
 
 /* ---------- Mobile ---------- */
 .mobile-menu-btn {
@@ -266,4 +267,27 @@
 @media (max-width: 900px) {
   .main-col { margin-left: 0 !important; }
   .sidebar:not(.mobile) { display: none; }
+
+  /* Le bouton hamburger flotte en position fixe au-dessus du topbar : sans
+     cette marge, il chevauche le titre de page (topbar-title) qui commence
+     tout en haut à gauche du topbar. */
+  .topbar { padding-left: 62px; gap: 10px; }
+  .topbar-title {
+    min-width: 0;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar-right { gap: 8px; }
+
+  .content { padding: 16px; }
+}
+
+@media (max-width: 480px) {
+  .topbar { padding: 0 12px 0 58px; }
+  .content { padding: 12px; }
+  /* En dessous de 480px, plus assez de place pour l'icône ET le texte du
+     bouton de déconnexion à côté de la cloche et du badge d'abonnement. */
+  .btn-label-responsive { display: none; }
 }

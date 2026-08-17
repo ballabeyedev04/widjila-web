@@ -77,7 +77,7 @@ export default function Dashboard() {
 
       <MesChantiersCard />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 20 }}>
+      <div className="grid-2-panel main-wide">
         <div className="card">
           <div className="card-header">
             <h2>{t('dashboard.reservesParStatut')}</h2>

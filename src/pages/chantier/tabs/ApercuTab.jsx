@@ -66,7 +66,7 @@ export default function ApercuTab({ chantierId }) {
         <StatCard label={t('apercu.statDocuments')} value={stats?.documents ?? '—'} tone="navy" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="grid-2-panel">
         <div className="card">
           <div className="card-header">
             <h2><ListChecks size={17} style={{ verticalAlign: -2 }} /> {t('apercu.phasesTitre')}</h2>
