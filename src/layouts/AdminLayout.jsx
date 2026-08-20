@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   FileSearch,
   UserRound,
+  UserCheck,
   AlertCircle,
   Zap,
   CreditCard,
@@ -125,6 +126,7 @@ export default function AdminLayout() {
     { path: '/plateforme', label: t('nav.vuePlateforme'), icon: ShieldCheck },
     { path: '/plateforme/utilisateurs', label: t('nav.utilisateurs'), icon: Users },
     { path: '/plateforme/organisations', label: t('nav.organisations'), icon: Building2 },
+    { path: '/plateforme/demandes', label: t('nav.demandesInscription'), icon: UserCheck },
     { path: '/plateforme/audit', label: t('nav.journalAudit'), icon: FileSearch },
   ];
 

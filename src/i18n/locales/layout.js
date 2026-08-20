@@ -30,6 +30,7 @@ export default {
       vuePlateforme: 'Vue plateforme',
       utilisateurs: 'Utilisateurs',
       organisations: 'Organisations',
+      demandesInscription: "Demandes d'inscription",
       journalAudit: "Journal d'audit",
     },
     topbar: {
@@ -97,6 +98,7 @@ export default {
       vuePlateforme: 'Platform overview',
       utilisateurs: 'Users',
       organisations: 'Organizations',
+      demandesInscription: 'Registration requests',
       journalAudit: 'Audit log',
     },
     topbar: {
@@ -164,6 +166,7 @@ export default {
       vuePlateforme: 'Plattformübersicht',
       utilisateurs: 'Benutzer',
       organisations: 'Organisationen',
+      demandesInscription: 'Registrierungsanfragen',
       journalAudit: 'Audit-Protokoll',
     },
     topbar: {
@@ -231,6 +234,7 @@ export default {
       vuePlateforme: 'Vista de plataforma',
       utilisateurs: 'Usuarios',
       organisations: 'Organizaciones',
+      demandesInscription: 'Solicitudes de registro',
       journalAudit: 'Registro de auditoría',
     },
     topbar: {

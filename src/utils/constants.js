@@ -30,6 +30,8 @@ export const ROLES = {
   Client: { label: 'Client', tone: 'neutral' },
   MaitreOuvrage: { label: "Maître d'ouvrage", tone: 'primary' },
   MaitreOeuvre: { label: "Maître d'œuvre", tone: 'success' },
+  Pilote: { label: 'Pilote de chantier', tone: 'info' },
+  SousTraitant: { label: 'Sous-traitant', tone: 'neutral' },
 };
 
 export const roleLabel = (role) => enumLabel(role, ROLES[role]?.label || role || '—');
@@ -50,8 +52,13 @@ export const ROLES_PILOTAGE = ['ChefProjet', 'ConducteurTravaux', 'BureauControl
 /** Gestion de l'organisation, des membres et des équipes. */
 export const ROLES_GESTION = ['Admin', 'ChefProjet', 'MaitreOuvrage'];
 
-/** Interventions sur les réserves (signalement, correction, validation). */
-export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', 'Entreprise'];
+/**
+ * Interventions sur les réserves (signalement, correction, validation).
+ * `Pilote` rejoint ce groupe (même groupe backend RESERVE_INTERVENANTS) ;
+ * `SousTraitant` n'y est PAS — accès restreint aux réserves qui lui sont
+ * assignées, voir `backend/src/config/roles.js#SOUS_TRAITANT`.
+ */
+export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', 'Entreprise', 'Pilote'];
 
 /**
  * Page d'accueil après connexion, par rôle (le « portail » de l'utilisateur).
@@ -66,6 +73,8 @@ export const ROLE_HOME = {
   Client: '/chantiers',
   MaitreOuvrage: '/dashboard',
   MaitreOeuvre: '/dashboard',
+  Pilote: '/dashboard',
+  SousTraitant: '/chantiers',
 };
 
 /** Route d'accueil par défaut d'un rôle (fallback : tableau de bord). */
@@ -88,6 +97,7 @@ export const STATUTS_CHANTIER = {
 export const STATUTS_RESERVE = {
   creee: { label: 'Créée', tone: 'neutral' },
   affectee: { label: 'Affectée', tone: 'info' },
+  prise_en_charge: { label: 'Prise en charge', tone: 'info' },
   en_cours: { label: 'En cours', tone: 'warning' },
   corrigee: { label: 'Corrigée', tone: 'primary' },
   a_verifier: { label: 'À vérifier', tone: 'warning' },
@@ -143,6 +153,7 @@ export const STATUTS_UTILISATEUR = {
   actif: { label: 'Actif', tone: 'success' },
   inactif: { label: 'Inactif', tone: 'danger' },
   en_attente_validation: { label: 'En attente', tone: 'warning' },
+  rejete: { label: 'Rejeté', tone: 'danger' },
 };
 
 export const TYPES_DOCUMENT = {

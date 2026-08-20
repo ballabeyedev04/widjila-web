@@ -92,8 +92,8 @@ export default {
       creerMonCompte: 'Créer mon compte',
       dejaCompte: 'Vous avez déjà un compte ?',
       seConnecter: 'Se connecter',
-      succesTitre: 'Inscription réussie',
-      succesTexte: 'Votre compte a été créé. Vérifiez votre email pour activer votre compte.',
+      succesTitre: 'Demande enregistrée',
+      succesTexte: "Vérifiez votre email pour confirmer votre adresse. Votre compte sera actif dès qu'un administrateur aura validé votre demande — vous recevrez un email.",
       erreurTitre: 'Inscription impossible',
     },
     forgotPassword: {
@@ -230,8 +230,8 @@ export default {
       creerMonCompte: 'Create my account',
       dejaCompte: 'Already have an account?',
       seConnecter: 'Sign in',
-      succesTitre: 'Registration successful',
-      succesTexte: 'Your account has been created. Check your email to activate it.',
+      succesTitre: 'Request submitted',
+      succesTexte: 'Check your email to confirm your address. Your account will be active once an administrator approves your request — you will receive an email.',
       erreurTitre: 'Unable to sign up',
     },
     forgotPassword: {
@@ -370,8 +370,8 @@ export default {
       creerMonCompte: 'Mein Konto erstellen',
       dejaCompte: 'Sie haben bereits ein Konto?',
       seConnecter: 'Anmelden',
-      succesTitre: 'Registrierung erfolgreich',
-      succesTexte: 'Ihr Konto wurde erstellt. Prüfen Sie Ihre E-Mails, um es zu aktivieren.',
+      succesTitre: 'Anfrage eingereicht',
+      succesTexte: 'Prüfen Sie Ihre E-Mails, um Ihre Adresse zu bestätigen. Ihr Konto wird aktiv, sobald ein Administrator Ihre Anfrage genehmigt hat — Sie erhalten eine E-Mail.',
       erreurTitre: 'Registrierung nicht möglich',
     },
     forgotPassword: {
@@ -508,8 +508,8 @@ export default {
       creerMonCompte: 'Crear mi cuenta',
       dejaCompte: '¿Ya tiene una cuenta?',
       seConnecter: 'Iniciar sesión',
-      succesTitre: 'Registro completado',
-      succesTexte: 'Su cuenta ha sido creada. Revise su correo para activarla.',
+      succesTitre: 'Solicitud registrada',
+      succesTexte: 'Revise su correo para confirmar su dirección. Su cuenta estará activa en cuanto un administrador apruebe su solicitud — recibirá un correo.',
       erreurTitre: 'No se pudo completar el registro',
     },
     forgotPassword: {

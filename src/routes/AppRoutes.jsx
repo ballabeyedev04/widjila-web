@@ -37,6 +37,7 @@ import NotFound from '../pages/error/NotFound.jsx';
 import PlateformeDashboard from '../pages/plateforme/PlateformeDashboard.jsx';
 import PlateformeUtilisateurs from '../pages/plateforme/PlateformeUtilisateurs.jsx';
 import PlateformeOrganisations from '../pages/plateforme/PlateformeOrganisations.jsx';
+import PlateformeDemandes from '../pages/plateforme/PlateformeDemandes.jsx';
 import PlateformeAudit from '../pages/plateforme/PlateformeAudit.jsx';
 
 export default function AppRoutes() {
@@ -95,6 +96,14 @@ export default function AppRoutes() {
           element={
             <SuperAdminRoute>
               <PlateformeOrganisations />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="plateforme/demandes"
+          element={
+            <SuperAdminRoute>
+              <PlateformeDemandes />
             </SuperAdminRoute>
           }
         />

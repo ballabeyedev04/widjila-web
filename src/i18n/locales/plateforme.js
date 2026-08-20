@@ -1,6 +1,45 @@
 /** Namespace `plateforme` — super-admin, tableau de bord, notifications, abonnement, 404. */
 export default {
   fr: {
+    demandes: {
+      titre: "Demandes d'inscription",
+      sousTitre: '{{total}} demande(s)',
+      recherchePlaceholder: 'Rechercher par nom ou email…',
+      onglets: {
+        enAttente: 'En attente',
+        rejetees: 'Rejetées',
+        validees: 'Validées',
+      },
+      colonnes: {
+        demandeur: 'Demandeur',
+        organisation: 'Organisation',
+        roleDemande: 'Rôle demandé',
+        demandeLe: 'Demandée le',
+        traiteeLe: 'Traitée le',
+      },
+      aucuneDemande: 'Aucune demande',
+      aucuneDemandeMessage: 'Les nouvelles inscriptions apparaîtront ici en attente de votre décision.',
+      valider: 'Valider',
+      rejeter: 'Rejeter',
+      motifRejet: 'Motif du rejet',
+      valideeSucces: 'Demande validée. Le demandeur a été prévenu par email.',
+      rejeteeSucces: 'Demande rejetée. Le demandeur a été prévenu par email.',
+      modalValider: {
+        titre: 'Valider la demande',
+        intro: 'Le compte de {{nom}} sera activé et un email de confirmation lui sera envoyé.',
+        roleLabel: 'Rôle attribué',
+        roleAide: "Le rôle demandé à l'inscription est « Entreprise ». Choisissez « Chef de projet » si ce compte doit administrer son organisation.",
+        confirmer: 'Valider et envoyer l’email',
+      },
+      modalRejeter: {
+        titre: 'Rejeter la demande',
+        intro: 'Ce motif sera envoyé tel quel à {{nom}} par email. C’est la seule explication qu’il recevra.',
+        motifLabel: 'Motif du rejet',
+        motifPlaceholder: 'Expliquez pourquoi cette demande est refusée…',
+        motifRequis: 'Le motif est obligatoire (5 caractères minimum).',
+        confirmer: 'Rejeter et envoyer l’email',
+      },
+    },
     dashboard: {
       erreurStats: 'Impossible de charger les statistiques',
       chargement: 'Chargement des statistiques…',
@@ -216,6 +255,45 @@ export default {
   },
 
   en: {
+    demandes: {
+      titre: 'Registration requests',
+      sousTitre: '{{total}} request(s)',
+      recherchePlaceholder: 'Search by name or email…',
+      onglets: {
+        enAttente: 'Pending',
+        rejetees: 'Rejected',
+        validees: 'Approved',
+      },
+      colonnes: {
+        demandeur: 'Applicant',
+        organisation: 'Organization',
+        roleDemande: 'Requested role',
+        demandeLe: 'Requested on',
+        traiteeLe: 'Handled on',
+      },
+      aucuneDemande: 'No requests',
+      aucuneDemandeMessage: 'New sign-ups will appear here awaiting your decision.',
+      valider: 'Approve',
+      rejeter: 'Reject',
+      motifRejet: 'Rejection reason',
+      valideeSucces: 'Request approved. The applicant has been notified by email.',
+      rejeteeSucces: 'Request rejected. The applicant has been notified by email.',
+      modalValider: {
+        titre: 'Approve request',
+        intro: "{{nom}}'s account will be activated and a confirmation email sent.",
+        roleLabel: 'Assigned role',
+        roleAide: 'The role requested at sign-up is «Company». Pick «Project manager» if this account should administer its organization.',
+        confirmer: 'Approve and send email',
+      },
+      modalRejeter: {
+        titre: 'Reject request',
+        intro: 'This reason will be emailed to {{nom}} as written. It is the only explanation they will receive.',
+        motifLabel: 'Rejection reason',
+        motifPlaceholder: 'Explain why this request is refused…',
+        motifRequis: 'A reason is required (5 characters minimum).',
+        confirmer: 'Reject and send email',
+      },
+    },
     dashboard: {
       erreurStats: 'Unable to load the statistics',
       chargement: 'Loading statistics…',
@@ -431,6 +509,45 @@ export default {
   },
 
   de: {
+    demandes: {
+      titre: 'Registrierungsanfragen',
+      sousTitre: '{{total}} Anfrage(n)',
+      recherchePlaceholder: 'Nach Name oder E-Mail suchen…',
+      onglets: {
+        enAttente: 'Ausstehend',
+        rejetees: 'Abgelehnt',
+        validees: 'Genehmigt',
+      },
+      colonnes: {
+        demandeur: 'Antragsteller',
+        organisation: 'Organisation',
+        roleDemande: 'Angefragte Rolle',
+        demandeLe: 'Angefragt am',
+        traiteeLe: 'Bearbeitet am',
+      },
+      aucuneDemande: 'Keine Anfragen',
+      aucuneDemandeMessage: 'Neue Registrierungen erscheinen hier und warten auf Ihre Entscheidung.',
+      valider: 'Genehmigen',
+      rejeter: 'Ablehnen',
+      motifRejet: 'Ablehnungsgrund',
+      valideeSucces: 'Anfrage genehmigt. Der Antragsteller wurde per E-Mail benachrichtigt.',
+      rejeteeSucces: 'Anfrage abgelehnt. Der Antragsteller wurde per E-Mail benachrichtigt.',
+      modalValider: {
+        titre: 'Anfrage genehmigen',
+        intro: 'Das Konto von {{nom}} wird aktiviert und eine Bestätigungs-E-Mail versendet.',
+        roleLabel: 'Zugewiesene Rolle',
+        roleAide: 'Die bei der Registrierung angefragte Rolle ist „Unternehmen“. Wählen Sie „Projektleiter“, wenn dieses Konto seine Organisation verwalten soll.',
+        confirmer: 'Genehmigen und E-Mail senden',
+      },
+      modalRejeter: {
+        titre: 'Anfrage ablehnen',
+        intro: 'Dieser Grund wird unverändert per E-Mail an {{nom}} gesendet. Es ist die einzige Erklärung, die er erhält.',
+        motifLabel: 'Ablehnungsgrund',
+        motifPlaceholder: 'Erläutern Sie, warum diese Anfrage abgelehnt wird…',
+        motifRequis: 'Ein Grund ist erforderlich (mindestens 5 Zeichen).',
+        confirmer: 'Ablehnen und E-Mail senden',
+      },
+    },
     dashboard: {
       erreurStats: 'Statistiken konnten nicht geladen werden',
       chargement: 'Statistiken werden geladen…',
@@ -646,6 +763,45 @@ export default {
   },
 
   es: {
+    demandes: {
+      titre: 'Solicitudes de registro',
+      sousTitre: '{{total}} solicitud(es)',
+      recherchePlaceholder: 'Buscar por nombre o correo…',
+      onglets: {
+        enAttente: 'Pendientes',
+        rejetees: 'Rechazadas',
+        validees: 'Aprobadas',
+      },
+      colonnes: {
+        demandeur: 'Solicitante',
+        organisation: 'Organización',
+        roleDemande: 'Rol solicitado',
+        demandeLe: 'Solicitada el',
+        traiteeLe: 'Tratada el',
+      },
+      aucuneDemande: 'Sin solicitudes',
+      aucuneDemandeMessage: 'Los nuevos registros aparecerán aquí a la espera de su decisión.',
+      valider: 'Aprobar',
+      rejeter: 'Rechazar',
+      motifRejet: 'Motivo del rechazo',
+      valideeSucces: 'Solicitud aprobada. Se ha notificado al solicitante por correo.',
+      rejeteeSucces: 'Solicitud rechazada. Se ha notificado al solicitante por correo.',
+      modalValider: {
+        titre: 'Aprobar la solicitud',
+        intro: 'La cuenta de {{nom}} se activará y se le enviará un correo de confirmación.',
+        roleLabel: 'Rol asignado',
+        roleAide: 'El rol solicitado en el registro es «Empresa». Elija «Jefe de proyecto» si esta cuenta debe administrar su organización.',
+        confirmer: 'Aprobar y enviar el correo',
+      },
+      modalRejeter: {
+        titre: 'Rechazar la solicitud',
+        intro: 'Este motivo se enviará tal cual a {{nom}} por correo. Es la única explicación que recibirá.',
+        motifLabel: 'Motivo del rechazo',
+        motifPlaceholder: 'Explique por qué se rechaza esta solicitud…',
+        motifRequis: 'El motivo es obligatorio (mínimo 5 caracteres).',
+        confirmer: 'Rechazar y enviar el correo',
+      },
+    },
     dashboard: {
       erreurStats: 'No se pudieron cargar las estadísticas',
       chargement: 'Cargando las estadísticas…',

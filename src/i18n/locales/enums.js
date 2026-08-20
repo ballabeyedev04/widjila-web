@@ -10,6 +10,8 @@ export default {
     Client: 'Client',
     MaitreOuvrage: "Maître d'ouvrage",
     MaitreOeuvre: "Maître d'œuvre",
+    Pilote: 'Pilote de chantier',
+    SousTraitant: 'Sous-traitant',
 
     // Statuts de chantier
     en_preparation: 'En préparation',
@@ -21,6 +23,7 @@ export default {
     // Statuts de réserve
     creee: 'Créée',
     affectee: 'Affectée',
+    prise_en_charge: 'Prise en charge',
     corrigee: 'Corrigée',
     a_verifier: 'À vérifier',
     validee: 'Validée',
@@ -68,6 +71,7 @@ export default {
     actif: 'Actif',
     inactif: 'Inactif',
     en_attente_validation: 'En attente',
+    rejete: 'Rejeté',
 
     // Types de document
     plan: 'Plan',
@@ -104,6 +108,8 @@ export default {
     Client: 'Client',
     MaitreOuvrage: 'Project owner',
     MaitreOeuvre: 'Project supervisor',
+    Pilote: 'Site coordinator',
+    SousTraitant: 'Subcontractor',
 
     // Site statuses
     en_preparation: 'In preparation',
@@ -115,6 +121,7 @@ export default {
     // Snag statuses
     creee: 'Created',
     affectee: 'Assigned',
+    prise_en_charge: 'Acknowledged',
     corrigee: 'Corrected',
     a_verifier: 'To be checked',
     validee: 'Approved',
@@ -162,6 +169,7 @@ export default {
     actif: 'Active',
     inactif: 'Inactive',
     en_attente_validation: 'Pending',
+    rejete: 'Rejected',
 
     // Document types
     plan: 'Drawing',
@@ -198,6 +206,8 @@ export default {
     Client: 'Kunde',
     MaitreOuvrage: 'Bauherr',
     MaitreOeuvre: 'Planer',
+    Pilote: 'Baustellenkoordinator',
+    SousTraitant: 'Subunternehmer',
 
     // Baustellenstatus
     en_preparation: 'In Vorbereitung',
@@ -209,6 +219,7 @@ export default {
     // Mängelstatus
     creee: 'Erstellt',
     affectee: 'Zugewiesen',
+    prise_en_charge: 'Angenommen',
     corrigee: 'Behoben',
     a_verifier: 'Zu prüfen',
     validee: 'Freigegeben',
@@ -256,6 +267,7 @@ export default {
     actif: 'Aktiv',
     inactif: 'Inaktiv',
     en_attente_validation: 'Ausstehend',
+    rejete: 'Abgelehnt',
 
     // Dokumentarten
     plan: 'Plan',
@@ -292,6 +304,8 @@ export default {
     Client: 'Cliente',
     MaitreOuvrage: 'Promotor',
     MaitreOeuvre: 'Dirección facultativa',
+    Pilote: 'Coordinador de obra',
+    SousTraitant: 'Subcontratista',
 
     // Estados de obra
     en_preparation: 'En preparación',
@@ -303,6 +317,7 @@ export default {
     // Estados de reserva
     creee: 'Creada',
     affectee: 'Asignada',
+    prise_en_charge: 'Asumida',
     corrigee: 'Corregida',
     a_verifier: 'Por verificar',
     validee: 'Validada',
@@ -350,6 +365,7 @@ export default {
     actif: 'Activo',
     inactif: 'Inactivo',
     en_attente_validation: 'Pendiente',
+    rejete: 'Rechazado',
 
     // Tipos de documento
     plan: 'Plano',

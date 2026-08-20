@@ -101,3 +101,30 @@ export const listerAuditLogs = async ({ page = 1, limit = 20, action = '', cible
   });
   return normalizeList(unwrap(response), 'logs');
 };
+
+/* ---------- Demandes d'inscription ---------- */
+export const listerDemandesInscription = async ({ page = 1, limit = 20, search = '', statut = '' } = {}) => {
+  const response = await api.get('/admin/demandes-inscription', {
+    params: {
+      page, limit,
+      search: search?.trim() || undefined,
+      statut: statut || undefined,
+    },
+  });
+  return normalizeList(unwrap(response), 'demandes');
+};
+
+export const compterDemandesEnAttente = async () => {
+  const response = await api.get('/admin/demandes-inscription/en-attente/compteur');
+  return unwrap(response)?.total ?? 0;
+};
+
+export const validerDemandeInscription = async (id, role) => {
+  const response = await api.post(`/admin/demandes-inscription/${id}/valider`, role ? { role } : {});
+  return unwrap(response)?.demande;
+};
+
+export const rejeterDemandeInscription = async (id, motif) => {
+  const response = await api.post(`/admin/demandes-inscription/${id}/rejeter`, { motif });
+  return unwrap(response)?.demande;
+};

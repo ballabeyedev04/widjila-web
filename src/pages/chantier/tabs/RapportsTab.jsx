@@ -132,7 +132,7 @@ function GenererRapportModal({ open, onClose, chantierId, onGenerated }) {
       {form.type === 'reserves' && (
         <Select label={t('rapports.filtrerStatut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })} emptyOption>
           <option value="">{t('commun.tousStatuts')}</option>
-          {['creee', 'affectee', 'en_cours', 'corrigee', 'a_verifier', 'validee', 'refusee', 'rouverte', 'cloturee'].map((s) => <option key={s} value={s}>{enumLabel(s, s.replace(/_/g, ' '))}</option>)}
+          {['creee', 'affectee', 'prise_en_charge', 'en_cours', 'corrigee', 'a_verifier', 'validee', 'refusee', 'rouverte', 'cloturee'].map((s) => <option key={s} value={s}>{enumLabel(s, s.replace(/_/g, ' '))}</option>)}
         </Select>
       )}
       {form.type === 'entreprise' && (
