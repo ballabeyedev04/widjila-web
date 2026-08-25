@@ -7,6 +7,7 @@ import {
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
 import DataTable from '../../../components/table/DataTable.jsx';
+import EmptyState from '../../../components/EmptyState.jsx';
 import { Input, Select, Textarea } from '../../../components/FormControls.jsx';
 import {
   listerInspections, creerInspection, getInspection, modifierInspection, supprimerInspection,

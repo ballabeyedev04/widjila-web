@@ -4,6 +4,7 @@ import { Plus, Building2, Layers, Boxes, Package } from 'lucide-react';
 
 import Modal from '../../../components/Modal.jsx';
 import DataTable from '../../../components/table/DataTable.jsx';
+import EmptyState from '../../../components/EmptyState.jsx';
 import { Input, Select } from '../../../components/FormControls.jsx';
 import { creerBatiment, creerEtage, creerZone, creerLot, listerLots } from '../../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
