@@ -15,6 +15,7 @@ import { useServerList } from '../../hooks/useServerList.js';
 import {
   listerChantiers, creerChantier, modifierChantier, supprimerChantier, dupliquerChantier,
 } from '../../service/chantier/chantierService.js';
+import { listerOrganisations } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
 import { STATUTS_CHANTIER, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
@@ -99,6 +100,12 @@ export default function Chantiers() {
                       <div>
                         <h2 style={{ fontSize: 17 }}><Link className="link" to={`/chantiers/${c.id}`}>{c.nom}</Link></h2>
                         {c.code && <span className="text-muted" style={{ fontSize: 12 }}>{c.code}</span>}
+                        {/* Le super-admin voit le portefeuille de TOUTES les
+                            organisations : sans ce rappel, rien ne distingue
+                            deux chantiers homonymes appartenant à deux clients. */}
+                        {role === 'Admin' && c.organisation?.nom && (
+                          <span className="text-muted" style={{ fontSize: 12, display: 'block' }}>{c.organisation.nom}</span>
+                        )}
                       </div>
                       <Badge statusKey={c.statut} />
                     </div>
@@ -131,7 +138,14 @@ export default function Chantiers() {
 
 function ChantierModal({ open, onClose, chantier, onSaved }) {
   const { t } = useTranslation('chantier');
+  const { user } = useUser();
   const isEdit = !!chantier;
+  // Le super-admin plateforme n'appartient à aucune organisation : il désigne
+  // celle à qui le chantier revient. Pour tout autre rôle, le backend impose
+  // l'organisation du compte et refuse toute autre valeur — inutile de
+  // demander quoi que ce soit.
+  const choisitOrganisation = user?.role === 'Admin' && !isEdit;
+  const [organisations, setOrganisations] = useState([]);
   const [form, setForm] = useState({
     // Noms alignés sur le contrat de l'API (snake_case) : le schéma Joi valide
     // avec stripUnknown, une clé en camelCase serait retirée sans erreur.
@@ -140,6 +154,7 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
     // des attributs de l'ORGANISATION (Table organisations : city, country).
     nom: '', code: '', description: '', adresse: '',
     date_debut: '', date_fin: '', budget: '', statut: 'en_preparation',
+    organisationId: '',
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -153,16 +168,24 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
         budget: chantier.budget ?? '', statut: chantier.statut || 'en_preparation',
       });
     } else {
-      setForm({ nom: '', code: '', description: '', adresse: '', date_debut: '', date_fin: '', budget: '', statut: 'en_preparation' });
+      setForm({ nom: '', code: '', description: '', adresse: '', date_debut: '', date_fin: '', budget: '', statut: 'en_preparation', organisationId: '' });
     }
     setErrors({});
   };
   useEffect(() => { if (open) reset(); }, [open, chantier]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Chargé à l'ouverture seulement, et seulement pour le super-admin : la
+  // route /admin/organisations est fermée aux autres rôles (403).
+  useEffect(() => {
+    if (!open || !choisitOrganisation) return;
+    listerOrganisations({ limit: 200 }).then((d) => setOrganisations(d.items)).catch(() => setOrganisations([]));
+  }, [open, choisitOrganisation]);
+
   const submit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!form.nom.trim()) errs.nom = t('commun.nomRequis');
+    if (choisitOrganisation && !form.organisationId) errs.organisationId = t('liste.organisationRequise');
     if (form.date_debut && form.date_fin && new Date(form.date_debut) > new Date(form.date_fin)) errs.date_fin = t('liste.finApresDebut');
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -173,6 +196,7 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
       date_debut: form.date_debut || undefined, date_fin: form.date_fin || undefined,
       budget: form.budget === '' ? undefined : Number(form.budget),
       statut: form.statut,
+      ...(choisitOrganisation ? { organisationId: form.organisationId } : {}),
     };
     setSaving(true);
     try {
@@ -197,6 +221,18 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
       </>
     }>
       <form onSubmit={submit}>
+        {choisitOrganisation && (
+          <Select
+            label={t('liste.organisationProprietaire')}
+            value={form.organisationId}
+            onChange={(e) => setForm({ ...form, organisationId: e.target.value })}
+            error={errors.organisationId}
+            required
+          >
+            <option value="">{t('liste.choisirOrganisation')}</option>
+            {organisations.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
+          </Select>
+        )}
         <div className="grid-2">
           <Input label={t('liste.nomChantier')} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} error={errors.nom} required />
           <Input label={t('commun.code')} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="CH-2026-001" />

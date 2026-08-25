@@ -175,7 +175,11 @@ function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }
     try {
       const payload = {
         nom: form.nom, prenom: form.prenom, email: form.email, fonction: form.fonction,
-        role: form.role, statut: form.statut, organisationId: form.organisationId,
+        role: form.role, statut: form.statut,
+        // Sélecteur laissé vide → `null`, pas `''` : le schéma Joi du backend
+        // attend un UUID ou `null`, et une chaîne vide échouait sur « must be a
+        // valid GUID » au lieu du message métier (« sélectionnez une organisation »).
+        organisationId: form.organisationId || null,
       };
       if (isEdit) {
         await modifierUtilisateurAdmin(utilisateur.id, payload);

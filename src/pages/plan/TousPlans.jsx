@@ -10,6 +10,7 @@ import { listerTousPlans } from '../../service/plan/planService.js';
 import { listerChantiers } from '../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate } from '../../utils/format.js';
+import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 
 /**
@@ -22,6 +23,10 @@ import SwalCustom from '../../utils/swal.config.js';
  */
 export default function TousPlans() {
   const { t } = useTranslation('chantier');
+  const { user } = useUser();
+  // Le super-admin plateforme voit les plans de TOUTES les organisations :
+  // le nom du chantier seul ne dit pas de quel client il s'agit.
+  const montrerOrganisation = user?.role === 'Admin';
   const [plans, setPlans] = useState([]);
   const [chantiers, setChantiers] = useState([]);
   const [chantierId, setChantierId] = useState('');
@@ -105,6 +110,12 @@ export default function TousPlans() {
                 <p className="text-muted" style={{ margin: 0, fontSize: 12.5 }}>
                   <Building2 size={12} style={{ verticalAlign: -2 }} /> {p.chantier?.nom || '—'}
                 </p>
+
+                {montrerOrganisation && p.chantier?.organisation?.nom && (
+                  <p className="text-muted" style={{ margin: '2px 0 0', fontSize: 11.5 }}>
+                    {p.chantier.organisation.nom}
+                  </p>
+                )}
 
                 {p.createdAt && (
                   <p className="text-muted" style={{ margin: '8px 0 0', fontSize: 11.5 }}>
