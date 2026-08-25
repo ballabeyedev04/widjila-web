@@ -167,7 +167,12 @@ export default function ChantierDetail() {
 
       <div className="mt-4">
         {activeTab === 'apercu' && <ApercuTab chantierId={chantier.id} chantier={chantier} />}
-        {activeTab === 'structure' && <StructureTab chantierId={chantier.id} chantier={chantier} canManage={canManage} />}
+        {/* `onStructureChange` : bâtiments, étages et zones sont portés par le
+            chantier lui-même (`getChantier` les renvoie imbriqués), pas par un
+            appel propre à l'onglet. Après une création, c'est donc au parent de
+            recharger — sans quoi l'onglet affiche encore « Aucun bâtiment »
+            alors que le serveur a bien répondu 201. */}
+        {activeTab === 'structure' && <StructureTab chantierId={chantier.id} chantier={chantier} canManage={canManage} onStructureChange={load} />}
         {activeTab === 'plans' && <PlansTab chantierId={chantier.id} canManage={canManage} />}
         {activeTab === 'reserves' && <ReservesTab chantierId={chantier.id} />}
         {activeTab === 'inspections' && <InspectionsTab chantierId={chantier.id} canManage={canManage} />}

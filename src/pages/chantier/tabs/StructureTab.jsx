@@ -10,7 +10,15 @@ import { creerBatiment, creerEtage, creerZone, creerLot, listerLots } from '../.
 import { getErrorMessage } from '../../../service/helpers.js';
 import SwalCustom from '../../../utils/swal.config.js';
 
-export default function StructureTab({ chantierId, chantier, canManage }) {
+/**
+ * @param {Function} [onStructureChange] Recharge le chantier après création
+ *   d'un bâtiment, d'un étage ou d'une zone. Ces trois-là vivent DANS l'objet
+ *   chantier (renvoyé imbriqué par `getChantier`) : sans ce rappel au parent,
+ *   la liste reste figée après un 201 et l'écran affiche « Aucun bâtiment »
+ *   alors que l'enregistrement a réussi. Les lots, eux, ont leur propre
+ *   endpoint et se rechargent localement via `loadLots`.
+ */
+export default function StructureTab({ chantierId, chantier, canManage, onStructureChange }) {
   const { t } = useTranslation('chantier');
   const [lots, setLots] = useState(chantier?.lots || []);
   const [show, setShow] = useState(null); // {type:'batiment'} | {type:'etage',batiment} | {type:'zone',batiment,etage} | {type:'lot'}
@@ -116,7 +124,13 @@ export default function StructureTab({ chantierId, chantier, canManage }) {
         </div>
       </div>
 
-      <CreateStructureModal open={!!show} onClose={() => setShow(null)} chantierId={chantierId} target={show} onSaved={() => { if (show?.type === 'lot') loadLots(); }} />
+      <CreateStructureModal
+        open={!!show}
+        onClose={() => setShow(null)}
+        chantierId={chantierId}
+        target={show}
+        onSaved={() => { if (show?.type === 'lot') loadLots(); else onStructureChange?.(); }}
+      />
     </div>
   );
 }
