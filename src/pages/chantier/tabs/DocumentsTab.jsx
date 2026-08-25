@@ -4,7 +4,7 @@ import { Plus, Search, X, Upload, Trash2, FileText, Archive, RotateCcw, PenTool,
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
-import EmptyState from '../../../components/EmptyState.jsx';
+import DataTable from '../../../components/table/DataTable.jsx';
 import { Input, Select } from '../../../components/FormControls.jsx';
 import {
   uploaderDocument, listerDocuments, archiverDocument, restaurerDocument,
@@ -63,6 +63,81 @@ export default function DocumentsTab({ chantierId, canManage }) {
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
 
+  const colonnes = [
+    {
+      cle: 'icone',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      largeur: 40,
+      rendu: () => <FileText size={18} style={{ color: 'var(--text-muted)' }} />,
+    },
+    {
+      cle: 'nom',
+      titre: t('documents.colDocument'),
+      filtre: 'texte',
+      // La description entre dans la recherche : c'est souvent là que se
+      // trouve le mot qu'on cherche, pas dans le nom de fichier.
+      valeur: (d) => `${d.nom ?? ''} ${d.description ?? ''}`.trim(),
+      rendu: (d) => (
+        <>
+          <button className="link" onClick={() => setViewing(d)}>{d.nom}</button>
+          {d.description && <div className="text-muted" style={{ fontSize: 12 }}>{d.description}</div>}
+        </>
+      ),
+    },
+    {
+      cle: 'type',
+      titre: t('champs.type'),
+      filtre: 'select',
+      options: Object.keys(TYPES_DOCUMENT).map((v) => ({
+        valeur: v,
+        label: enumLabel(v, TYPES_DOCUMENT[v]),
+      })),
+      valeur: (d) => d.type,
+      rendu: (d) => <span className="badge badge-neutral">{enumLabel(d.type, TYPES_DOCUMENT[d.type] || d.type)}</span>,
+    },
+    {
+      cle: 'version',
+      titre: t('documents.colVersion'),
+      valeur: (d) => Number(d.numeroVersion ?? d.version ?? 1),
+      rendu: (d) => <span className="text-muted" style={{ fontSize: 13 }}>{d.numeroVersion || d.version || 1}</span>,
+    },
+    {
+      cle: 'statut',
+      titre: t('champs.statut'),
+      filtre: 'texte',
+      valeur: (d) => d.statut,
+      rendu: (d) => <Badge statusKey={d.statut} />,
+    },
+    {
+      cle: 'createdAt',
+      titre: t('documents.colImporteLe'),
+      valeur: (d) => (d.createdAt ? new Date(d.createdAt) : null),
+      rendu: (d) => <span className="text-muted" style={{ fontSize: 13 }}>{formatDate(d.createdAt)}</span>,
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (d) => (
+        <span style={{ whiteSpace: 'nowrap' }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(d)} title={t('actions.voir')}><Download size={14} /></button>
+          {canManage && (
+            <>
+              {d.statut === 'archive'
+                ? <button className="btn btn-ghost btn-sm" onClick={() => restore(d)} title={t('actions.restaurer')}><RotateCcw size={14} /></button>
+                : <button className="btn btn-ghost btn-sm" onClick={() => archive(d)} title={t('actions.archiver')}><Archive size={14} /></button>}
+              <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(d)} title={t('actions.supprimer')}><Trash2 size={14} /></button>
+            </>
+          )}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="card">
@@ -87,41 +162,15 @@ export default function DocumentsTab({ chantierId, canManage }) {
             </Select>
           </div>
 
-          {loading ? <p className="text-muted">{t('etats.chargement')}</p>
-            : items.length === 0 ? <EmptyState title={t('documents.videTitre')} message={t('documents.videMessage')} />
-            : (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th></th><th>{t('documents.colDocument')}</th><th>{t('champs.type')}</th><th>{t('documents.colVersion')}</th><th>{t('champs.statut')}</th><th>{t('documents.colImporteLe')}</th><th></th></tr></thead>
-                  <tbody>
-                    {items.map((d) => (
-                      <tr key={d.id}>
-                        <td style={{ width: 40 }}><FileText size={18} style={{ color: 'var(--text-muted)' }} /></td>
-                        <td>
-                          <button className="link" onClick={() => setViewing(d)}>{d.nom}</button>
-                          {d.description && <div className="text-muted" style={{ fontSize: 12 }}>{d.description}</div>}
-                        </td>
-                        <td><span className="badge badge-neutral">{enumLabel(d.type, TYPES_DOCUMENT[d.type] || d.type)}</span></td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{d.numeroVersion || d.version || 1}</td>
-                        <td><Badge statusKey={d.statut} /></td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{formatDate(d.createdAt)}</td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(d)} title={t('actions.voir')}><Download size={14} /></button>
-                          {canManage && (
-                            <>
-                              {d.statut === 'archive'
-                                ? <button className="btn btn-ghost btn-sm" onClick={() => restore(d)} title={t('actions.restaurer')}><RotateCcw size={14} /></button>
-                                : <button className="btn btn-ghost btn-sm" onClick={() => archive(d)} title={t('actions.archiver')}><Archive size={14} /></button>}
-                              <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(d)} title={t('actions.supprimer')}><Trash2 size={14} /></button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <DataTable
+            donnees={items}
+            colonnes={colonnes}
+            chargement={loading}
+            titreVide={t('documents.videTitre')}
+            messageVide={t('documents.videMessage')}
+            parPage={10}
+            triInitial={{ cle: 'createdAt', sens: 'desc' }}
+          />
         </div>
       </div>
 

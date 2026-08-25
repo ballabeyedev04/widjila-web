@@ -19,6 +19,9 @@ import {
   FileSearch,
   UserRound,
   UserCheck,
+  UserX,
+  AlertTriangle,
+  Map,
   AlertCircle,
   Zap,
   CreditCard,
@@ -35,32 +38,64 @@ import '../assets/css/layout.css';
 
 const isAdmin = (user) => user?.role === 'Admin';
 
-function MenuItem({ item, isActive, onClick, collapsed }) {
+function MenuItem({ item, isActive, onClick, collapsed, badge = 0 }) {
   return (
     <div className={`menu-item-wrapper ${collapsed ? 'collapsed' : ''}`}>
-      <button className={`menu-item ${isActive ? 'active' : ''}`} onClick={() => onClick(item.path)}>
+      <button
+        className={`menu-item ${isActive ? 'active' : ''}`}
+        onClick={() => onClick(item.path)}
+        aria-current={isActive ? 'page' : undefined}
+      >
         <item.icon size={19} className="menu-icon" />
         {!collapsed && <span className="menu-label">{item.label}</span>}
+        {badge > 0 && (
+          <span className={`menu-badge ${collapsed ? 'point' : ''}`}>
+            {collapsed ? '' : badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </button>
-      {collapsed && <div className="menu-tooltip">{item.label}</div>}
+      {collapsed && (
+        <div className="menu-tooltip">
+          {item.label}{badge > 0 ? ` (${badge})` : ''}
+        </div>
+      )}
     </div>
   );
 }
 
-function NavSection({ title, items, activePath, onNavigate, collapsed }) {
+/**
+ * Une entrée est active si le chemin courant lui appartient.
+ *
+ * L'égalité stricte utilisée jusqu'ici éteignait le menu dès qu'on descendait
+ * d'un niveau : ouvrir un chantier (`/chantiers/:id`) ou une réserve
+ * n'éclairait plus rien, et l'utilisateur perdait sa position.
+ *
+ * Les chemins qui en préfixent d'autres sont traités à part : sans cela,
+ * `/plateforme` resterait allumé sur `/plateforme/audit`, et les deux entrées
+ * s'afficheraient actives en même temps.
+ */
+const EXACTS = ['/dashboard', '/plateforme'];
+
+function estActif(cheminCourant, cheminMenu) {
+  if (EXACTS.includes(cheminMenu)) return cheminCourant === cheminMenu;
+  return cheminCourant === cheminMenu || cheminCourant.startsWith(`${cheminMenu}/`);
+}
+
+function NavSection({ title, items, activePath, onNavigate, collapsed, badges = {} }) {
   return (
-    <>
+    <div className="nav-groupe">
       {!collapsed && <div className="nav-group-label">{title}</div>}
       {items.map((item) => (
         <MenuItem
           key={item.path}
           item={item}
-          isActive={activePath === item.path}
+          isActive={estActif(activePath, item.path)}
           onClick={onNavigate}
           collapsed={collapsed}
+          badge={badges[item.path] || 0}
         />
       ))}
-    </>
+    </div>
   );
 }
 
@@ -114,6 +149,8 @@ export default function AdminLayout() {
   const baseMenu = [
     { path: '/dashboard', label: t('nav.tableauDeBord'), icon: LayoutDashboard, roles: 'all' },
     { path: '/chantiers', label: t('nav.chantiers'), icon: HardHat, roles: 'all' },
+    { path: '/reserves', label: t('nav.toutesReserves'), icon: AlertTriangle, roles: 'all' },
+    { path: '/plans', label: t('nav.tousPlans'), icon: Map, roles: 'all' },
     { path: '/membres', label: t('nav.membres'), icon: Users, roles: ['Admin', 'ChefProjet', 'MaitreOuvrage'] },
     { path: '/equipes', label: t('nav.equipes'), icon: UserPlus, roles: ['Admin', 'ChefProjet', 'MaitreOuvrage'] },
     { path: '/partenaires', label: t('nav.partenaires'), icon: Handshake, roles: ['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre'] },
@@ -127,6 +164,7 @@ export default function AdminLayout() {
     { path: '/plateforme/utilisateurs', label: t('nav.utilisateurs'), icon: Users },
     { path: '/plateforme/organisations', label: t('nav.organisations'), icon: Building2 },
     { path: '/plateforme/demandes', label: t('nav.demandesInscription'), icon: UserCheck },
+    { path: '/plateforme/suppressions', label: t('nav.demandesSuppression'), icon: UserX },
     { path: '/plateforme/audit', label: t('nav.journalAudit'), icon: FileSearch },
   ];
 
@@ -154,9 +192,12 @@ export default function AdminLayout() {
     }
   };
 
-  const pageTitle = [...menuVisible, ...(admin ? plateformeMenu : [])].find(
-    (m) => activePath.startsWith(m.path) && (m.path === '/dashboard' ? activePath === '/dashboard' : true)
-  )?.label || t('topbar.titreParDefaut');
+  // Le plus SPÉCIFIQUE gagne : sans le tri, `/plateforme` l'emporterait sur
+  // `/plateforme/audit` selon l'ordre de déclaration du menu.
+  const pageTitle = [...menuVisible, ...(admin ? plateformeMenu : [])]
+    .filter((m) => estActif(activePath, m.path))
+    .sort((a, b) => b.path.length - a.path.length)[0]?.label
+    || t('topbar.titreParDefaut');
 
   return (
     <div className="dashboard">
@@ -190,7 +231,16 @@ export default function AdminLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          <NavSection title={t('sidebar.groupePilotage')} items={menuVisible} activePath={activePath} onNavigate={onNavigate} collapsed={collapsed && !isMobile} />
+          <NavSection
+            title={t('sidebar.groupePilotage')}
+            items={menuVisible}
+            activePath={activePath}
+            onNavigate={onNavigate}
+            collapsed={collapsed && !isMobile}
+            /* Le compteur n'existait que sur la cloche de la barre du haut :
+               invisible dès qu'on avait déroulé une page longue. */
+            badges={{ '/notifications': nonLues }}
+          />
           {admin && (
             <NavSection title={t('sidebar.groupePlateforme')} items={plateformeMenu} activePath={activePath} onNavigate={onNavigate} collapsed={collapsed && !isMobile} />
           )}

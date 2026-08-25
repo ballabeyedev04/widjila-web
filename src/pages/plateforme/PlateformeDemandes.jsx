@@ -7,6 +7,8 @@ import Modal from '../../components/Modal.jsx';
 import Badge from '../../components/Badge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
+import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Select, Textarea } from '../../components/FormControls.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import {
@@ -37,7 +39,7 @@ export default function PlateformeDemandes() {
   const [aValider, setAValider] = useState(null);
   const [aRejeter, setARejeter] = useState(null);
 
-  const { items, total, page, setPage, loading, reload, accessDenied } = useServerList(
+  const { items, total, page, setPage, loading, reload, accessDenied, error: erreur,} = useServerList(
     listerDemandesInscription,
     { limit: 12, filterKeys: ['search', 'statut'], filters },
   );
@@ -73,9 +75,14 @@ export default function PlateformeDemandes() {
       </div>
 
       {accessDenied ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50 }}>{t('superAdmin.accesRefuse')}</div></div>
+        <ErrorState variante="droits" titre={t('superAdmin.accesRefuse')} message={erreur} />
+      ) : erreur ? (
+        /* Un échec de chargement n'est PAS un écran vide : sans cette
+           branche, une panne réseau s'affichait « aucune donnée » et
+           invitait à créer ce que l'on cherchait déjà. */
+        <ErrorState message={erreur} onRetry={reload} />
       ) : loading ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50 }}>{t('etats.chargement')}</div></div>
+        <SkeletonListe lignes={6} />
       ) : items.length === 0 ? (
         <EmptyState
           title={t('demandes.aucuneDemande')}

@@ -39,6 +39,11 @@ import PlateformeUtilisateurs from '../pages/plateforme/PlateformeUtilisateurs.j
 import PlateformeOrganisations from '../pages/plateforme/PlateformeOrganisations.jsx';
 import PlateformeDemandes from '../pages/plateforme/PlateformeDemandes.jsx';
 import PlateformeAudit from '../pages/plateforme/PlateformeAudit.jsx';
+import PlateformeSuppressions from '../pages/plateforme/PlateformeSuppressions.jsx';
+import SuppressionCompte from '../pages/legal/SuppressionCompte.jsx';
+import ToutesReserves from '../pages/reserve/ToutesReserves.jsx';
+import ReserveDetail from '../pages/reserve/ReserveDetail.jsx';
+import TousPlans from '../pages/plan/TousPlans.jsx';
 
 export default function AppRoutes() {
   return (
@@ -53,6 +58,10 @@ export default function AppRoutes() {
       <Route path="/abonnement" element={<Abonnement />} />
       <Route path="/condition-utilisation" element={<ConditionsUtilisation />} />
       <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
+      {/* URL déclarée à Google Play — doit rester accessible SANS connexion :
+          un utilisateur ayant désinstallé l'app doit pouvoir demander la
+          suppression de son compte. Ne pas déplacer sous ProtectedRoute. */}
+      <Route path="/suppression-compte" element={<SuppressionCompte />} />
 
       {/* ---------- Protégé (layout admin) ---------- */}
       <Route
@@ -70,6 +79,12 @@ export default function AppRoutes() {
         <Route path="membres" element={<RoleRoute roles={ROLES_GESTION}><Membres /></RoleRoute>} />
         <Route path="equipes" element={<RoleRoute roles={ROLES_GESTION}><Equipes /></RoleRoute>} />
         <Route path="partenaires" element={<RoleRoute roles={['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre']}><Partenaires /></RoleRoute>} />
+        {/* Vues TRANSVERSALES — toutes les réserves et tous les plans de
+            l'organisation, chantiers confondus. Déclarées avant les routes
+            de chantier : elles ne dépendent d'aucun chantier précis. */}
+        <Route path="reserves" element={<ToutesReserves />} />
+        <Route path="reserves/:id" element={<ReserveDetail />} />
+        <Route path="plans" element={<TousPlans />} />
         <Route path="chantiers" element={<Chantiers />} />
         <Route path="chantiers/:id" element={<ChantierDetail />} />
         <Route path="notifications" element={<Notifications />} />
@@ -104,6 +119,14 @@ export default function AppRoutes() {
           element={
             <SuperAdminRoute>
               <PlateformeDemandes />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="plateforme/suppressions"
+          element={
+            <SuperAdminRoute>
+              <PlateformeSuppressions />
             </SuperAdminRoute>
           }
         />

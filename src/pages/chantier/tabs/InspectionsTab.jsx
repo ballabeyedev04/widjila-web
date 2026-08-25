@@ -6,7 +6,7 @@ import {
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
-import EmptyState from '../../../components/EmptyState.jsx';
+import DataTable from '../../../components/table/DataTable.jsx';
 import { Input, Select, Textarea } from '../../../components/FormControls.jsx';
 import {
   listerInspections, creerInspection, getInspection, modifierInspection, supprimerInspection,
@@ -54,6 +54,78 @@ export default function InspectionsTab({ chantierId, canManage }) {
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
 
+  const colonnes = [
+    {
+      cle: 'type',
+      titre: t('champs.type'),
+      filtre: 'select',
+      options: Object.keys(TYPES_INSPECTION).map((v) => ({
+        valeur: v,
+        label: enumLabel(v, TYPES_INSPECTION[v]),
+      })),
+      valeur: (i) => i.type,
+      rendu: (i) => (
+        <Badge tone={i.type === 'opr' ? 'warning' : i.type === 'visite_contradictoire' ? 'info' : 'primary'}>
+          {enumLabel(i.type, TYPES_INSPECTION[i.type] || i.type)}
+        </Badge>
+      ),
+    },
+    {
+      cle: 'date_visite',
+      titre: t('champs.date'),
+      valeur: (i) => (i.date_visite ? new Date(i.date_visite) : null),
+      rendu: (i) => formatDate(i.date_visite),
+    },
+    {
+      cle: 'statut',
+      titre: t('champs.statut'),
+      filtre: 'texte',
+      valeur: (i) => i.statut,
+      rendu: (i) => <Badge statusKey={i.statut} />,
+    },
+    {
+      cle: 'checklist',
+      titre: t('inspections.colChecklist'),
+      // Trie sur l'AVANCEMENT (part cochée) et non sur le nombre brut :
+      // 8/10 doit passer devant 9/40, sinon le classement récompense les
+      // longues checklists au lieu des visites les plus avancées.
+      valeur: (i) => {
+        const total = (i.checklist || []).length;
+        if (!total) return 0;
+        return (i.checklist || []).filter((c) => c.coche).length / total;
+      },
+      rendu: (i) => (
+        <span className="text-muted" style={{ fontSize: 13 }}>
+          {(i.checklist || []).filter((c) => c.coche).length}/{(i.checklist || []).length}
+        </span>
+      ),
+    },
+    {
+      cle: 'inspecteur',
+      titre: t('inspections.colInspecteur'),
+      filtre: 'texte',
+      valeur: (i) => (i.inspecteur ? `${i.inspecteur.prenom} ${i.inspecteur.nom}` : ''),
+      rendu: (i) => (
+        <span className="text-muted" style={{ fontSize: 13 }}>
+          {i.inspecteur ? `${i.inspecteur.prenom} ${i.inspecteur.nom}` : '—'}
+        </span>
+      ),
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (i) => (
+        <>
+          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(i)}><Eye size={14} /></button>
+          {canManage && <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(i)}><Trash2 size={14} /></button>}
+        </>
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="card">
@@ -81,30 +153,15 @@ export default function InspectionsTab({ chantierId, canManage }) {
             </Select>
           </div>
 
-          {loading ? <p className="text-muted">{t('etats.chargement')}</p>
-            : items.length === 0 ? <EmptyState title={t('inspections.videTitre')} message={t('inspections.videMessage')} />
-            : (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>{t('champs.type')}</th><th>{t('champs.date')}</th><th>{t('champs.statut')}</th><th>{t('inspections.colChecklist')}</th><th>{t('inspections.colInspecteur')}</th><th></th></tr></thead>
-                  <tbody>
-                    {items.map((i) => (
-                      <tr key={i.id}>
-                        <td><Badge tone={i.type === 'opr' ? 'warning' : i.type === 'visite_contradictoire' ? 'info' : 'primary'}>{enumLabel(i.type, TYPES_INSPECTION[i.type] || i.type)}</Badge></td>
-                        <td>{formatDate(i.date_visite)}</td>
-                        <td><Badge statusKey={i.statut} /></td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{(i.checklist || []).filter((c) => c.coche).length}/{(i.checklist || []).length}</td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{i.inspecteur ? `${i.inspecteur.prenom} ${i.inspecteur.nom}` : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(i)}><Eye size={14} /></button>
-                          {canManage && <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(i)}><Trash2 size={14} /></button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <DataTable
+            donnees={items}
+            colonnes={colonnes}
+            chargement={loading}
+            titreVide={t('inspections.videTitre')}
+            messageVide={t('inspections.videMessage')}
+            parPage={10}
+            triInitial={{ cle: 'date_visite', sens: 'desc' }}
+          />
         </div>
       </div>
 

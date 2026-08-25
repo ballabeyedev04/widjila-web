@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { UserPlus, Trash2, ShieldCheck } from 'lucide-react';
 
 import Badge from '../../../components/Badge.jsx';
-import EmptyState from '../../../components/EmptyState.jsx';
+import DataTable from '../../../components/table/DataTable.jsx';
 import { listerMembresChantier, assignerMembres, retirerMembreChantier } from '../../../service/chantier/chantierService.js';
 import { listerMembres } from '../../../service/organisation/organisationService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
 import { initials } from '../../../utils/format.js';
-import { roleLabel } from '../../../utils/constants.js';
+import { ROLES, roleLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
 
 export default function MembresTab({ chantierId, canManage }) {
@@ -55,6 +55,50 @@ export default function MembresTab({ chantierId, canManage }) {
 
   const available = orgMembres.filter((m) => !membres.some((x) => x.id === m.id));
 
+  const colonnes = [
+    {
+      cle: 'avatar',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      largeur: 52,
+      rendu: (m) => <div className="avatar">{initials(m.prenom, m.nom)}</div>,
+    },
+    {
+      cle: 'membre',
+      titre: t('membres.colMembre'),
+      filtre: 'texte',
+      // Prénom ET nom concaténés : chercher « Awa Diallo » doit fonctionner,
+      // alors qu'aucun champ ne contient les deux.
+      valeur: (m) => `${m.prenom ?? ''} ${m.nom ?? ''}`.trim(),
+      rendu: (m) => <strong>{m.prenom} {m.nom}</strong>,
+    },
+    {
+      cle: 'role',
+      titre: t('champs.role'),
+      filtre: 'select',
+      options: Object.keys(ROLES).map((r) => ({ valeur: r, label: roleLabel(r) })),
+      valeur: (m) => m.role,
+      rendu: (m) => <Badge role={m.role} />,
+    },
+    {
+      cle: 'roleChantier',
+      titre: t('membres.colRoleChantier'),
+      filtre: 'texte',
+      rendu: (m) => <span className="text-muted" style={{ fontSize: 13 }}>{m.roleChantier || '—'}</span>,
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (m) => (canManage
+        ? <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(m)}><Trash2 size={14} /></button>
+        : null),
+    },
+  ];
+
   return (
     <div className="card">
       <div className="card-header"><h2>{t('membres.titre', { n: membres.length })}</h2></div>
@@ -70,28 +114,15 @@ export default function MembresTab({ chantierId, canManage }) {
           </div>
         )}
 
-        {loading ? <p className="text-muted">{t('etats.chargement')}</p>
-          : membres.length === 0 ? <EmptyState title={t('membres.videTitre')} message={t('membres.videMessage')} />
-          : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th></th><th>{t('membres.colMembre')}</th><th>{t('champs.role')}</th><th>{t('membres.colRoleChantier')}</th><th></th></tr></thead>
-                <tbody>
-                  {membres.map((m) => (
-                    <tr key={m.id}>
-                      <td style={{ width: 52 }}><div className="avatar">{initials(m.prenom, m.nom)}</div></td>
-                      <td><strong>{m.prenom} {m.nom}</strong></td>
-                      <td><Badge role={m.role} /></td>
-                      <td className="text-muted" style={{ fontSize: 13 }}>{m.roleChantier || '—'}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {canManage && <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(m)}><Trash2 size={14} /></button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <DataTable
+          donnees={membres}
+          colonnes={colonnes}
+          chargement={loading}
+          titreVide={t('membres.videTitre')}
+          messageVide={t('membres.videMessage')}
+          parPage={10}
+          triInitial={{ cle: 'membre', sens: 'asc' }}
+        />
       </div>
     </div>
   );

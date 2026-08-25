@@ -21,6 +21,8 @@ export default {
     nav: {
       tableauDeBord: 'Tableau de bord',
       chantiers: 'Chantiers',
+      toutesReserves: 'Toutes les réserves',
+      tousPlans: 'Tous les plans',
       membres: 'Membres',
       equipes: 'Équipes',
       partenaires: 'Partenaires',
@@ -31,6 +33,7 @@ export default {
       utilisateurs: 'Utilisateurs',
       organisations: 'Organisations',
       demandesInscription: "Demandes d'inscription",
+      demandesSuppression: "Demandes de suppression",
       journalAudit: "Journal d'audit",
     },
     topbar: {
@@ -89,6 +92,8 @@ export default {
     nav: {
       tableauDeBord: 'Dashboard',
       chantiers: 'Projects',
+      toutesReserves: 'All snags',
+      tousPlans: 'All drawings',
       membres: 'Members',
       equipes: 'Teams',
       partenaires: 'Partners',
@@ -99,6 +104,7 @@ export default {
       utilisateurs: 'Users',
       organisations: 'Organizations',
       demandesInscription: 'Registration requests',
+      demandesSuppression: 'Deletion requests',
       journalAudit: 'Audit log',
     },
     topbar: {
@@ -157,6 +163,8 @@ export default {
     nav: {
       tableauDeBord: 'Übersicht',
       chantiers: 'Baustellen',
+      toutesReserves: 'Alle Mängel',
+      tousPlans: 'Alle Pläne',
       membres: 'Mitglieder',
       equipes: 'Teams',
       partenaires: 'Partner',
@@ -167,6 +175,7 @@ export default {
       utilisateurs: 'Benutzer',
       organisations: 'Organisationen',
       demandesInscription: 'Registrierungsanfragen',
+      demandesSuppression: 'Löschanfragen',
       journalAudit: 'Audit-Protokoll',
     },
     topbar: {
@@ -225,6 +234,8 @@ export default {
     nav: {
       tableauDeBord: 'Panel de control',
       chantiers: 'Obras',
+      toutesReserves: 'Todas las reservas',
+      tousPlans: 'Todos los planos',
       membres: 'Miembros',
       equipes: 'Equipos',
       partenaires: 'Socios',
@@ -235,6 +246,7 @@ export default {
       utilisateurs: 'Usuarios',
       organisations: 'Organizaciones',
       demandesInscription: 'Solicitudes de registro',
+      demandesSuppression: 'Solicitudes de eliminación',
       journalAudit: 'Registro de auditoría',
     },
     topbar: {

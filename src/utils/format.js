@@ -34,7 +34,15 @@ export const formatDateTime = (value) => {
 
 export const formatNombre = (value) => {
   if (value === null || value === undefined) return '0';
-  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
+
+  // `Intl.NumberFormat` convertit son argument en nombre : toute chaîne non
+  // numérique en ressort « NaN ». Plusieurs écrans passent un placeholder
+  // (« — ») quand la donnée manque, et affichaient donc « NaN » à l'écran.
+  // On le rend tel quel : c'est déjà la marque d'absence voulue.
+  const nombre = Number(value);
+  if (Number.isNaN(nombre)) return String(value);
+
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(nombre);
 };
 
 export const formatBudget = (value) => {

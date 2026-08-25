@@ -7,6 +7,7 @@ import Modal from '../../components/Modal.jsx';
 import Badge from '../../components/Badge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
 import { Input, Select } from '../../components/FormControls.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import {
@@ -25,7 +26,7 @@ export default function Membres() {
   const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
 
-  const { items, total, page, setPage, loading, reload, accessDenied } = useServerList(listerMembres, {
+  const { items, total, page, setPage, loading, reload, accessDenied, error: erreur,} = useServerList(listerMembres, {
     limit: 12,
     filterKeys: ['search', 'role', 'statut'],
     filters,
@@ -74,7 +75,15 @@ export default function Membres() {
         <button className="btn btn-ghost" onClick={reload}><RefreshCw size={16} /></button>
       </div>
 
-      {accessDenied ? <AccessDeniedMessage /> : loading ? <Loading /> : items.length === 0 ? (
+      {/* `message` porte l'explication du serveur : un 403 ne signifie pas
+          toujours « mauvais rôle » — il peut manquer la MFA, et le serveur
+          le dit. */}
+      {accessDenied ? <ErrorState variante="droits" titre={t('membres.accesRefuse')} message={erreur} />
+        /* Un échec de chargement n'est PAS un écran vide : sans cette
+           branche, une panne réseau s'affichait « aucun membre » et invitait
+           à réinviter des personnes déjà présentes. */
+        : erreur ? <ErrorState message={erreur} onRetry={reload} />
+        : loading ? <Loading /> : items.length === 0 ? (
         <EmptyState title={t('membres.vide.titre')} message={t('membres.vide.message')} />
       ) : (
         <>
@@ -122,12 +131,6 @@ function Loading() {
   const { t } = useTranslation('organisation');
   return (
     <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-muted)' }}>{t('etats.chargement')}</div></div>
-  );
-}
-function AccessDeniedMessage() {
-  const { t } = useTranslation('organisation');
-  return (
-    <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '50px 0', color: 'var(--text-muted)' }}>{t('membres.accesRefuse')}</div></div>
   );
 }
 

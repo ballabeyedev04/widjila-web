@@ -8,6 +8,8 @@ import Modal from '../../components/Modal.jsx';
 import Badge from '../../components/Badge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
+import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Input, Textarea, Select } from '../../components/FormControls.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import {
@@ -31,7 +33,7 @@ export default function Chantiers() {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const { items, total, page, setPage, loading, reload, accessDenied } = useServerList(listerChantiers, {
+  const { items, total, page, setPage, loading, reload, accessDenied, error: erreur,} = useServerList(listerChantiers, {
     limit: 12,
     filterKeys: ['search', 'statut'],
     filters,
@@ -80,8 +82,12 @@ export default function Chantiers() {
         <button className="btn btn-ghost" onClick={reload}><RefreshCw size={16} /></button>
       </div>
 
-      {accessDenied ? <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50, color: 'var(--text-muted)' }}>{t('liste.accesRefuse')}</div></div>
-        : loading ? <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50, color: 'var(--text-muted)' }}>{t('etats.chargement')}</div></div>
+      {accessDenied ? <ErrorState variante="droits" titre={t('liste.accesRefuse')} message={erreur} />
+        : erreur ? (
+          /* Un échec de chargement n'est PAS un écran vide. */
+          <ErrorState message={erreur} onRetry={reload} />
+        )
+        : loading ? <SkeletonListe lignes={6} />
         : items.length === 0 ? <EmptyState title={t('liste.videTitre')} message={t('liste.videMessage')} />
         : (
           <>

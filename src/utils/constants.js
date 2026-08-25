@@ -115,6 +115,21 @@ export const SEVERITES = {
   critique: { label: 'Critique', tone: 'danger' },
 };
 
+/**
+ * Priorité d'une réserve.
+ *
+ * Même énumération que `SEVERITES` côté base (`reserve.model.js`), mais
+ * déclarée séparément : ce sont deux notions distinctes — la gravité du défaut
+ * constaté d'un côté, l'ordre de traitement de l'autre — et les confondre
+ * empêcherait de faire évoluer l'une sans l'autre.
+ */
+export const PRIORITES = {
+  faible: { label: 'Faible', tone: 'neutral' },
+  moyenne: { label: 'Moyenne', tone: 'info' },
+  haute: { label: 'Haute', tone: 'warning' },
+  critique: { label: 'Critique', tone: 'danger' },
+};
+
 export const CATEGORIES_RESERVE = {
   maconnerie: 'Maçonnerie',
   gros_oeuvre: 'Gros œuvre',

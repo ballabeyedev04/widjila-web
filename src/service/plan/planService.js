@@ -16,6 +16,22 @@ export const listerPlans = async (chantierId) => {
   return normalizeList(unwrap(response), 'plans');
 };
 
+/**
+ * Plans de TOUS les chantiers de l'organisation.
+ *
+ * Le serveur ne renvoie que la DERNIÈRE version de chaque plan (dédoublonnage
+ * sur `chantierId + nom`, voir plan.service.js#listTousPlans) : une vue
+ * transversale qui listerait toutes les révisions serait illisible.
+ *
+ * Non paginé côté serveur — d'où l'absence de `page`/`limit` ici.
+ */
+export const listerTousPlans = async ({ chantierId = '' } = {}) => {
+  const response = await api.get('/plans', {
+    params: { chantierId: chantierId || undefined },
+  });
+  return normalizeList(unwrap(response), 'plans');
+};
+
 export const getPlan = async (id) => {
   const response = await api.get(`/plans/${id}`);
   return unwrap(response)?.plan;

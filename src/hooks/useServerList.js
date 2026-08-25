@@ -100,6 +100,15 @@ export function useServerList(fetchFn, {
     } catch (err) {
       if (err?.response?.status === 403) {
         setAccessDenied(true);
+        // Le message du serveur est CONSERVÉ, alors qu'il était jeté ici.
+        //
+        // Un 403 ne dit pas toujours « mauvais rôle » : sur les routes
+        // `/admin/*`, `requireMfaActive` refuse aussi un super-admin
+        // légitime dont la MFA n'est pas activée, et explique quoi faire.
+        // L'écraser par un texte générique laissait l'utilisateur devant
+        // « super-admin requis » alors qu'il EST super-admin — sans aucune
+        // indication de ce qui manquait réellement.
+        setError(err?.response?.data?.message || null);
       } else if (err?.response?.status !== 401) {
         const message =
           err?.response?.data?.message ||

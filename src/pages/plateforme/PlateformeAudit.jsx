@@ -5,6 +5,8 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
+import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Select } from '../../components/FormControls.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import { listerAuditLogs } from '../../service/admin/adminService.js';
@@ -14,7 +16,7 @@ export default function PlateformeAudit() {
   const { t } = useTranslation('plateforme');
   const [filters, setFilters] = useState({ action: '', cibleType: '' });
 
-  const { items, total, page, setPage, loading, reload, accessDenied } = useServerList(listerAuditLogs, {
+  const { items, total, page, setPage, loading, reload, accessDenied, error: erreur,} = useServerList(listerAuditLogs, {
     limit: 20,
     filterKeys: ['action', 'cibleType'],
     filters,
@@ -37,8 +39,13 @@ export default function PlateformeAudit() {
         </Select>
       </div>
 
-      {accessDenied ? <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50 }}>{t('superAdmin.accesRefuse')}</div></div>
-        : loading ? <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50 }}>{t('etats.chargement')}</div></div>
+      {accessDenied ? <ErrorState variante="droits" titre={t('superAdmin.accesRefuse')} message={erreur} />
+        : erreur ? (
+          /* Un échec de chargement n'est PAS un écran vide : sans cette
+             branche, une panne réseau s'affichait « aucune donnée ». */
+          <ErrorState message={erreur} onRetry={reload} />
+        )
+        : loading ? <SkeletonListe lignes={6} />
         : items.length === 0 ? <EmptyState title={t('audit.aucunEvenement')} />
         : (
           <>

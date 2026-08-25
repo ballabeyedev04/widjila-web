@@ -1,4 +1,4 @@
-import api from '../api.js';
+import api, { setStoredToken } from '../api.js';
 import { unwrap, normalizeList, toFormData } from '../helpers.js';
 
 /** Module Compte : profil, sécurité, MFA, sessions, connexions, RGPD. */
@@ -23,12 +23,32 @@ export const modifierProfil = async (data) => {
   return unwrap(response);
 };
 
+/**
+ * Change le mot de passe et GARDE la session ouverte.
+ *
+ * Le refresh token n'est pas envoyé : il vit dans un cookie httpOnly que ce
+ * code ne peut pas lire. Le serveur le récupère lui-même depuis la requête
+ * (voir account.controller.js#changePassword) et épargne donc cette session
+ * en révoquant les autres.
+ *
+ * Le token d'accès, lui, DOIT être remplacé ici : le serveur vient
+ * d'incrémenter `token_version`, ce qui périme l'ancien à la seconde même.
+ * Sans ce remplacement, la requête suivante partirait avec un token mort et
+ * déconnecterait l'utilisateur juste après qu'il a sécurisé son compte.
+ */
 export const changerMotDePasse = async ({ ancien_mot_de_passe, nouveau_mot_de_passe }) => {
   const response = await api.put('/account/change-password', {
     ancien_mot_de_passe,
     nouveau_mot_de_passe,
   });
-  return unwrap(response);
+  const data = unwrap(response);
+
+  // Absent si le backend déployé est plus ancien : on ne touche à rien plutôt
+  // que d'écraser le token courant par `undefined`. L'utilisateur retombe
+  // alors sur l'ancien comportement (déconnexion), pas sur un écran cassé.
+  if (data?.accessToken) setStoredToken(data.accessToken);
+
+  return data;
 };
 
 export const oublierMotDePasse = async ({ email }) => {

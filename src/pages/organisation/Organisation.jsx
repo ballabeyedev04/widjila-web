@@ -10,6 +10,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Modal from '../../components/Modal.jsx';
 import Spinner from '../../components/Spinner.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import DataTable from '../../components/table/DataTable.jsx';
 import Badge from '../../components/Badge.jsx';
 import { Input, Select } from '../../components/FormControls.jsx';
 import {
@@ -269,28 +270,92 @@ export default function Organisation() {
 
 function FilialesList({ items, onCreateAgence }) {
   const { t } = useTranslation('organisation');
-  if (!items?.length) return <EmptyState title={t('filiales.vide.titre')} message={t('filiales.vide.message')} />;
+
+  const colonnes = [
+    {
+      cle: 'avatar',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      largeur: 44,
+      rendu: (f) => <div className="avatar">{initials(f.nom)}</div>,
+    },
+    {
+      cle: 'nom',
+      titre: t('filiales.colonnes.nom'),
+      filtre: 'texte',
+      // Le nom de la maison mère entre dans la recherche : on cherche souvent
+      // « toutes les agences de X », et X n'apparaît que là.
+      valeur: (f) => `${f.nom ?? ''} ${f.parent?.nom ?? ''}`.trim(),
+      rendu: (f) => (
+        <>
+          <strong>{f.nom}</strong>
+          {f.parent?.nom && (
+            <div className="text-muted" style={{ fontSize: 12 }}>
+              {t('filiales.rattacheeA', { nom: f.parent.nom })}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      cle: 'type',
+      titre: t('champs.type'),
+      filtre: 'select',
+      options: [
+        { valeur: 'filiale', label: t('filiales.type.filiale') },
+        { valeur: 'agence', label: t('filiales.type.agence') },
+      ],
+      valeur: (f) => f.type,
+      rendu: (f) => (
+        <span className="badge badge-neutral">
+          {f.type === 'agence' ? t('filiales.type.agence') : t('filiales.type.filiale')}
+        </span>
+      ),
+    },
+    {
+      cle: 'contact',
+      titre: t('filiales.colonnes.contact'),
+      filtre: 'texte',
+      // Téléphone ET email : la colonne n'en affiche qu'un, mais l'utilisateur
+      // peut chercher par l'autre.
+      valeur: (f) => `${f.telephone ?? ''} ${f.email ?? ''}`.trim(),
+      rendu: (f) => <span className="text-muted" style={{ fontSize: 13 }}>{f.telephone || f.email || '—'}</span>,
+    },
+    {
+      cle: 'statut',
+      titre: t('champs.statut'),
+      filtre: 'texte',
+      valeur: (f) => f.statut,
+      rendu: (f) => <Badge statusKey={f.statut} />,
+    },
+    {
+      cle: 'createdAt',
+      titre: t('filiales.colonnes.creeeLe'),
+      valeur: (f) => (f.createdAt ? new Date(f.createdAt) : null),
+      rendu: (f) => <span className="text-muted" style={{ fontSize: 13 }}>{formatDate(f.createdAt)}</span>,
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (f) => (f.type === 'filiale'
+        ? <button className="btn btn-ghost btn-sm" onClick={() => onCreateAgence(f.id)} title={t('filiales.creerAgence')}><Plus size={14} /></button>
+        : null),
+    },
+  ];
+
   return (
-    <div className="table-wrap">
-      <table className="table">
-        <thead><tr><th></th><th>{t('filiales.colonnes.nom')}</th><th>{t('champs.type')}</th><th>{t('filiales.colonnes.contact')}</th><th>{t('champs.statut')}</th><th>{t('filiales.colonnes.creeeLe')}</th><th></th></tr></thead>
-        <tbody>
-          {items.map((f) => (
-            <tr key={f.id}>
-              <td style={{ width: 44 }}><div className="avatar">{initials(f.nom)}</div></td>
-              <td><strong>{f.nom}</strong>{f.parent?.nom && <div className="text-muted" style={{ fontSize: 12 }}>{t('filiales.rattacheeA', { nom: f.parent.nom })}</div>}</td>
-              <td><span className="badge badge-neutral">{f.type === 'agence' ? t('filiales.type.agence') : t('filiales.type.filiale')}</span></td>
-              <td className="text-muted" style={{ fontSize: 13 }}>{f.telephone || f.email || '—'}</td>
-              <td><Badge statusKey={f.statut} /></td>
-              <td className="text-muted" style={{ fontSize: 13 }}>{formatDate(f.createdAt)}</td>
-              <td style={{ textAlign: 'right' }}>
-                {f.type === 'filiale' && <button className="btn btn-ghost btn-sm" onClick={() => onCreateAgence(f.id)} title={t('filiales.creerAgence')}><Plus size={14} /></button>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      donnees={items ?? []}
+      colonnes={colonnes}
+      titreVide={t('filiales.vide.titre')}
+      messageVide={t('filiales.vide.message')}
+      parPage={10}
+      triInitial={{ cle: 'nom', sens: 'asc' }}
+    />
   );
 }
 

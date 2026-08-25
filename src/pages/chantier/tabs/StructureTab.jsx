@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Building2, Layers, Boxes, Package } from 'lucide-react';
 
 import Modal from '../../../components/Modal.jsx';
-import EmptyState from '../../../components/EmptyState.jsx';
+import DataTable from '../../../components/table/DataTable.jsx';
 import { Input, Select } from '../../../components/FormControls.jsx';
 import { creerBatiment, creerEtage, creerZone, creerLot, listerLots } from '../../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
@@ -25,6 +25,37 @@ export default function StructureTab({ chantierId, chantier, canManage }) {
   };
 
   const batiments = chantier?.batiments || [];
+
+  const colonnesLots = [
+    {
+      cle: 'nom',
+      titre: t('commun.nom'),
+      filtre: 'texte',
+      rendu: (l) => <strong>{l.nom}</strong>,
+    },
+    {
+      cle: 'code',
+      titre: t('commun.code'),
+      filtre: 'texte',
+      rendu: (l) => l.code || '—',
+    },
+    {
+      cle: 'entreprise',
+      titre: t('commun.entreprise'),
+      filtre: 'texte',
+      // `entreprise` est tantôt un objet, tantôt une chaîne selon l'endpoint
+      // qui a rempli la ligne : sans cette normalisation, le filtre porterait
+      // sur « [object Object] ».
+      valeur: (l) => l.entreprise?.nom || l.entreprise || '',
+      rendu: (l) => l.entreprise?.nom || l.entreprise || '—',
+    },
+    {
+      cle: 'description',
+      titre: t('champs.description'),
+      filtre: 'texte',
+      rendu: (l) => <span className="text-muted">{l.description || '—'}</span>,
+    },
+  ];
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
@@ -73,23 +104,14 @@ export default function StructureTab({ chantierId, chantier, canManage }) {
           </div>
         </div>
         <div className="card-body">
-          {lots.length === 0 ? <EmptyState title={t('structure.videLotsTitre')} message={t('structure.videLotsMessage')} /> : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>{t('commun.nom')}</th><th>{t('commun.code')}</th><th>{t('commun.entreprise')}</th><th>{t('champs.description')}</th></tr></thead>
-                <tbody>
-                  {lots.map((l) => (
-                    <tr key={l.id}>
-                      <td><strong>{l.nom}</strong></td>
-                      <td>{l.code || '—'}</td>
-                      <td>{l.entreprise?.nom || l.entreprise || '—'}</td>
-                      <td className="text-muted">{l.description || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            donnees={lots}
+            colonnes={colonnesLots}
+            titreVide={t('structure.videLotsTitre')}
+            messageVide={t('structure.videLotsMessage')}
+            parPage={10}
+            triInitial={{ cle: 'nom', sens: 'asc' }}
+          />
         </div>
       </div>
 

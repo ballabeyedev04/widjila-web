@@ -19,6 +19,34 @@ export const listerReserves = async (
   return normalizeList(unwrap(response), 'reserves');
 };
 
+/**
+ * Réserves de TOUS les chantiers de l'organisation.
+ *
+ * Endpoint distinct de `listerReserves` (qui est cadré sur un chantier) : le
+ * backend y joint le chantier d'origine — indispensable puisqu'une ligne de
+ * cette liste peut venir de n'importe lequel.
+ *
+ * Filtres acceptés par le serveur : `statut`, `severite`, `priorite`,
+ * `chantierId`, `entrepriseId`, `assigneA`, `search`.
+ */
+export const listerToutesReserves = async ({
+  page = 1, limit = 20, search = '', statut = '', severite = '',
+  priorite = '', chantierId = '', assigneA = '',
+} = {}) => {
+  const response = await api.get('/reserves', {
+    params: {
+      page, limit,
+      search: search?.trim() || undefined,
+      statut: statut || undefined,
+      severite: severite || undefined,
+      priorite: priorite || undefined,
+      chantierId: chantierId || undefined,
+      assigneA: assigneA || undefined,
+    },
+  });
+  return normalizeList(unwrap(response), 'reserves');
+};
+
 export const getReserve = async (id) => {
   const response = await api.get(`/reserves/${id}`);
   return unwrap(response)?.reserve;

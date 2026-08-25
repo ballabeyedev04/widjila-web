@@ -1,24 +1,27 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Search, X, RefreshCw, FileSpreadsheet, Upload, Eye, Trash2, Copy, Download, QrCode,
-  Paperclip, SignpostBig, MessagesSquare, Camera, Users,
+  Paperclip, SignpostBig, MessagesSquare, Camera, Users, ExternalLink,
 } from 'lucide-react';
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
 import Pagination from '../../../components/Pagination.jsx';
 import EmptyState from '../../../components/EmptyState.jsx';
+import ReserveDetailCorps from '../../../components/reserve/ReserveDetailCorps.jsx';
+import useReserveDetail from '../../../hooks/useReserveDetail.js';
 import { Input, Select, Textarea } from '../../../components/FormControls.jsx';
 import { useUser } from '../../../context/useUser.js';
 import {
   ROLES_RESERVE_INTERVENANTS, ROLES_OPERATIONNELS, ROLES_OPERATIONNELS_CONTROLE, roleAllowed,
 } from '../../../utils/constants.js';
+// Les appels du DÉTAIL (pièces, signatures, affectations, commentaires,
+// médias, QR) ne sont plus listés ici : ils vivent dans `useReserveDetail`.
 import {
-  listerReserves, creerReserve, creerSerieReserves, getReserve, changerStatutReserve,
-  supprimerReserve, dupliquerReserve, ajouterPieceJointe, listerPiecesJointes, supprimerPieceJointe,
-  signerReserve, listerSignatures, affecterReserve, listerAffectations, retirerAffectation, genererQr,
-  ajouterCommentaire, listerCommentaires, ajouterMedia, listerMedias, supprimerMedia,
+  listerReserves, creerReserve, creerSerieReserves,
+  supprimerReserve, dupliquerReserve,
   exporterExcelReserves, importerExcelReserves,
 } from '../../../service/reserve/reserveService.js';
 import { listerLots, listerMembresChantier } from '../../../service/chantier/chantierService.js';
@@ -266,295 +269,43 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
 }
 
 /* ============ Détail réserve ============ */
+/**
+ * Détail d'une réserve en MODALE, depuis la liste d'un chantier.
+ *
+ * Ne contient plus que le cadre : la donnée vient de `useReserveDetail`, le
+ * contenu de `ReserveDetailCorps` — tous deux partagés avec la page
+ * `/reserves/:id`. Les deux vues ne peuvent donc plus diverger.
+ */
 function ReserveDetailModal({ reserve, onClose, onChanged, canAct, canDelete }) {
   const { t } = useTranslation('chantier');
-  const [detail, setDetail] = useState(null);
-  const [pieces, setPieces] = useState([]);
-  const [signatures, setSignatures] = useState([]);
-  const [affectations, setAffectations] = useState([]);
-  const [commentaires, setCommentaires] = useState([]);
-  const [medias, setMedias] = useState([]);
-  const [qr, setQr] = useState(null);
-  const [tab, setTab] = useState('infos');
-  const [statut, setStatut] = useState('');
-  const [motif, setMotif] = useState('');
-  const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const loadDetail = useCallback(async () => {
-    if (!reserve) return;
-    setLoading(true);
-    try {
-      const [d, p, s, a, c, m] = await Promise.all([
-        getReserve(reserve.id), listerPiecesJointes(reserve.id), listerSignatures(reserve.id),
-        listerAffectations(reserve.id), listerCommentaires(reserve.id), listerMedias(reserve.id),
-      ]);
-      setDetail(d);
-      setPieces(p.items);
-      setSignatures(s.items);
-      setAffectations(a.items);
-      setCommentaires(c.items);
-      setMedias(m.items);
-    } catch (err) {
-      SwalCustom.error({ title: t('reserves.erreurChargementDetail'), text: getErrorMessage(err) });
-    } finally {
-      setLoading(false);
-    }
-  }, [reserve, t]);
-
-  useEffect(() => { loadDetail(); }, [loadDetail]);
-
-  const changeStatut = async () => {
-    if (!statut) return;
-    setSaving(true);
-    try {
-      await changerStatutReserve(reserve.id, { statut, motif: motif || undefined });
-      SwalCustom.success(t('commun.statutMisAJour'));
-      setMotif(''); setStatut('');
-      await loadDetail();
-      onChanged();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-    finally { setSaving(false); }
-  };
-
-  const addComment = async () => {
-    if (!newComment.trim()) return;
-    try {
-      await ajouterCommentaire(reserve.id, { message: newComment });
-      setNewComment('');
-      loadDetail();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-  };
-
-  const addPiece = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      await ajouterPieceJointe(reserve.id, file);
-      SwalCustom.success(t('reserves.pieceAjoutee'));
-      loadDetail();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-    e.target.value = '';
-  };
-
-  const addMedia = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      await ajouterMedia(reserve.id, file);
-      SwalCustom.success(t('reserves.mediaAjoute'));
-      loadDetail();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-    e.target.value = '';
-  };
-
-  const getQr = async () => {
-    try {
-      const d = await genererQr(reserve.id);
-      setQr(d.qr || d.url);
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-  };
-
-  const removeAff = async (aff) => {
-    try {
-      await retirerAffectation(reserve.id, aff.id);
-      loadDetail();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-  };
-
-  const sign = async (type) => {
-    try {
-      await signerReserve(reserve.id, { type });
-      SwalCustom.success(t('reserves.signatureEnregistree'));
-      loadDetail();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-  };
-
-  const TABS = [
-    { key: 'infos', label: t('reserves.ongletInfos'), icon: Eye },
-    { key: 'pieces', label: t('reserves.ongletPieces', { n: pieces.length }), icon: Paperclip },
-    { key: 'signatures', label: t('reserves.ongletSignatures', { n: signatures.length }), icon: SignpostBig },
-    { key: 'affectations', label: t('reserves.ongletAffectations', { n: affectations.length }), icon: Users },
-    { key: 'commentaires', label: t('reserves.ongletCommentaires', { n: commentaires.length }), icon: MessagesSquare },
-    { key: 'medias', label: t('reserves.ongletMedias', { n: medias.length }), icon: Camera },
-  ];
+  const etat = useReserveDetail(reserve?.id ?? null, { onChanged });
+  const { detail } = etat;
 
   return (
-    <Modal open={!!reserve} onClose={onClose} title={detail ? `${detail.numero} — ${detail.titre}` : t('reserves.fallbackTitre')} size="lg" footer={
-      reserve && detail ? (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="btn btn-secondary btn-sm" onClick={getQr}><QrCode size={14} /> {t('reserves.qrCode')}</button>
-          {canAct && <button className="btn btn-secondary btn-sm" onClick={() => sign('signature')}>{t('actions.signer')}</button>}
-          {canAct && <button className="btn btn-primary btn-sm" onClick={() => sign('validation')}>{t('actions.valider')}</button>}
-          {canAct && <button className="btn btn-danger btn-sm" onClick={() => sign('refus')}>{t('actions.refuser')}</button>}
+    <Modal
+      open={!!reserve}
+      onClose={onClose}
+      title={detail ? `${detail.numero} — ${detail.titre}` : t('reserves.fallbackTitre')}
+      size="lg"
+      footer={reserve && detail ? (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Vers la page dédiée : c'est le seul endroit d'où l'on obtient
+              une URL partageable pour cette réserve. */}
+          <Link to={`/reserves/${detail.id}`} className="btn btn-ghost btn-sm" onClick={onClose}>
+            <ExternalLink size={14} /> {t('reserves.ouvrirPage')}
+          </Link>
+          <button className="btn btn-secondary btn-sm" onClick={etat.chargerQr}>
+            <QrCode size={14} /> {t('reserves.qrCode')}
+          </button>
+          {canAct && <button className="btn btn-secondary btn-sm" onClick={() => etat.signer('signature')}>{t('actions.signer')}</button>}
+          {canAct && <button className="btn btn-primary btn-sm" onClick={() => etat.signer('validation')}>{t('actions.valider')}</button>}
+          {canAct && <button className="btn btn-danger btn-sm" onClick={() => etat.signer('refus')}>{t('actions.refuser')}</button>}
         </div>
-      ) : null
-    }>
-      {loading ? <p className="text-muted">{t('etats.chargement')}</p> : detail && (
-        <>
-          {qr && <div style={{ textAlign: 'center', marginBottom: 12 }}><img src={qr} alt={t('reserves.qrCode')} style={{ width: 140, borderRadius: 8 }} /><p className="text-muted" style={{ fontSize: 12 }}>{t('reserves.qrLegende')}</p></div>}
-
-          <div className="kv-list" style={{ marginBottom: 14 }}>
-            <div className="kv-item"><span className="k">{t('reserves.severite')}</span><span className="v"><Badge tone={SEVERITES[detail.severite]?.tone}>{enumLabel(detail.severite, SEVERITES[detail.severite]?.label || detail.severite)}</Badge></span></div>
-            <div className="kv-item"><span className="k">{t('champs.statut')}</span><span className="v"><Badge statusKey={detail.statut} /></span></div>
-            <div className="kv-item"><span className="k">{t('champs.categorie')}</span><span className="v">{enumLabel(detail.categorie, CATEGORIES_RESERVE[detail.categorie])}</span></div>
-            <div className="kv-item"><span className="k">{t('reserves.lot')}</span><span className="v">{detail.lot?.nom || '—'}</span></div>
-            <div className="kv-item"><span className="k">{t('reserves.batiment')}</span><span className="v">{detail.batiment?.nom || '—'}</span></div>
-            <div className="kv-item"><span className="k">{t('commun.entreprise')}</span><span className="v">{detail.entreprise?.nom || '—'}</span></div>
-            <div className="kv-item"><span className="k">{t('reserves.assigneeA')}</span><span className="v">{detail.assigne?.prenom ? `${detail.assigne.prenom} ${detail.assigne.nom}` : '—'}</span></div>
-            <div className="kv-item"><span className="k">{t('champs.dateLimite')}</span><span className="v">{formatDate(detail.date_limite)}</span></div>
-          </div>
-
-          {canAct && (
-            <div className="field">
-              <label>{t('reserves.changerStatut')}</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select className="input" value={statut} onChange={(e) => setStatut(e.target.value)}>
-                  <option value="">{t('reserves.choisirStatut')}</option>
-                  {STATUT_FLOW.map((s) => <option key={s} value={s}>{enumLabel(s, STATUTS_RESERVE[s].label)}</option>)}
-                </select>
-                <button className="btn btn-primary btn-sm" onClick={changeStatut} disabled={!statut || saving}>{saving ? '…' : t('actions.appliquer')}</button>
-              </div>
-              <input className="input mt-2" placeholder={t('reserves.motif')} value={motif} onChange={(e) => setMotif(e.target.value)} />
-            </div>
-          )}
-
-          <div className="tabs-bar" style={{ margin: '16px 0 12px' }}>
-            {TABS.map((x) => { const Icon = x.icon; return <button key={x.key} className={`tab-btn ${tab === x.key ? 'active' : ''}`} onClick={() => setTab(x.key)}><Icon size={14} /> {x.label}</button>; })}
-          </div>
-
-          {tab === 'infos' && <p className="text-secondary">{detail.description || t('commun.aucuneDescription')}</p>}
-
-          {tab === 'pieces' && (
-            <div>
-              {canAct && <label className="btn btn-secondary btn-sm" style={{ display: 'inline-flex' }}>{t('reserves.ajouterPiece')} <input type="file" style={{ display: 'none' }} onChange={addPiece} /></label>}
-              {pieces.length === 0 ? <p className="text-muted" style={{ marginTop: 10 }}>{t('reserves.aucunePiece')}</p> : (
-                <ul style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {pieces.map((p) => (
-                    <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13 }}><Paperclip size={13} style={{ verticalAlign: -2 }} /> <a href={p.fichier_url} target="_blank" rel="noopener noreferrer">{p.nom_fichier}</a></span>
-                      {canDelete && <button className="btn btn-ghost btn-sm" onClick={async () => { await supprimerPieceJointe(p.id); loadDetail(); }}><Trash2 size={13} /></button>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {tab === 'signatures' && (
-            <div>
-              {signatures.length === 0 ? <p className="text-muted">{t('reserves.aucuneSignature')}</p> : (
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {signatures.map((s) => (
-                    <li key={s.id} style={{ fontSize: 13 }}>
-                      <Badge tone={s.type === 'refus' ? 'danger' : s.type === 'validation' ? 'success' : 'primary'}>{enumLabel(s.type, s.type)}</Badge>{' '}
-                      {s.signataire ? `${s.signataire.prenom} ${s.signataire.nom}` : '—'} · {formatDate(s.createdAt)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {tab === 'affectations' && (
-            <div>
-              {canAct && <AffectationForm reserveId={reserve.id} onAdded={() => { loadDetail(); onChanged(); }} />}
-              {affectations.length === 0 ? <p className="text-muted" style={{ marginTop: 8 }}>{t('reserves.aucuneAffectation')}</p> : (
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                  {affectations.map((a) => (
-                    <li key={a.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                      <span>{a.utilisateur ? `${a.utilisateur.prenom} ${a.utilisateur.nom}` : a.entreprise?.nom || '—'} <Badge tone="info">{t('reserves.intervenant')}</Badge></span>
-                      {canDelete && <button className="btn btn-ghost btn-sm" onClick={() => removeAff(a)}><Trash2 size={13} /></button>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {tab === 'commentaires' && (
-            <div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="input" placeholder={t('reserves.ajouterCommentaire')} value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} />
-                <button className="btn btn-primary btn-sm" onClick={addComment}>{t('reserves.envoyer')}</button>
-              </div>
-              {commentaires.length === 0 ? <p className="text-muted" style={{ marginTop: 8 }}>{t('reserves.aucunCommentaire')}</p> : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-                  {commentaires.map((c) => (
-                    <div key={c.id} className="comment-bubble">
-                      <div style={{ fontSize: 12.5 }}>{c.message}</div>
-                      <div className="text-muted" style={{ fontSize: 11, marginTop: 4 }}>{c.auteur ? `${c.auteur.prenom} ${c.auteur.nom}` : '—'} · {formatDate(c.createdAt)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === 'medias' && (
-            <div>
-              <label className="btn btn-secondary btn-sm" style={{ display: 'inline-flex' }}>{t('reserves.ajouterMedia')} <input type="file" style={{ display: 'none' }} accept="image/*,video/*" onChange={addMedia} /></label>
-              <div className="grid-3" style={{ marginTop: 10 }}>
-                {medias.length === 0 && <p className="text-muted">{t('reserves.aucunMedia')}</p>}
-                {medias.map((m) => (
-                  <div key={m.id} className="media-thumb">
-                    {m.url && <img src={m.url} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                    {canDelete && <button className="btn btn-ghost btn-sm" onClick={async () => { await supprimerMedia(m.id); loadDetail(); }}><Trash2 size={13} /></button>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      ) : null}
+    >
+      <ReserveDetailCorps etat={etat} canAct={canAct} canDelete={canDelete} onChanged={onChanged} />
     </Modal>
   );
-}
-
-function AffectationForm({ reserveId, onAdded }) {
-  const { t } = useTranslation('chantier');
-  const [membres, setMembres] = useState([]);
-  const [utilisateurId, setUtilisateurId] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    listerMembresChantierForAffectation(reserveId).then(setMembres).catch(() => {});
-  }, [reserveId]);
-
-  const submit = async () => {
-    if (!utilisateurId) return SwalCustom.error(t('commun.choisirMembre'));
-    setSaving(true);
-    try {
-      await affecterReserve(reserveId, { utilisateurId });
-      SwalCustom.success(t('reserves.membreAffecte'));
-      setUtilisateurId('');
-      onAdded();
-    } catch (err) { SwalCustom.error(getErrorMessage(err)); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      <select className="input" value={utilisateurId} onChange={(e) => setUtilisateurId(e.target.value)}>
-        <option value="">{t('commun.affecterMembre')}</option>
-        {membres.map((m) => <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>)}
-      </select>
-      <button className="btn btn-secondary btn-sm" onClick={submit} disabled={saving}>{saving ? '…' : t('reserves.affecter')}</button>
-    </div>
-  );
-}
-
-/* Récupère les membres du chantier (un chantier est nécessaire) */
-async function listerMembresChantierForAffectation(reserveId) {
-  try {
-    const reserve = await getReserve(reserveId);
-    if (!reserve?.chantierId) return [];
-    const d = await listerMembresChantier(reserve.chantierId);
-    return d.items;
-  } catch {
-    return [];
-  }
 }
 
 /* ============ Import Excel ============ */

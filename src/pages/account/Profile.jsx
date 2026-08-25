@@ -10,6 +10,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
 import Modal from '../../components/Modal.jsx';
 import Spinner from '../../components/Spinner.jsx';
+import DataTable from '../../components/table/DataTable.jsx';
 import { Input, Select } from '../../components/FormControls.jsx';
 import {
   getMe, modifierProfil, changerMotDePasse, listerSessions, revoquerSession, revoquerToutesSessions,
@@ -251,8 +252,8 @@ function EditProfilModal({ open, onClose, profil, onSaved }) {
 
 /* ============ Modale changement de mot de passe ============ */
 function ChangePasswordModal({ open, onClose }) {
-  const navigate = useNavigate();
-  const { clearUser } = useUser();
+  // Ni `navigate` ni `clearUser` : la session survit au changement de mot de
+  // passe, cette modale ne quitte donc plus la page.
   const { t } = useTranslation('profile');
   const [form, setForm] = useState({ ancien: '', nouveau: '', confirm: '' });
   const [saving, setSaving] = useState(false);
@@ -269,11 +270,26 @@ function ChangePasswordModal({ open, onClose }) {
 
     setSaving(true);
     try {
-      await changerMotDePasse({ ancien_mot_de_passe: form.ancien, nouveau_mot_de_passe: form.nouveau });
-      SwalCustom.success(t('motDePasse.succes'));
-      await authLogout();
-      clearUser();
-      navigate('/login', { replace: true });
+      const data = await changerMotDePasse({
+        ancien_mot_de_passe: form.ancien,
+        nouveau_mot_de_passe: form.nouveau,
+      });
+
+      // La session courante est CONSERVÉE : le serveur l'a reconnue via le
+      // cookie httpOnly et n'a révoqué que les autres. Déconnecter ici
+      // reviendrait à punir l'utilisateur d'avoir sécurisé son compte.
+      //
+      // Le nombre de sessions fermées est annoncé plutôt que laissé à
+      // découvrir : sur un compte partagé ou un poste oublié, savoir que
+      // trois autres appareils viennent d'être déconnectés est l'information
+      // utile du moment.
+      const fermees = data?.sessionsRevoquees ?? 0;
+      SwalCustom.success(
+        fermees > 0
+          ? t('motDePasse.succesAvecSessions', { count: fermees })
+          : t('motDePasse.succes')
+      );
+      onClose();
     } catch (err) {
       SwalCustom.error({ title: t('motDePasse.erreur'), text: getErrorMessage(err) });
     } finally {
@@ -442,31 +458,60 @@ function SessionsModal({ open, onClose }) {
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
 
+  const colonnesSessions = [
+    {
+      cle: 'appareil',
+      titre: t('champs.appareil'),
+      filtre: 'texte',
+      valeur: (s) => s.appareil || s.userAgent || '',
+      rendu: (s) => s.appareil || s.userAgent || '—',
+    },
+    {
+      cle: 'ip',
+      titre: t('champs.ip'),
+      filtre: 'texte',
+      rendu: (s) => s.ip || '—',
+    },
+    {
+      cle: 'createdAt',
+      titre: t('sessions.creeeLe'),
+      valeur: (s) => (s.createdAt ? new Date(s.createdAt) : null),
+      rendu: (s) => formatDateTime(s.createdAt),
+    },
+    {
+      cle: 'expiresAt',
+      titre: t('sessions.expireLe'),
+      valeur: (s) => (s.expiresAt ? new Date(s.expiresAt) : null),
+      rendu: (s) => formatDateTime(s.expiresAt),
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (s) => (s.actuelle
+        ? <span className="badge badge-success">{t('sessions.celleCi')}</span>
+        : <button className="btn btn-ghost btn-sm" onClick={() => revokeOne(s.id)}><Trash2 size={14} /></button>),
+    },
+  ];
+
   return (
     <Modal open={open} onClose={onClose} title={t('sessions.titre')} size="lg" footer={
       <button className="btn btn-danger" onClick={revokeAll}><RefreshCw size={15} /> {t('sessions.revoquerToutes')}</button>
     }>
       {loading ? <Spinner label={t('sessions.chargement')} /> : (
-        sessions.length === 0 ? <p className="text-muted">{t('sessions.aucune')}</p> : (
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>{t('champs.appareil')}</th><th>{t('champs.ip')}</th><th>{t('sessions.creeeLe')}</th><th>{t('sessions.expireLe')}</th><th></th></tr></thead>
-              <tbody>
-                {sessions.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.appareil || s.userAgent || '—'}</td>
-                    <td>{s.ip || '—'}</td>
-                    <td>{formatDateTime(s.createdAt)}</td>
-                    <td>{formatDateTime(s.expiresAt)}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {!s.actuelle && <button className="btn btn-ghost btn-sm" onClick={() => revokeOne(s.id)}><Trash2 size={14} /></button>}
-                      {s.actuelle && <span className="badge badge-success">{t('sessions.celleCi')}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        (
+          <DataTable
+            donnees={sessions}
+            colonnes={colonnesSessions}
+            titreVide={t('sessions.aucune')}
+            messageVide=""
+            parPage={10}
+            // Session la plus récente en tête : c'est celle qu'on vient
+            // d'ouvrir, et souvent celle qu'on cherche à identifier.
+            triInitial={{ cle: 'createdAt', sens: 'desc' }}
+          />
         )
       )}
     </Modal>

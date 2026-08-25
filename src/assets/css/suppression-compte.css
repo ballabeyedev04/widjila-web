@@ -1,0 +1,294 @@
+/* ============================================================
+   Page publique — Demande de suppression de compte
+   Complète legal.css (mêmes variables de thème, même carte)
+   ============================================================ */
+
+/* ---------- Étapes (chemin in-app) ---------- */
+.sc-etapes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0 4px;
+}
+
+.sc-etape {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.sc-etape-num {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-light), var(--accent));
+  color: #fff;
+}
+
+.sc-etape strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.sc-etape p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.sc-etape em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--primary-darker);
+}
+
+/* ---------- Formulaire ---------- */
+.sc-form {
+  margin: 18px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sc-champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sc-champ label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sc-champ label span {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.sc-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sc-input::placeholder { color: var(--text-muted); }
+
+.sc-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.sc-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+textarea.sc-input {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.6;
+}
+
+.sc-input-erreur {
+  border-color: var(--danger);
+}
+.sc-input-erreur:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.sc-aide {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sc-erreur {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.sc-erreur-globale {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  color: var(--danger);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.sc-submit {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.sc-submit:hover:not(:disabled) { filter: brightness(1.08); }
+.sc-submit:active:not(:disabled) { transform: translateY(1px); }
+.sc-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ---------- Confirmation ---------- */
+.sc-succes {
+  margin: 18px 0 4px;
+  padding: 32px 28px;
+  text-align: center;
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 32%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--success);
+}
+
+.sc-succes h3 {
+  margin: 12px 0 8px;
+  font-size: 17px;
+  color: var(--text-primary);
+}
+
+.sc-succes p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.sc-succes-note {
+  margin-top: 10px !important;
+  font-size: 12.5px !important;
+  color: var(--text-muted) !important;
+}
+
+/* ---------- Tableau des données ---------- */
+/* `overflow-x` sur le conteneur : sur mobile le tableau défile SEUL,
+   la page ne part pas en travers. */
+.sc-tableau-wrap {
+  margin: 16px 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.sc-tableau {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.sc-tableau thead th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.sc-tableau tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.sc-tableau tbody tr:last-child td { border-bottom: none; }
+
+.sc-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sc-tag-supprime {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.sc-tag-anonymise {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning-dark, #92400e);
+}
+
+.sc-tag-conserve {
+  background: color-mix(in srgb, var(--info, #0284c7) 12%, transparent);
+  color: var(--info, #0284c7);
+}
+
+/* ---------- Encart explicatif ---------- */
+.sc-note {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  border-left: 4px solid var(--warning);
+  border-radius: var(--radius);
+  color: var(--warning-dark, #92400e);
+}
+
+.sc-note p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.sc-note strong { display: block; margin-bottom: 4px; }
+
+/* ---------- Contact ---------- */
+.sc-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.sc-contact a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 640px) {
+  .sc-submit {
+    align-self: stretch;
+    justify-content: center;
+  }
+  .sc-etape { padding: 14px; }
+}

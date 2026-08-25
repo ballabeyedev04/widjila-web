@@ -128,3 +128,29 @@ export const rejeterDemandeInscription = async (id, motif) => {
   const response = await api.post(`/admin/demandes-inscription/${id}/rejeter`, { motif });
   return unwrap(response)?.demande;
 };
+
+/* ---------- Demandes de suppression de compte (RGPD / Google Play) ---------- */
+export const listerDemandesSuppression = async ({ page = 1, limit = 20, search = '', statut = '' } = {}) => {
+  const response = await api.get('/admin/demandes-suppression', {
+    params: {
+      page, limit,
+      search: search?.trim() || undefined,
+      statut: statut || undefined,
+    },
+  });
+  return normalizeList(unwrap(response), 'demandes');
+};
+
+export const compterSuppressionsEnAttente = async () => {
+  const response = await api.get('/admin/demandes-suppression/en-attente/compteur');
+  return unwrap(response)?.total ?? 0;
+};
+
+/** `statut` vaut 'traitee' ou 'rejetee' ; `noteAdmin` est facultatif. */
+export const traiterDemandeSuppression = async (id, statut, noteAdmin) => {
+  const response = await api.patch(`/admin/demandes-suppression/${id}`, {
+    statut,
+    note_admin: noteAdmin || undefined,
+  });
+  return unwrap(response)?.demande;
+};

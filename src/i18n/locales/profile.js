@@ -43,7 +43,8 @@ export default {
       hint: '8 caractères min. — majuscule, minuscule, chiffre, caractère spécial.',
       actuelRequis: 'Mot de passe actuel requis',
       bouton: 'Changer',
-      succes: 'Mot de passe changé. Vous êtes déconnecté pour des raisons de sécurité.',
+      succes: 'Mot de passe changé.',
+      succesAvecSessions: 'Mot de passe changé. {{count}} autre(s) session(s) fermée(s).',
       erreur: 'Changement impossible',
     },
     mfa: {
@@ -137,7 +138,8 @@ export default {
       hint: 'Min. 8 characters — uppercase, lowercase, digit, special character.',
       actuelRequis: 'Current password required',
       bouton: 'Change',
-      succes: 'Password changed. You have been signed out for security reasons.',
+      succes: 'Password changed.',
+      succesAvecSessions: 'Password changed. {{count}} other session(s) closed.',
       erreur: 'Change failed',
     },
     mfa: {
@@ -231,7 +233,8 @@ export default {
       hint: 'Mind. 8 Zeichen — Groß- und Kleinbuchstabe, Ziffer, Sonderzeichen.',
       actuelRequis: 'Aktuelles Passwort erforderlich',
       bouton: 'Ändern',
-      succes: 'Passwort geändert. Sie wurden aus Sicherheitsgründen abgemeldet.',
+      succes: 'Passwort geändert.',
+      succesAvecSessions: 'Passwort geändert. {{count}} andere Sitzung(en) beendet.',
       erreur: 'Änderung fehlgeschlagen',
     },
     mfa: {
@@ -325,7 +328,8 @@ export default {
       hint: 'Mín. 8 caracteres — mayúscula, minúscula, número, carácter especial.',
       actuelRequis: 'Contraseña actual obligatoria',
       bouton: 'Cambiar',
-      succes: 'Contraseña cambiada. Se ha cerrado su sesión por motivos de seguridad.',
+      succes: 'Contraseña cambiada.',
+      succesAvecSessions: 'Contraseña cambiada. {{count}} otra(s) sesión(es) cerrada(s).',
       erreur: 'No se pudo cambiar',
     },
     mfa: {

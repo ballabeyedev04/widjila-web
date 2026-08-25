@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, Copy, LayoutDashboard, Building2, FileImage,
@@ -51,7 +51,18 @@ export default function ChantierDetail() {
   const { user } = useUser();
   const [chantier, setChantier] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('apercu');
+  // L'onglet vit dans l'URL et non dans un état local : c'est ce qui rend
+  // « ce chantier, onglet Réserves » envoyable à un collègue, et ce qui fait
+  // que le bouton Retour du navigateur revient à l'onglet précédent au lieu
+  // de quitter la fiche.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'apercu';
+  const setTab = (cle) => {
+    // `replace` : naviguer entre onglets ne doit pas empiler une entrée
+    // d'historique par clic, sinon revenir en arrière demande autant de
+    // pressions qu'on a consulté d'onglets.
+    setSearchParams(cle === 'apercu' ? {} : { tab: cle }, { replace: true });
+  };
   const [showEdit, setShowEdit] = useState(false);
   const [showStatut, setShowStatut] = useState(false);
 

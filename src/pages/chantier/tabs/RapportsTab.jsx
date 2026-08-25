@@ -4,7 +4,7 @@ import { Plus, Trash2, FileText, Download, BarChart3 } from 'lucide-react';
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
-import EmptyState from '../../../components/EmptyState.jsx';
+import DataTable from '../../../components/table/DataTable.jsx';
 import { Input, Select } from '../../../components/FormControls.jsx';
 import { genererRapport, listerRapports, getRapport, supprimerRapport } from '../../../service/rapport/rapportService.js';
 import { listerLots } from '../../../service/chantier/chantierService.js';
@@ -50,6 +50,54 @@ export default function RapportsTab({ chantierId }) {
     catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
 
+  /**
+   * Colonnes du tableau.
+   *
+   * `valeur` est fourni partout où `rendu` produit du JSX : sans lui, le tri
+   * et la recherche porteraient sur un objet React, donc sur rien.
+   */
+  const colonnes = [
+    {
+      cle: 'type',
+      titre: t('champs.type'),
+      filtre: 'select',
+      options: TYPES_RAPPORT.map((v) => ({ valeur: v, label: t(`rapports.types.${v}`) })),
+      valeur: (r) => r.type,
+      rendu: (r) => (
+        <Badge tone="info">{TYPES_RAPPORT.includes(r.type) ? t(`rapports.types.${r.type}`) : r.type}</Badge>
+      ),
+    },
+    {
+      cle: 'statut',
+      titre: t('champs.statut'),
+      filtre: 'texte',
+      rendu: (r) => <span className="text-muted">{enumLabel(r.statut, r.statut)}</span>,
+    },
+    {
+      cle: 'createdAt',
+      titre: t('rapports.colGenereLe'),
+      // Date native et non chaîne formatée : trier sur « 03/12 » classerait
+      // par jour avant de classer par mois.
+      valeur: (r) => (r.createdAt ? new Date(r.createdAt) : null),
+      rendu: (r) => <span className="text-muted" style={{ fontSize: 13 }}>{formatDate(r.createdAt)}</span>,
+    },
+    {
+      cle: 'actions',
+      titre: '',
+      triable: false,
+      recherchable: false,
+      alignement: 'droite',
+      rendu: (r) => (
+        <>
+          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(r)}><Download size={14} /></button>
+          {canDelete && (
+            <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(r)}><Trash2 size={14} /></button>
+          )}
+        </>
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="card">
@@ -58,28 +106,16 @@ export default function RapportsTab({ chantierId }) {
           {canGen && <button className="btn btn-primary btn-sm" onClick={() => setShowGen(true)}><Plus size={14} /> {t('rapports.generer')}</button>}
         </div>
         <div className="card-body">
-          {loading ? <p className="text-muted">{t('etats.chargement')}</p>
-            : items.length === 0 ? <EmptyState title={t('rapports.videTitre')} message={t('rapports.videMessage')} />
-            : (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>{t('champs.type')}</th><th>{t('champs.statut')}</th><th>{t('rapports.colGenereLe')}</th><th></th></tr></thead>
-                  <tbody>
-                    {items.map((r) => (
-                      <tr key={r.id}>
-                        <td><Badge tone="info">{TYPES_RAPPORT.includes(r.type) ? t(`rapports.types.${r.type}`) : r.type}</Badge></td>
-                        <td className="text-muted">{enumLabel(r.statut, r.statut)}</td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{formatDate(r.createdAt)}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(r)}><Download size={14} /></button>
-                          {canDelete && <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(r)}><Trash2 size={14} /></button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <DataTable
+            donnees={items}
+            colonnes={colonnes}
+            chargement={loading}
+            titreVide={t('rapports.videTitre')}
+            messageVide={t('rapports.videMessage')}
+            placeholderRecherche={t('actions.rechercher')}
+            parPage={10}
+            triInitial={{ cle: 'createdAt', sens: 'desc' }}
+          />
         </div>
       </div>
 
