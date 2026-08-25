@@ -89,7 +89,11 @@ export default {
       titre: 'Tableau de bord',
       sousTitre: "Vue d'ensemble de votre organisation",
       aucuneStatTitre: 'Aucune statistique',
-      aucuneStatMessage: 'Impossible de récupérer les données.',
+      // Cet écran s'affiche quand la requête a RÉUSSI et ne renvoie aucun
+      // chantier : l'échec de chargement, lui, a sa propre vue (`erreurStats`).
+      // L'ancien libellé annonçait une panne inexistante et envoyait chercher
+      // dans les logs d'un serveur qui avait répondu 200.
+      aucuneStatMessage: 'Aucun chantier pour le moment : les indicateurs apparaîtront dès le premier chantier créé.',
       stats: {
         chantiers: 'Chantiers',
         reservesEnRetard: 'Réserves en retard',
@@ -389,7 +393,7 @@ export default {
       titre: 'Dashboard',
       sousTitre: 'Overview of your organisation',
       aucuneStatTitre: 'No statistics',
-      aucuneStatMessage: 'Unable to retrieve the data.',
+      aucuneStatMessage: 'No projects yet — indicators will appear as soon as the first one is created.',
       stats: {
         chantiers: 'Projects',
         reservesEnRetard: 'Overdue snags',
@@ -689,7 +693,7 @@ export default {
       titre: 'Dashboard',
       sousTitre: 'Überblick über Ihre Organisation',
       aucuneStatTitre: 'Keine Statistiken',
-      aucuneStatMessage: 'Die Daten konnten nicht abgerufen werden.',
+      aucuneStatMessage: 'Noch keine Baustelle — die Kennzahlen erscheinen, sobald die erste angelegt wurde.',
       stats: {
         chantiers: 'Baustellen',
         reservesEnRetard: 'Überfällige Mängel',
@@ -989,7 +993,7 @@ export default {
       titre: 'Panel de control',
       sousTitre: 'Visión general de su organización',
       aucuneStatTitre: 'Sin estadísticas',
-      aucuneStatMessage: 'No se pudieron recuperar los datos.',
+      aucuneStatMessage: 'Aún no hay obras: los indicadores aparecerán en cuanto se cree la primera.',
       stats: {
         chantiers: 'Obras',
         reservesEnRetard: 'Reservas atrasadas',

@@ -10,7 +10,8 @@ import Pagination from '../../components/Pagination.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
 import { SkeletonListe } from '../../components/Skeleton.jsx';
-import { Input, Textarea, Select } from '../../components/FormControls.jsx';
+import { Input, Textarea, Select, Field } from '../../components/FormControls.jsx';
+import SelectRecherche from '../../components/SelectRecherche.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import {
   listerChantiers, creerChantier, modifierChantier, supprimerChantier, dupliquerChantier,
@@ -145,6 +146,13 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
   // l'organisation du compte et refuse toute autre valeur — inutile de
   // demander quoi que ce soit.
   const choisitOrganisation = user?.role === 'Admin' && !isEdit;
+  // En MODIFICATION, l'organisation est rappelée mais pas modifiable :
+  // déplacer un chantier vers un autre client emporterait ses réserves, ses
+  // plans et ses documents, alors que son responsable, ses membres affectés et
+  // les entreprises assignées à ses réserves resteraient dans l'organisation
+  // d'origine. Le super-admin voyant le portefeuille de TOUS les clients, il
+  // lui faut au moins savoir lequel il est en train de modifier.
+  const afficheOrganisation = user?.role === 'Admin' && isEdit;
   const [organisations, setOrganisations] = useState([]);
   const [form, setForm] = useState({
     // Noms alignés sur le contrat de l'API (snake_case) : le schéma Joi valide
@@ -222,16 +230,20 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
     }>
       <form onSubmit={submit}>
         {choisitOrganisation && (
-          <Select
+          <SelectRecherche
             label={t('liste.organisationProprietaire')}
             value={form.organisationId}
             onChange={(e) => setForm({ ...form, organisationId: e.target.value })}
             error={errors.organisationId}
+            placeholder={t('liste.choisirOrganisation')}
+            options={organisations.map((o) => ({ id: o.id, label: o.nom }))}
             required
-          >
-            <option value="">{t('liste.choisirOrganisation')}</option>
-            {organisations.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
-          </Select>
+          />
+        )}
+        {afficheOrganisation && (
+          <Field label={t('liste.organisationProprietaire')} hint={t('liste.organisationNonModifiable')}>
+            <div className="champ-lecture">{chantier?.organisation?.nom || '—'}</div>
+          </Field>
         )}
         <div className="grid-2">
           <Input label={t('liste.nomChantier')} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} error={errors.nom} required />

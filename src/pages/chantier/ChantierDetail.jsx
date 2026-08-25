@@ -10,7 +10,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
 import Modal from '../../components/Modal.jsx';
 import Spinner from '../../components/Spinner.jsx';
-import { Input, Textarea, Select } from '../../components/FormControls.jsx';
+import { Input, Textarea, Select, Field } from '../../components/FormControls.jsx';
 import { useUser } from '../../context/useUser.js';
 import {
   getChantier, modifierChantier, changerStatutChantier, supprimerChantier, dupliquerChantier,
@@ -176,6 +176,13 @@ export default function ChantierDetail() {
 
 function EditChantierModal({ open, onClose, chantier, onSaved }) {
   const { t } = useTranslation('chantier');
+  const { user } = useUser();
+  // Rappel non modifiable de l'organisation propriétaire — même parti pris que
+  // le modal de la liste (Chantiers.jsx) : le super-admin parcourt les
+  // chantiers de tous les clients, il doit voir lequel il modifie. Déplacer un
+  // chantier d'une organisation à l'autre est un autre sujet : ses réserves et
+  // ses plans suivraient, mais pas son responsable ni ses membres.
+  const afficheOrganisation = user?.role === 'Admin';
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -223,6 +230,11 @@ function EditChantierModal({ open, onClose, chantier, onSaved }) {
       </>
     }>
       <form onSubmit={submit}>
+        {afficheOrganisation && (
+          <Field label={t('liste.organisationProprietaire')} hint={t('liste.organisationNonModifiable')}>
+            <div className="champ-lecture">{chantier?.organisation?.nom || '—'}</div>
+          </Field>
+        )}
         <div className="grid-2">
           <Input label={t('commun.nom')} value={form.nom || ''} onChange={(e) => setForm({ ...form, nom: e.target.value })} error={errors.nom} required />
           <Input label={t('commun.code')} value={form.code || ''} onChange={(e) => setForm({ ...form, code: e.target.value })} />

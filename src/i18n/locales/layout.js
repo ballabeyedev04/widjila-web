@@ -65,6 +65,8 @@ export default {
     },
     formulaire: {
       selectionner: '— Sélectionner —',
+      rechercher: 'Rechercher…',
+      aucunResultat: 'Aucun résultat',
     },
     pagination: {
       intervalle: '{{from}}–{{to}} sur {{total}}',
@@ -136,6 +138,8 @@ export default {
     },
     formulaire: {
       selectionner: '— Select —',
+      rechercher: 'Search…',
+      aucunResultat: 'No results',
     },
     pagination: {
       intervalle: '{{from}}–{{to}} of {{total}}',
@@ -207,6 +211,8 @@ export default {
     },
     formulaire: {
       selectionner: '— Auswählen —',
+      rechercher: 'Suchen…',
+      aucunResultat: 'Keine Ergebnisse',
     },
     pagination: {
       intervalle: '{{from}}–{{to}} von {{total}}',
@@ -278,6 +284,8 @@ export default {
     },
     formulaire: {
       selectionner: '— Seleccionar —',
+      rechercher: 'Buscar…',
+      aucunResultat: 'Sin resultados',
     },
     pagination: {
       intervalle: '{{from}}–{{to}} de {{total}}',

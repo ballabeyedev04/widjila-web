@@ -351,6 +351,110 @@
 .input.invalid, .select.invalid, .textarea.invalid { border-color: var(--danger); }
 .textarea { resize: vertical; min-height: 90px; }
 
+/* Valeur non modifiable dans un formulaire : même gabarit qu'un champ, mais
+   fond grisé et pas de bordure de saisie — l'œil comprend qu'il n'y a rien à
+   remplir sans avoir à cliquer dedans pour le découvrir. */
+.champ-lecture {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  background: var(--surface-2, #f8fafc);
+}
+
+/* ── Select avec recherche intégrée (SelectRecherche.jsx) ──────────────────
+   Le panneau est en `position: absolute` dans un conteneur `relative` : il
+   se superpose au contenu au lieu de pousser le formulaire vers le bas. Son
+   z-index dépasse celui de .modal (1000) — sans quoi il passait DERRIÈRE la
+   fenêtre modale qui l'héberge, donc invisible. */
+.select-recherche { position: relative; }
+.select-recherche-declencheur {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select-recherche-declencheur:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(242, 96, 12, 0.12);
+}
+.select-recherche-declencheur:disabled { background: var(--surface-2, #f8fafc); cursor: not-allowed; }
+.select-recherche-declencheur.invalid { border-color: var(--danger); }
+.select-recherche-declencheur > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.select-recherche-panneau {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.select-recherche-champ {
+  position: relative;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.select-recherche-champ svg {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.select-recherche-champ .input { padding-left: 32px; }
+
+/* Plafond en hauteur : la liste défile, le panneau ne déborde jamais de
+   l'écran même avec un portefeuille de plusieurs centaines d'organisations. */
+.select-recherche-liste {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.select-recherche-option {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+.select-recherche-option:hover { background: var(--surface-2, #f1f5f9); }
+.select-recherche-option.actif { color: var(--primary); font-weight: 600; }
+.select-recherche-vide {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
