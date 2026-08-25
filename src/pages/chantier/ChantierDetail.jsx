@@ -17,7 +17,7 @@ import {
 } from '../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, ROLES_PILOTAGE, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, ROLES_PILOTAGE, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import ApercuTab from './tabs/ApercuTab.jsx';
 import StructureTab from './tabs/StructureTab.jsx';
@@ -83,7 +83,15 @@ export default function ChantierDetail() {
   if (!chantier) return <p className="text-secondary">{t('detail.introuvable')}</p>;
 
   // Gestion opérationnelle : Chef de projet, Conducteur de travaux, Maître d'œuvre.
-  const canManage = ['ChefProjet', 'ConducteurTravaux', 'MaitreOeuvre'].includes(user?.role);
+  //
+  // `roleAllowed` et non un `includes` brut : le super-admin plateforme n'est
+  // listé dans AUCUN groupe de rôles (voir config/roles.js côté back, où
+  // `requireRole` le laisse toujours passer) — un `includes` l'excluait donc,
+  // et l'onglet Structure lui affichait « Aucun bâtiment » SANS le bouton pour
+  // en créer un. Même règle que la liste des chantiers (Chantiers.jsx), que
+  // `canDelete` et `canAssign` juste en dessous, et que le backend, qui
+  // autorise déjà ces routes au rôle Admin.
+  const canManage = roleAllowed(user?.role, ROLES_OPERATIONNELS);
   // Pilotage / validation (changer le statut d'un chantier) : le MOA et le BC valident.
   const canPilot = roleAllowed(user?.role, ROLES_PILOTAGE);
   // Suppression réservée au chef de projet (et à l'admin).
