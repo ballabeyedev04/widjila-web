@@ -15,27 +15,32 @@ export const statsChantier = async (chantierId) => {
 
 export const statsParEntreprise = async () => {
   const response = await api.get('/dashboard/par-entreprise');
-  return unwrap(response);
+  return unwrap(response)?.stats;
 };
 
 export const statsParBatiment = async (chantierId) => {
   const response = await api.get(`/dashboard/chantiers/${chantierId}/par-batiment`);
-  return unwrap(response);
+  return unwrap(response)?.stats;
 };
 
 export const dureeTraitement = async (chantierId) => {
   const response = await api.get(`/dashboard/chantiers/${chantierId}/duree-traitement`);
-  return unwrap(response);
+  return unwrap(response)?.stats;
 };
 
 export const productivite = async (chantierId) => {
   const response = await api.get(`/dashboard/chantiers/${chantierId}/productivite`);
-  return unwrap(response);
+  return unwrap(response)?.stats;
 };
 
+// Sans `chantierId` : évolution de TOUTE l'organisation (`GET /dashboard/evolution`).
+// Le tableau de bord global appelle `evolution()` sans argument — construire
+// l'URL par chantier dans ce cas produisait `/dashboard/chantiers/undefined/evolution`
+// (cast UUID invalide côté base, 500, courbe vide).
 export const evolution = async (chantierId) => {
-  const response = await api.get(`/dashboard/chantiers/${chantierId}/evolution`);
-  return unwrap(response);
+  const url = chantierId ? `/dashboard/chantiers/${chantierId}/evolution` : '/dashboard/evolution';
+  const response = await api.get(url);
+  return unwrap(response)?.stats;
 };
 
 export const exporterDashboard = async () => {
