@@ -1,8 +1,24 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Upload, Trash2, Eye, FileText, MapPin, Clock, Layers, GitCompare } from 'lucide-react';
+import { Plus, Upload, Trash2, Eye, FileText, MapPin, Clock, Layers, GitCompare, Compass, List } from 'lucide-react';
 
 import Modal from '../../../components/Modal.jsx';
+
+/**
+ * Le parcours de consultation embarque pdf.js (~450 Ko) pour rendre les plans.
+ * Chargé statiquement, ce poids partait dans le bundle principal et retardait
+ * l'affichage de l'écran de connexion — pour une bibliothèque dont seuls les
+ * utilisateurs qui ouvrent un plan ont besoin. `lazy` le range dans un chunk
+ * séparé, téléchargé à la première ouverture de l'onglet.
+ */
+const PlanNavigateur = lazy(() => import('../../../components/plan/PlanNavigateur.jsx'));
+
+/**
+ * L'aperçu embarque pdf.js, comme le parcours : il est donc chargé à la
+ * demande lui aussi, pour que la liste s'affiche sans attendre la
+ * bibliothèque de rendu.
+ */
+const PlanVignette = lazy(() => import('../../../components/plan/PlanVignette.jsx'));
 import EmptyState from '../../../components/EmptyState.jsx';
 import { Input, Select } from '../../../components/FormControls.jsx';
 import {
@@ -16,12 +32,18 @@ import SwalCustom from '../../../utils/swal.config.js';
 
 const TYPES_ANNOTATION = ['marqueur', 'dessin', 'mesure', 'texte', 'lien', 'cercle', 'rectangle', 'fleche'];
 
-export default function PlansTab({ chantierId, canManage }) {
+export default function PlansTab({ chantierId, chantier, canManage, canCreerReserve }) {
   const { t } = useTranslation('chantier');
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [viewing, setViewing] = useState(null);
+  // « Parcourir » est le mode par défaut : c'est le parcours décrit par le
+  // guide client (plan global → bâtiment → étage → appartement → réserve).
+  // « Tous les plans » conserve la gestion documentaire — import, versions,
+  // annotations, suppression — qui n'a pas sa place dans un parcours de
+  // consultation mais reste indispensable à ceux qui déposent les plans.
+  const [vue, setVue] = useState('parcourir');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +70,22 @@ export default function PlansTab({ chantierId, canManage }) {
 
   return (
     <>
+      <div className="tabs-bar" style={{ marginBottom: 14 }}>
+        <button className={`tab ${vue === 'parcourir' ? 'active' : ''}`} onClick={() => setVue('parcourir')}>
+          <Compass size={15} /> {t('plans.parcourir')}
+        </button>
+        <button className={`tab ${vue === 'liste' ? 'active' : ''}`} onClick={() => setVue('liste')}>
+          <List size={15} /> {t('plans.tousLesPlans')}
+        </button>
+      </div>
+
+      {vue === 'parcourir' && chantier && (
+        <Suspense fallback={<p className="text-muted">{t('etats.chargement')}</p>}>
+          <PlanNavigateur chantier={chantier} canManage={canManage} canCreerReserve={canCreerReserve} />
+        </Suspense>
+      )}
+
+      {vue === 'liste' && (
       <div className="card">
         <div className="card-header">
           <h2>{t('plans.titre', { n: plans.length })}</h2>
@@ -61,7 +99,18 @@ export default function PlansTab({ chantierId, canManage }) {
                 {plans.map((p) => (
                   <div key={p.id} className="plan-card">
                     <div className="plan-thumb" onClick={() => setViewing(p)}>
-                      {p.format === 'pdf' ? <FileText size={34} /> : <Layers size={34} />}
+                      {/* La première page du document, plutôt qu'un
+                          pictogramme : c'est ce qui permet de reconnaître un
+                          plan sans l'ouvrir. Le repli reste l'icône, dans le
+                          Suspense comme en cas d'échec de rendu. */}
+                      <Suspense fallback={<FileText size={34} />}>
+                        <PlanVignette
+                          plan={p}
+                          className="plan-thumb-apercu"
+                          Icone={p.format === 'pdf' ? FileText : Layers}
+                          tailleIcone={34}
+                        />
+                      </Suspense>
                       <span className="plan-format">{p.format?.toUpperCase() || '—'}</span>
                     </div>
                     <div className="plan-meta">
@@ -81,22 +130,37 @@ export default function PlansTab({ chantierId, canManage }) {
             )}
         </div>
       </div>
+      )}
 
-      <UploadModal open={showUpload} onClose={() => setShowUpload(false)} chantierId={chantierId} onSaved={load} />
+      <UploadModal open={showUpload} onClose={() => setShowUpload(false)} chantierId={chantierId} chantier={chantier} onSaved={load} />
       <PlanViewerModal plan={viewing} onClose={() => setViewing(null)} canManage={canManage} onChanged={load} />
     </>
   );
 }
 
-function UploadModal({ open, onClose, chantierId, onSaved }) {
+function UploadModal({ open, onClose, chantierId, chantier, onSaved }) {
   const { t } = useTranslation('chantier');
   const [fichier, setFichier] = useState(null);
   const [nom, setNom] = useState('');
   const [format, setFormat] = useState('');
+  // Niveau décrit par le plan. Laisser les trois vides = plan global du
+  // chantier, qui est le point d'entrée du parcours de consultation.
+  const [batimentId, setBatimentId] = useState('');
+  const [etageId, setEtageId] = useState('');
+  const [zoneId, setZoneId] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const batiments = chantier?.batiments || [];
+  const batiment = batiments.find((b) => b.id === batimentId);
+  const etages = batiment?.etages || [];
+  const etage = etages.find((e) => e.id === etageId);
+  const zones = etage?.zones || [];
+
   useEffect(() => {
-    if (open) { setFichier(null); setNom(''); setFormat(''); }
+    if (open) {
+      setFichier(null); setNom(''); setFormat('');
+      setBatimentId(''); setEtageId(''); setZoneId('');
+    }
   }, [open]);
 
   const submit = async (e) => {
@@ -105,7 +169,18 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
     if (!nom.trim()) return SwalCustom.error(t('plans.nomPlanRequis'));
     setSaving(true);
     try {
-      await uploaderPlan(chantierId, { fichier, nom, format: format || undefined });
+      // On n'envoie QUE le niveau le plus fin renseigné : le backend en déduit
+      // les niveaux parents (une zone porte son étage et son bâtiment). Les
+      // envoyer tous les trois n'apporterait rien et multiplierait les
+      // occasions d'incohérence.
+      await uploaderPlan(chantierId, {
+        fichier,
+        nom,
+        format: format || undefined,
+        zoneId: zoneId || undefined,
+        etageId: !zoneId && etageId ? etageId : undefined,
+        batimentId: !zoneId && !etageId && batimentId ? batimentId : undefined,
+      });
       SwalCustom.success(t('plans.importe'));
       onClose();
       onSaved();
@@ -132,6 +207,36 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
           <option value="dwg">DWG</option>
           <option value="ifc">IFC</option>
         </Select>
+
+        {/* Rattachement : chaque niveau réinitialise ceux du dessous, sans
+            quoi on pouvait garder l'appartement d'un étage après avoir changé
+            de bâtiment — et déposer le plan sous une localisation absurde. */}
+        <Select
+          label={t('plans.batiment')}
+          value={batimentId}
+          onChange={(e) => { setBatimentId(e.target.value); setEtageId(''); setZoneId(''); }}
+        >
+          <option value="">{t('plans.chantierEntier')}</option>
+          {batiments.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}
+        </Select>
+
+        {batimentId && (
+          <Select
+            label={t('plans.etage')}
+            value={etageId}
+            onChange={(e) => { setEtageId(e.target.value); setZoneId(''); }}
+          >
+            <option value="">{t('plans.batimentEntier')}</option>
+            {etages.map((e2) => <option key={e2.id} value={e2.id}>{e2.nom}</option>)}
+          </Select>
+        )}
+
+        {etageId && (
+          <Select label={t('plans.zone')} value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
+            <option value="">{t('plans.etageEntier')}</option>
+            {zones.map((z) => <option key={z.id} value={z.id}>{z.nom}</option>)}
+          </Select>
+        )}
       </form>
     </Modal>
   );

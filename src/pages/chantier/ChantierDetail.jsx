@@ -17,7 +17,7 @@ import {
 } from '../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, ROLES_PILOTAGE, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, ROLES_PILOTAGE, ROLES_OPERATIONNELS, ROLES_RESERVE_INTERVENANTS, roleAllowed, enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import ApercuTab from './tabs/ApercuTab.jsx';
 import StructureTab from './tabs/StructureTab.jsx';
@@ -27,6 +27,7 @@ import InspectionsTab from './tabs/InspectionsTab.jsx';
 import DocumentsTab from './tabs/DocumentsTab.jsx';
 import RapportsTab from './tabs/RapportsTab.jsx';
 import MembresTab from './tabs/MembresTab.jsx';
+import { useEnum } from '../../hooks/useEnums.js';
 
 // L'onglet « Membres » (affectation) est réservé aux rôles gestion/encadrement.
 // Le libellé de chaque onglet vient du namespace i18n `chantier` (detail.onglets.<key>).
@@ -94,6 +95,10 @@ export default function ChantierDetail() {
   const canManage = roleAllowed(user?.role, ROLES_OPERATIONNELS);
   // Pilotage / validation (changer le statut d'un chantier) : le MOA et le BC valident.
   const canPilot = roleAllowed(user?.role, ROLES_PILOTAGE);
+  // Poser une réserve sur un plan : même groupe que le backend
+  // (RESERVE_INTERVENANTS) — l'entreprise et le pilote en font partie, à la
+  // différence de `canManage` qui ne couvre que la gestion documentaire.
+  const canCreerReserve = roleAllowed(user?.role, ROLES_RESERVE_INTERVENANTS);
   // Suppression réservée au chef de projet (et à l'admin).
   const canDelete = user?.role === 'ChefProjet' || user?.role === 'Admin';
   // Affecter/retirer des membres : Chef de projet ou Maître d'œuvre (backend).
@@ -138,10 +143,20 @@ export default function ChantierDetail() {
         {canManage && (
           <>
             <button className="btn btn-primary" onClick={() => setShowEdit(true)}><Pencil size={16} /> {t('actions.modifier')}</button>
-            <button className="btn btn-ghost btn-icon-only" onClick={duplicate} title={t('actions.dupliquer')}><Copy size={16} /></button>
+            <button
+              className="btn btn-ghost btn-icon-only"
+              onClick={duplicate}
+              title={t('actions.dupliquer')}
+              aria-label={t('actions.dupliquer')}
+            ><Copy size={16} aria-hidden="true" /></button>
           </>
         )}
-        {canDelete && <button className="btn btn-ghost btn-icon-only btn-danger-hover" onClick={remove} title={t('actions.supprimer')}><Trash2 size={16} /></button>}
+        {canDelete && <button
+            className="btn btn-ghost btn-icon-only btn-danger-hover"
+            onClick={remove}
+            title={t('actions.supprimer')}
+            aria-label={t('actions.supprimer')}
+          ><Trash2 size={16} aria-hidden="true" /></button>}
       </PageHeader>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -173,7 +188,17 @@ export default function ChantierDetail() {
             recharger — sans quoi l'onglet affiche encore « Aucun bâtiment »
             alors que le serveur a bien répondu 201. */}
         {activeTab === 'structure' && <StructureTab chantierId={chantier.id} chantier={chantier} canManage={canManage} onStructureChange={load} />}
-        {activeTab === 'plans' && <PlansTab chantierId={chantier.id} canManage={canManage} />}
+        {/* `chantier` en plus de `chantierId` : le parcours de consultation
+            (plan global → bâtiment → étage → appartement) se construit sur la
+            structure déjà imbriquée dans le chantier, sans second appel. */}
+        {activeTab === 'plans' && (
+          <PlansTab
+            chantierId={chantier.id}
+            chantier={chantier}
+            canManage={canManage}
+            canCreerReserve={canCreerReserve}
+          />
+        )}
         {activeTab === 'reserves' && <ReservesTab chantierId={chantier.id} />}
         {activeTab === 'inspections' && <InspectionsTab chantierId={chantier.id} canManage={canManage} />}
         {activeTab === 'documents' && <DocumentsTab chantierId={chantier.id} canManage={canManage} />}
@@ -267,6 +292,8 @@ function EditChantierModal({ open, onClose, chantier, onSaved }) {
 }
 
 function StatutModal({ open, onClose, chantier, onSaved }) {
+  // Statuts servis par l'API — voir hooks/useEnums.js.
+  const statutsChantier = useEnum('statutsChantier');
   const { t } = useTranslation('chantier');
   const [statut, setStatut] = useState(chantier?.statut || 'en_preparation');
   const [saving, setSaving] = useState(false);
@@ -293,7 +320,7 @@ function StatutModal({ open, onClose, chantier, onSaved }) {
       </>
     }>
       <Select label={t('champs.statut')} value={statut} onChange={(e) => setStatut(e.target.value)}>
-        {Object.entries(STATUTS_CHANTIER).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+        {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
       </Select>
     </Modal>
   );

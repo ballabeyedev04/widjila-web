@@ -126,7 +126,6 @@ export function useServerList(fetchFn, {
     load(page, applied.filters);
     // `extraKey` est l'empreinte de `extraDeps` : elle déclenche le
     // rechargement sans que l'identité du tableau n'entre en jeu.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, page, applied, extraKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));

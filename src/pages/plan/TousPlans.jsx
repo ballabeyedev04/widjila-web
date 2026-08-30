@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, X, Building2, Map, Layers } from 'lucide-react';
 
 import PageHeader from '../../components/PageHeader.jsx';
+
+// Chargé à la demande : l'aperçu embarque pdf.js (~450 Ko), qui n'a pas à
+// peser sur le bundle principal.
+const PlanVignette = lazy(() => import('../../components/plan/PlanVignette.jsx'));
 import Badge from '../../components/Badge.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import { listerTousPlans } from '../../service/plan/planService.js';
@@ -100,7 +104,13 @@ export default function TousPlans() {
           {visibles.map((p) => (
             <Link key={p.id} to={`/chantiers/${p.chantierId}?tab=plans`} className="card plan-carte">
               <div className="card-body">
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                {/* Aperçu de la première page — reconnaître le plan sans
+                    ouvrir le chantier. */}
+                <Suspense fallback={<div className="plan-carte-apercu"><Map size={22} /></div>}>
+                  <PlanVignette plan={p} className="plan-carte-apercu" Icone={Map} tailleIcone={22} />
+                </Suspense>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 10 }}>
                   <span className="plan-carte-icone"><Map size={18} /></span>
                   {p.version != null && <Badge tone="info"><Layers size={11} /> v{p.version}</Badge>}
                 </div>

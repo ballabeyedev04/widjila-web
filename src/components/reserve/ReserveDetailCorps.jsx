@@ -11,11 +11,11 @@ import { affecterReserve } from '../../service/reserve/reserveService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate } from '../../utils/format.js';
 import {
-  STATUTS_RESERVE, SEVERITES, CATEGORIES_RESERVE, enumLabel,
+  STATUTS_RESERVE, SEVERITES, enumLabel,
 } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
-const STATUT_FLOW = Object.keys(STATUTS_RESERVE).filter((s) => s !== 'en_retard');
 
 /**
  * Corps du détail d'une réserve — SANS conteneur.
@@ -30,7 +30,14 @@ const STATUT_FLOW = Object.keys(STATUTS_RESERVE).filter((s) => s !== 'en_retard'
  * passé ici en un seul objet `etat`.
  */
 export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged }) {
+  // Statuts proposés au changement, servis par l'API (hooks/useEnums.js).
+  //
+  // `en_retard` en est retiré : c'est un état CALCULÉ à partir de la date
+  // limite, jamais choisi à la main. Le proposer laisserait croire qu'on peut
+  // déclarer une réserve en retard, ce que le serveur refuse.
+  const statutsReserve = useEnum('statutsReserve').filter((s) => s !== 'en_retard');
   const { t } = useTranslation('chantier');
+  const { t: tCorps } = useTranslation('corpsEtat');
   const [onglet, setOnglet] = useState('infos');
   const [statut, setStatut] = useState('');
   const [motif, setMotif] = useState('');
@@ -75,10 +82,12 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
       <div className="kv-list" style={{ marginBottom: 14 }}>
         <div className="kv-item"><span className="k">{t('reserves.severite')}</span><span className="v"><Badge tone={SEVERITES[detail.severite]?.tone}>{enumLabel(detail.severite, SEVERITES[detail.severite]?.label || detail.severite)}</Badge></span></div>
         <div className="kv-item"><span className="k">{t('champs.statut')}</span><span className="v"><Badge statusKey={detail.statut} /></span></div>
-        <div className="kv-item"><span className="k">{t('champs.categorie')}</span><span className="v">{enumLabel(detail.categorie, CATEGORIES_RESERVE[detail.categorie])}</span></div>
+        {/* Le catalogue fait foi ; `categorie` reste le repli pour les réserves
+            créées avant la bascule vers le référentiel administrable. */}
+        <div className="kv-item"><span className="k">{tCorps('selecteur.label')}</span><span className="v">{detail.corpsEtat?.nom || enumLabel(detail.categorie, detail.categorie) || '—'}</span></div>
         <div className="kv-item"><span className="k">{t('reserves.lot')}</span><span className="v">{detail.lot?.nom || '—'}</span></div>
         <div className="kv-item"><span className="k">{t('reserves.batiment')}</span><span className="v">{detail.batiment?.nom || '—'}</span></div>
-        <div className="kv-item"><span className="k">{t('commun.entreprise')}</span><span className="v">{detail.entreprise?.nom || '—'}</span></div>
+        <div className="kv-item"><span className="k">{t('commun.entreprise')}</span><span className="v">{detail.partenaire?.nom || detail.entreprise?.nom || '—'}</span></div>
         <div className="kv-item"><span className="k">{t('reserves.assigneeA')}</span><span className="v">{detail.assigne?.prenom ? `${detail.assigne.prenom} ${detail.assigne.nom}` : '—'}</span></div>
         <div className="kv-item"><span className="k">{t('champs.dateLimite')}</span><span className="v">{formatDate(detail.date_limite)}</span></div>
       </div>
@@ -89,7 +98,7 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <select className="input" value={statut} onChange={(e) => setStatut(e.target.value)}>
               <option value="">{t('reserves.choisirStatut')}</option>
-              {STATUT_FLOW.map((s) => <option key={s} value={s}>{enumLabel(s, STATUTS_RESERVE[s].label)}</option>)}
+              {statutsReserve.map((s) => <option key={s} value={s}>{enumLabel(s, STATUTS_RESERVE[s]?.label)}</option>)}
             </select>
             <button className="btn btn-primary btn-sm" onClick={appliquerStatut} disabled={!statut || saving}>
               {saving ? '…' : t('actions.appliquer')}
@@ -133,7 +142,12 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
                     <a href={p.fichier_url} target="_blank" rel="noopener noreferrer">{p.nom_fichier}</a>
                   </span>
                   {canDelete && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => etat.retirerFichier(p.id)}><Trash2 size={13} /></button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => etat.retirerFichier(p.id)}
+                      title={t('actions.supprimer')}
+                      aria-label={t('actions.supprimer')}
+                    ><Trash2 size={13} aria-hidden="true" /></button>
                   )}
                 </li>
               ))}
@@ -176,7 +190,12 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
                     <Badge tone="info">{t('reserves.intervenant')}</Badge>
                   </span>
                   {canDelete && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => etat.retirerAffect(a.id)}><Trash2 size={13} /></button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => etat.retirerAffect(a.id)}
+                      title={t('actions.supprimer')}
+                      aria-label={t('actions.supprimer')}
+                    ><Trash2 size={13} aria-hidden="true" /></button>
                   )}
                 </li>
               ))}
@@ -231,7 +250,12 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
               <div key={m.id} className="media-thumb">
                 {m.url && <img src={m.url} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
                 {canDelete && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => etat.retirerPhoto(m.id)}><Trash2 size={13} /></button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => etat.retirerPhoto(m.id)}
+                    title={t('actions.supprimer')}
+                    aria-label={t('actions.supprimer')}
+                  ><Trash2 size={13} aria-hidden="true" /></button>
                 )}
               </div>
             ))}

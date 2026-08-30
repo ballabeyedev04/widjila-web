@@ -28,10 +28,11 @@ import { listerLots, listerMembresChantier } from '../../../service/chantier/cha
 import { listerPartenaires } from '../../../service/organisation/organisationService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate } from '../../../utils/format.js';
-import { STATUTS_RESERVE, SEVERITES, CATEGORIES_RESERVE, enumLabel } from '../../../utils/constants.js';
+import { STATUTS_RESERVE, SEVERITES, enumLabel } from '../../../utils/constants.js';
+import { useCorpsEtatActifs } from '../../../hooks/useCorpsEtatActifs.js';
+import { usePhasesActives } from '../../../hooks/usePhasesActives.js';
 import SwalCustom from '../../../utils/swal.config.js';
-
-const STATUT_FLOW = Object.keys(STATUTS_RESERVE).filter((s) => s !== 'en_retard');
+import { useEnum } from '../../../hooks/useEnums.js';
 
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -43,7 +44,11 @@ function downloadBlob(blob, name) {
 }
 
 export default function ReservesTab({ chantierId }) {
+  // Statuts et sévérités servis par l'API — hooks/useEnums.js.
+  const statutsReserve = useEnum('statutsReserve');
+  const severites = useEnum('severites');
   const { t } = useTranslation('chantier');
+  const { t: tCorps } = useTranslation('corpsEtat');
   const { user } = useUser();
   const role = user?.role;
   // Aligné sur le backend (src/config/roles.js) : chaque rôle ne voit que
@@ -126,17 +131,22 @@ export default function ReservesTab({ chantierId }) {
             </div>
             <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
               <option value="">{t('commun.tousStatuts')}</option>
-              {Object.entries(STATUTS_RESERVE).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+              {statutsReserve.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_RESERVE[value]?.label)}</option>)}
             </Select>
             <Select value={filters.severite} onChange={(e) => setFilters({ ...filters, severite: e.target.value })} label="">
               <option value="">{t('reserves.toutesSeverites')}</option>
-              {Object.entries(SEVERITES).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+              {severites.map((value) => <option key={value} value={value}>{enumLabel(value, SEVERITES[value]?.label)}</option>)}
             </Select>
             <Select value={filters.lotId} onChange={(e) => setFilters({ ...filters, lotId: e.target.value })} label="">
               <option value="">{t('reserves.tousLots')}</option>
               {lots.map((l) => <option key={l.id} value={l.id}>{l.nom}</option>)}
             </Select>
-            <button className="btn btn-ghost" onClick={load}><RefreshCw size={16} /></button>
+            <button
+          className="btn btn-ghost"
+          onClick={load}
+          title={t('layout:actions.rafraichir')}
+          aria-label={t('layout:actions.rafraichir')}
+        ><RefreshCw size={16} /></button>
           </div>
 
           {loading ? <p className="text-muted">{t('etats.chargement')}</p>
@@ -144,17 +154,17 @@ export default function ReservesTab({ chantierId }) {
             : (
               <div className="table-wrap">
                 <table className="table">
-                  <thead><tr><th>{t('reserves.colNumero')}</th><th>{t('reserves.colReserve')}</th><th>{t('reserves.severite')}</th><th>{t('champs.categorie')}</th><th>{t('reserves.lot')}</th><th>{t('champs.statut')}</th><th>{t('reserves.echeance')}</th><th></th></tr></thead>
+                  <thead><tr><th>{t('reserves.colNumero')}</th><th>{t('reserves.colReserve')}</th><th>{t('reserves.severite')}</th><th>{tCorps('selecteur.label')}</th><th>{t('reserves.lot')}</th><th>{t('champs.statut')}</th><th>{t('reserves.echeance')}</th><th></th></tr></thead>
                   <tbody>
                     {items.map((r) => (
                       <tr key={r.id}>
                         <td><strong>{r.numero}</strong></td>
                         <td>
                           <button className="link" onClick={() => setViewing(r)}>{r.titre}</button>
-                          <div className="text-muted" style={{ fontSize: 12 }}>{r.entreprise?.nom || r.entreprise || '—'}</div>
+                          <div className="text-muted" style={{ fontSize: 12 }}>{r.partenaire?.nom || r.entreprise?.nom || r.entreprise || '—'}</div>
                         </td>
                         <td><Badge tone={SEVERITES[r.severite]?.tone}>{enumLabel(r.severite, SEVERITES[r.severite]?.label || r.severite)}</Badge></td>
-                        <td className="text-muted" style={{ fontSize: 13 }}>{enumLabel(r.categorie, CATEGORIES_RESERVE[r.categorie])}</td>
+                        <td className="text-muted" style={{ fontSize: 13 }}>{r.corpsEtat?.nom || enumLabel(r.categorie, r.categorie)}</td>
                         <td className="text-muted" style={{ fontSize: 13 }}>{r.lot?.nom || '—'}</td>
                         <td><Badge statusKey={r.statut} /></td>
                         <td className="text-muted" style={{ fontSize: 13 }}>{formatDate(r.date_limite)}</td>
@@ -182,16 +192,23 @@ export default function ReservesTab({ chantierId }) {
 
 /* ============ Création (simple + série) ============ */
 function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
+  const severites = useEnum('severites');
   const { t } = useTranslation('chantier');
+  // Namespace distinct : le catalogue des métiers porte ses propres libellés,
+  // partagés par l'écran d'administration et par tous les formulaires.
+  const { t: tCorps } = useTranslation('corpsEtat');
+  const { corpsEtat, chargement: corpsChargement } = useCorpsEtatActifs();
+  const { t: tPhase } = useTranslation('phase');
+  const { phases, chargement: phasesChargement } = usePhasesActives();
   const [mode, setMode] = useState('simple'); // simple | serie
-  const [form, setForm] = useState({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', categorie: 'autre', lotId: '', batimentId: '', etageId: '', assigneA: '', entrepriseId: '', date_limite: '' });
+  const [form, setForm] = useState({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', phaseId: '', corpsEtatId: '', lotId: '', batimentId: '', etageId: '', assigneA: '', partenaireId: '', date_limite: '' });
   const [membres, setMembres] = useState([]);
   const [partenaires, setPartenaires] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setForm({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', categorie: 'autre', lotId: '', batimentId: '', etageId: '', assigneA: '', entrepriseId: '', date_limite: '' });
+    setForm({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', phaseId: '', corpsEtatId: '', lotId: '', batimentId: '', etageId: '', assigneA: '', partenaireId: '', date_limite: '' });
     listerMembresChantier(chantierId).then((d) => setMembres(d.items)).catch(() => {});
     listerPartenaires({ limit: 100 }).then((d) => setPartenaires(d.items)).catch(() => {});
   }, [open, chantierId]);
@@ -199,13 +216,17 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.titre.trim()) return SwalCustom.error(t('reserves.titreRequis'));
+    // La phase est obligatoire. Le serveur l'impose aussi (creerReserveSchema) :
+    // ce contrôle n'est qu'un raccourci pour éviter un aller-retour inutile.
+    if (!form.phaseId) return SwalCustom.error(tPhase('selecteur.requise'));
     setSaving(true);
     try {
       const base = {
         description: form.description, severite: form.severite, priorite: form.priorite,
-        categorie: form.categorie, lotId: form.lotId || undefined, batimentId: form.batimentId || undefined,
+        phaseId: form.phaseId,
+        corpsEtatId: form.corpsEtatId || undefined, lotId: form.lotId || undefined, batimentId: form.batimentId || undefined,
         etageId: form.etageId || undefined, assigneA: form.assigneA || undefined,
-        entrepriseId: form.entrepriseId || undefined, date_limite: form.date_limite || undefined,
+        partenaireId: form.partenaireId || undefined, date_limite: form.date_limite || undefined,
       };
       if (mode === 'simple') {
         await creerReserve(chantierId, { ...base, titre: form.titre });
@@ -239,13 +260,23 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
         <Textarea label={t('champs.description')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
         <div className="grid-3">
           <Select label={t('reserves.severite')} value={form.severite} onChange={(e) => setForm({ ...form, severite: e.target.value })}>
-            {Object.entries(SEVERITES).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+            {severites.map((value) => <option key={value} value={value}>{enumLabel(value, SEVERITES[value]?.label)}</option>)}
           </Select>
           <Select label={t('reserves.priorite')} value={form.priorite} onChange={(e) => setForm({ ...form, priorite: e.target.value })}>
-            {Object.entries(SEVERITES).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+            {severites.map((value) => <option key={value} value={value}>{enumLabel(value, SEVERITES[value]?.label)}</option>)}
           </Select>
-          <Select label={t('champs.categorie')} value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })}>
-            {Object.entries(CATEGORIES_RESERVE).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+          <Select
+            label={tPhase('selecteur.label')}
+            value={form.phaseId}
+            onChange={(e) => setForm({ ...form, phaseId: e.target.value })}
+            required
+          >
+            <option value="">{phasesChargement ? tPhase('selecteur.chargement') : tPhase('selecteur.choisir')}</option>
+            {phases.map((ph) => <option key={ph.id} value={ph.id}>{ph.nom}</option>)}
+          </Select>
+          <Select label={tCorps('selecteur.label')} value={form.corpsEtatId} onChange={(e) => setForm({ ...form, corpsEtatId: e.target.value })}>
+            <option value="">{corpsChargement ? tCorps('selecteur.chargement') : tCorps('selecteur.aucun')}</option>
+            {corpsEtat.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </Select>
         </div>
         <div className="grid-3">
@@ -257,7 +288,7 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
             <option value="">{t('reserves.nonAssignee')}</option>
             {membres.map((m) => <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>)}
           </Select>
-          <Select label={t('commun.entreprise')} value={form.entrepriseId} onChange={(e) => setForm({ ...form, entrepriseId: e.target.value })} emptyOption>
+          <Select label={t('commun.entreprise')} value={form.partenaireId} onChange={(e) => setForm({ ...form, partenaireId: e.target.value })} emptyOption>
             <option value="">{t('reserves.aucuneF')}</option>
             {partenaires.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
           </Select>

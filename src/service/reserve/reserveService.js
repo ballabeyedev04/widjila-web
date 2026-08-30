@@ -32,6 +32,10 @@ export const listerReserves = async (
 export const listerToutesReserves = async ({
   page = 1, limit = 20, search = '', statut = '', severite = '',
   priorite = '', chantierId = '', assigneA = '',
+  // Filtres d'HISTORIQUE : « réserves de cette phase », « de cette
+  // entreprise », et leur croisement — c'est ce que consomme l'écran
+  // d'historique par entreprise.
+  phaseId = '', corpsEtatId = '',
 } = {}) => {
   const response = await api.get('/reserves', {
     params: {
@@ -42,6 +46,8 @@ export const listerToutesReserves = async ({
       priorite: priorite || undefined,
       chantierId: chantierId || undefined,
       assigneA: assigneA || undefined,
+      phaseId: phaseId || undefined,
+      corpsEtatId: corpsEtatId || undefined,
     },
   });
   return normalizeList(unwrap(response), 'reserves');

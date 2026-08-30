@@ -27,3 +27,12 @@ npm-debug.log*
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Worker pdf.js — copié depuis node_modules par `scripts/copier-worker-pdf.js`
+# (predev / prebuild). Versionner un binaire de 1,2 Mo le ferait diverger de la
+# version réellement installée de `pdfjs-dist` au premier `npm update`.
+public/pdf.worker.min.mjs
+# Polices standard de pdf.js, recopiées depuis node_modules par
+# `scripts/copier-worker-pdf.js` (predev / prebuild) — même raison que le
+# worker : elles suivent la version installée et n'ont pas à être versionnées.
+public/standard_fonts/

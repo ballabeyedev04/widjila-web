@@ -347,3 +347,24 @@
 /* ── Auth link dans le footer ── */
 .auth-link { color: var(--primary); font-weight: 600; }
 .auth-link:hover { text-decoration: underline; }
+/* « Sur devis » — pas un montant, donc pas la même typographie qu'un prix :
+   afficher « Sur devis » à 42 px déborderait de la carte. */
+.plan-amount-devis {
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+/* Coordonnées affichées sous la formule sur devis, le paiement en ligne
+   n'étant pas possible pour elle. */
+.plan-devis-contact {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.plan-devis-contact a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.plan-devis-contact a:hover { text-decoration: underline; }

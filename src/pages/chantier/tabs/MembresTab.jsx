@@ -10,10 +10,17 @@ import { getErrorMessage } from '../../../service/helpers.js';
 import { initials } from '../../../utils/format.js';
 import { ROLES, roleLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
+import { useEnum } from '../../../hooks/useEnums.js';
 
 export default function MembresTab({ chantierId, canManage }) {
+  // Rôles servis par l'API — voir hooks/useEnums.js.
+  const roles = useEnum('roles');
   const { t } = useTranslation('chantier');
   const [membres, setMembres] = useState([]);
+  // Total côté SERVEUR : ce tableau pagine côté client, il ne voit que la
+  // page reçue. Sans ce total, les lignes au-delà disparaissaient sans
+  // le moindre signe — voir la prop `totalServeur` de DataTable.
+  const [totalMembres, setTotalMembres] = useState(null);
   const [orgMembres, setOrgMembres] = useState([]);
   const [role, setRole] = useState('');
   const [selected, setSelected] = useState('');
@@ -24,6 +31,7 @@ export default function MembresTab({ chantierId, canManage }) {
     try {
       const d = await listerMembresChantier(chantierId);
       setMembres(d.items);
+      setTotalMembres(d.total);
     } catch (err) {
       SwalCustom.error({ title: t('membres.erreurChargement'), text: getErrorMessage(err) });
     } finally {
@@ -77,7 +85,7 @@ export default function MembresTab({ chantierId, canManage }) {
       cle: 'role',
       titre: t('champs.role'),
       filtre: 'select',
-      options: Object.keys(ROLES).map((r) => ({ valeur: r, label: roleLabel(r) })),
+      options: roles.map((r) => ({ valeur: r, label: roleLabel(r) })),
       valeur: (m) => m.role,
       rendu: (m) => <Badge role={m.role} />,
     },
@@ -115,6 +123,7 @@ export default function MembresTab({ chantierId, canManage }) {
         )}
 
         <DataTable
+          totalServeur={totalMembres}
           donnees={membres}
           colonnes={colonnes}
           chargement={loading}

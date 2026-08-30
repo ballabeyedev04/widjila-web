@@ -15,11 +15,16 @@ import {
 } from '../../service/organisation/organisationService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, initials } from '../../utils/format.js';
-import { ROLES, STATUTS_UTILISATEUR, roleLabel, enumLabel } from '../../utils/constants.js';
+import { ROLES, STATUTS_UTILISATEUR, roleLabel, enumLabel, rolesAttribuables } from '../../utils/constants.js';
+import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 export default function Membres() {
+  // Rôles et statuts servis par l'API — voir hooks/useEnums.js.
+  const roles = useEnum('roles');
+  const statutsUtilisateur = useEnum('statutsUtilisateur');
   const { t } = useTranslation('organisation');
   const [filters, setFilters] = useState({ search: '', role: '', statut: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -66,13 +71,18 @@ export default function Membres() {
         </div>
         <Select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })} label="">
           <option value="">{t('membres.tousRoles')}</option>
-          {Object.entries(ROLES).map(([value]) => <option key={value} value={value}>{roleLabel(value)}</option>)}
+          {roles.map((value) => <option key={value} value={value}>{roleLabel(value)}</option>)}
         </Select>
         <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
           <option value="">{t('membres.tousStatuts')}</option>
-          {Object.entries(STATUTS_UTILISATEUR).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+          {statutsUtilisateur.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_UTILISATEUR[value]?.label)}</option>)}
         </Select>
-        <button className="btn btn-ghost" onClick={reload}><RefreshCw size={16} /></button>
+        <button
+          className="btn btn-ghost"
+          onClick={reload}
+          title={t('layout:actions.rafraichir')}
+          aria-label={t('layout:actions.rafraichir')}
+        ><RefreshCw size={16} /></button>
       </div>
 
       {/* `message` porte l'explication du serveur : un 403 ne signifie pas
@@ -137,6 +147,10 @@ function Loading() {
 /* ============ Création / édition ============ */
 function MemberModal({ open, onClose, member, onSaved }) {
   const { t } = useTranslation('organisation');
+  // Le rôle du compte connecté borne les rôles proposés — voir
+  // `rolesAttribuables`, miroir de la garde serveur.
+  const { user } = useUser();
+  const statutsUtilisateur = useEnum('statutsUtilisateur');
   const isEdit = !!member;
   const [form, setForm] = useState({
     nom: '', prenom: '', email: '', telephone: '', fonction: '', role: 'ConducteurTravaux',
@@ -213,10 +227,10 @@ function MemberModal({ open, onClose, member, onSaved }) {
         </div>
         <div className="grid-2">
           <Select label={t('champs.role')} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {Object.entries(ROLES).map(([value]) => <option key={value} value={value}>{roleLabel(value)}</option>)}
+            {rolesAttribuables(user?.role).map((value) => <option key={value} value={value}>{roleLabel(value)}</option>)}
           </Select>
           <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
-            {Object.entries(STATUTS_UTILISATEUR).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+            {statutsUtilisateur.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_UTILISATEUR[value]?.label)}</option>)}
           </Select>
         </div>
         <Input label={t('champs.fonction')} value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} />

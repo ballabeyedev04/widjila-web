@@ -12,5 +12,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.{js,jsx}'],
     globals: false,
+    // Nettoyage du DOM entre les tests — voir vitest.setup.js pour la raison
+    // (il n'est PAS automatique avec `globals: false`).
+    setupFiles: ['./vitest.setup.js'],
   },
 });

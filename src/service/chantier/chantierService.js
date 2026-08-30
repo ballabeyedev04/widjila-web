@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { unwrap, normalizeList } from '../helpers.js';
+import { unwrap, normalizeList, LIMITE_MAX_PAGE } from '../helpers.js';
 
 /** Module Chantier : CRUD, structure (bâtiments/étages/zones/lots), phases, affectations. */
 
@@ -85,19 +85,66 @@ export const creerZone = async (chantierId, batimentId, etageId, body) => {
   return unwrap(response)?.zone;
 };
 
+/* ---------- Structure : modification & suppression ---------- */
+/**
+ * La SUPPRESSION est refusée par le serveur tant qu'une réserve est rattachée
+ * à l'élément ou à l'un de ses descendants — le message renvoyé porte le
+ * nombre exact. Il doit donc être affiché tel quel à l'utilisateur, et non
+ * remplacé par un « suppression impossible » générique.
+ */
+export const modifierBatiment = async (chantierId, batimentId, body) => {
+  const response = await api.put(`/chantiers/${chantierId}/batiments/${batimentId}`, body);
+  return unwrap(response)?.batiment;
+};
+
+export const supprimerBatiment = async (chantierId, batimentId) => {
+  const response = await api.delete(`/chantiers/${chantierId}/batiments/${batimentId}`);
+  return unwrap(response);
+};
+
+export const modifierEtage = async (chantierId, batimentId, etageId, body) => {
+  const response = await api.put(
+    `/chantiers/${chantierId}/batiments/${batimentId}/etages/${etageId}`,
+    body
+  );
+  return unwrap(response)?.etage;
+};
+
+export const supprimerEtage = async (chantierId, batimentId, etageId) => {
+  const response = await api.delete(
+    `/chantiers/${chantierId}/batiments/${batimentId}/etages/${etageId}`
+  );
+  return unwrap(response);
+};
+
+export const modifierZone = async (chantierId, batimentId, etageId, zoneId, body) => {
+  const response = await api.put(
+    `/chantiers/${chantierId}/batiments/${batimentId}/etages/${etageId}/zones/${zoneId}`,
+    body
+  );
+  return unwrap(response)?.zone;
+};
+
+export const supprimerZone = async (chantierId, batimentId, etageId, zoneId) => {
+  const response = await api.delete(
+    `/chantiers/${chantierId}/batiments/${batimentId}/etages/${etageId}/zones/${zoneId}`
+  );
+  return unwrap(response);
+};
+
 export const creerLot = async (chantierId, body) => {
   const response = await api.post(`/chantiers/${chantierId}/lots`, body);
   return unwrap(response)?.lot;
 };
 
-export const listerLots = async (chantierId) => {
-  const response = await api.get(`/chantiers/${chantierId}/lots`);
+export const listerLots = async (chantierId, { limit = LIMITE_MAX_PAGE } = {}) => {
+  const response = await api.get(`/chantiers/${chantierId}/lots`, { params: { limit } });
   return normalizeList(unwrap(response), 'lots');
 };
 
 /* ---------- Affectations membres ---------- */
-export const listerMembresChantier = async (chantierId) => {
-  const response = await api.get(`/chantiers/${chantierId}/membres`);
+export const listerMembresChantier = async (chantierId, { limit = LIMITE_MAX_PAGE } = {}) => {
+  const response = await api.get(`/chantiers/${chantierId}/membres`, { params: { limit } });
   return normalizeList(unwrap(response), 'membres');
 };
 

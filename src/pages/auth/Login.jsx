@@ -34,11 +34,11 @@ export default function Login() {
    * Vérifie le statut d'abonnement et affiche une alerte si l'essai expire bientôt.
    * Ne bloque pas la navigation — l'utilisateur peut continuer et aller sur /abonnement.
    */
-  const checkTrialAndWarn = async (utilisateur) => {
+  const checkTrialAndWarn = async () => {
     try {
       const statusRes = await getStatus();
       if (!statusRes) return;
-      const { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt, planActuel } = statusRes;
+      const { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt } = statusRes;
       if (isSubscribed || trialEnded) return; // abonnement actif ou déjà expiré (géré ailleurs)
       if (joursRestantsTrial !== undefined && joursRestantsTrial <= 2 && joursRestantsTrial > 0) {
         const dateFin = trialEndsAt
@@ -83,7 +83,7 @@ export default function Login() {
       } else {
         setUser(result.utilisateur);
         SwalCustom.success(t('login.succes'));
-        await checkTrialAndWarn(result.utilisateur);
+        await checkTrialAndWarn();
         navigate(homeForRole(result.utilisateur?.role), { replace: true });
       }
     } catch (err) {
@@ -121,7 +121,7 @@ export default function Login() {
       const result = await verifierMfa({ code });
       setUser(result.utilisateur);
       SwalCustom.success(t('login.succes'));
-      await checkTrialAndWarn(result.utilisateur);
+      await checkTrialAndWarn();
       navigate(homeForRole(result.utilisateur?.role), { replace: true });
     } catch (err) {
       SwalCustom.error({ title: t('login.mfa.codeInvalideTitre'), text: getErrorMessage(err) });

@@ -20,8 +20,12 @@ import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate } from '../../../utils/format.js';
 import { TYPES_INSPECTION, STATUTS_INSPECTION, STATUTS_CONVOCATION, enumLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
+import { useEnum } from '../../../hooks/useEnums.js';
 
 export default function InspectionsTab({ chantierId, canManage }) {
+  // Types et statuts servis par l'API — voir hooks/useEnums.js.
+  const typesInspection = useEnum('typesInspection');
+  const statutsInspection = useEnum('statutsInspection');
   const { t } = useTranslation('chantier');
   const [filters, setFilters] = useState({ search: '', type: '', statut: '' });
   const [items, setItems] = useState([]);
@@ -60,7 +64,7 @@ export default function InspectionsTab({ chantierId, canManage }) {
       cle: 'type',
       titre: t('champs.type'),
       filtre: 'select',
-      options: Object.keys(TYPES_INSPECTION).map((v) => ({
+      options: typesInspection.map((v) => ({
         valeur: v,
         label: enumLabel(v, TYPES_INSPECTION[v]),
       })),
@@ -146,11 +150,11 @@ export default function InspectionsTab({ chantierId, canManage }) {
             </div>
             <Select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} label="">
               <option value="">{t('commun.tousTypes')}</option>
-              {Object.entries(TYPES_INSPECTION).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+              {typesInspection.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_INSPECTION[value])}</option>)}
             </Select>
             <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
               <option value="">{t('commun.tousStatuts')}</option>
-              {Object.entries(STATUTS_INSPECTION).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+              {statutsInspection.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_INSPECTION[value]?.label)}</option>)}
             </Select>
           </div>
 
@@ -175,6 +179,7 @@ export default function InspectionsTab({ chantierId, canManage }) {
 
 /* ============ Création ============ */
 function InspectionCreateModal({ open, onClose, chantierId, onSaved }) {
+  const typesInspection = useEnum('typesInspection');
   const { t } = useTranslation('chantier');
   const [form, setForm] = useState({ type: 'inspection', date_visite: '', inspecteurId: '', modeleId: '' });
   const [checklist, setChecklist] = useState([{ libelle: '', coche: false, commentaire: '' }]);
@@ -223,7 +228,7 @@ function InspectionCreateModal({ open, onClose, chantierId, onSaved }) {
       <form onSubmit={submit}>
         <div className="grid-3">
           <Select label={t('champs.type')} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            {Object.entries(TYPES_INSPECTION).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+            {typesInspection.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_INSPECTION[value])}</option>)}
           </Select>
           <Input label={t('inspections.dateVisite')} type="date" value={form.date_visite} onChange={(e) => setForm({ ...form, date_visite: e.target.value })} required />
           <Select label={t('inspections.inspecteur')} value={form.inspecteurId} onChange={(e) => setForm({ ...form, inspecteurId: e.target.value })} emptyOption>
@@ -268,6 +273,7 @@ function InspectionCreateModal({ open, onClose, chantierId, onSaved }) {
 
 /* ============ Détail ============ */
 function InspectionDetailModal({ inspection, onClose, onChanged, canManage }) {
+  const statutsInspection = useEnum('statutsInspection');
   const { t } = useTranslation('chantier');
   const [detail, setDetail] = useState(null);
   const [photos, setPhotos] = useState([]);
@@ -373,7 +379,7 @@ function InspectionDetailModal({ inspection, onClose, onChanged, canManage }) {
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto' }}>
                 <select className="input" style={{ width: 160 }} value={newStatut} onChange={(e) => setNewStatut(e.target.value)}>
                   <option value="">{t('inspections.changerStatutPlaceholder')}</option>
-                  {Object.entries(STATUTS_INSPECTION).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+                  {statutsInspection.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_INSPECTION[value]?.label)}</option>)}
                 </select>
                 <button className="btn btn-primary btn-sm" onClick={changeStatut} disabled={!newStatut}>{t('inspections.ok')}</button>
               </div>

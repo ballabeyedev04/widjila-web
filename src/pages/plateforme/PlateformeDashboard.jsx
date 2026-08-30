@@ -7,7 +7,7 @@ import StatCard from '../../components/StatCard.jsx';
 import { statsPlateforme, croissanceInscriptions } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatNombre } from '../../utils/format.js';
-import { ABONNEMENTS, enumLabel } from '../../utils/constants.js';
+import { enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 
 export default function PlateformeDashboard() {
@@ -55,12 +55,16 @@ export default function PlateformeDashboard() {
           <div className="card-header"><h2>{t('superAdmin.orgParAbonnement')}</h2></div>
           <div className="card-body">
             {Object.entries(stats.parAbonnement || {}).length === 0 && <p className="text-muted">{t('superAdmin.aucuneDonnee')}</p>}
+            {/* Les clés viennent de la BASE (`organisation.abonnement`) : ce
+                sont les codes réels du catalogue. La table locale qu'on
+                interrogeait ici listait « Starter / Business / Enterprise »,
+                qui n'existent pas — elle ne répondait donc jamais, et le code
+                brut s'affichait déjà. On l'affiche maintenant franchement. */}
             {Object.entries(stats.parAbonnement || {}).map(([key, n]) => {
-              const def = ABONNEMENTS[key] || { label: key };
               return (
                 <div key={key} style={{ marginBottom: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                    <span>{enumLabel(key, def.label)}</span><strong>{n}</strong>
+                    <span>{enumLabel(key, key)}</span><strong>{n}</strong>
                   </div>
                   <div style={{ height: 9, background: '#eef1f4', borderRadius: 5, overflow: 'hidden' }}>
                     <div style={{ width: `${(n / maxAbonnement) * 100}%`, height: '100%', background: 'var(--primary)', borderRadius: 5 }} />

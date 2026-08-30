@@ -4,12 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run copier-worker-pdf",
     "dev": "vite",
+    "prebuild": "npm run copier-worker-pdf",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "copier-worker-pdf": "node scripts/copier-worker-pdf.js"
   },
   "dependencies": {
     "@sentry/react": "^10.70.0",
@@ -19,6 +22,7 @@
     "i18next": "^26.3.6",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.562.0",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-i18next": "^17.0.11",

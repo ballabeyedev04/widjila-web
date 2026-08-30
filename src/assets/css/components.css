@@ -641,6 +641,33 @@
 }
 .chip strong { color: var(--text); }
 
+/* Actions posées dans une puce (renommer / supprimer une zone).
+   Discrètes au repos — la puce reste avant tout une étiquette de lecture —
+   et colorées seulement au survol, pour que la liste ne se transforme pas en
+   barre d'outils. */
+.chip-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.chip-action:hover {
+  background: var(--primary-100);
+  color: var(--primary);
+}
+.chip-action.danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 /* ---------- Lien texte (titre cliquable dans une liste/tableau) ---------- */
 .link {
   display: inline;
@@ -1713,6 +1740,24 @@
 
 .datatable { display: flex; flex-direction: column; gap: 14px; }
 
+/* Bandeau « des lignes existent côté serveur mais ne sont pas ici ».
+   Ton informatif et non alarmant : ce n'est pas une erreur, c'est une
+   information que l'utilisateur doit avoir avant de conclure qu'une donnée
+   manque. */
+.datatable-tronque {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--warning-border, #f0d9a8);
+  background: var(--warning-bg, #fdf6e7);
+  color: var(--warning-fg, #8a6116);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .datatable-barre {
   display: flex;
   gap: 10px;
@@ -1810,4 +1855,104 @@
   .datatable-pagination { justify-content: center; }
   .datatable-pages { margin-left: 0; justify-content: center; }
   .datatable-compte { width: 100%; text-align: center; }
+}
+
+/* ---------- Historique par entreprise : répartition par phase ---------- */
+/* Puces cliquables qui filtrent la liste. Chacune porte son compteur : c'est
+   la vue d'ensemble demandée (« Pré-cloisons → 3, Cloisons → 5 »), et elle
+   sert en même temps de filtre. */
+.hist-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.hist-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.hist-phase:hover:not(:disabled) { border-color: var(--primary); }
+
+.hist-phase.actif {
+  border-color: var(--primary);
+  background: var(--primary-100);
+  color: var(--primary-darker);
+  font-weight: 600;
+}
+
+/* Les réserves sans phase ne sont pas filtrables : la puce reste lisible
+   mais inerte, plutôt que masquée — son compteur fait partie du total. */
+.hist-phase:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.hist-phase-nom { white-space: nowrap; }
+
+.hist-phase-compte {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hist-phase.actif .hist-phase-compte {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ---------- Prix abonnements : fonctionnalités d'une formule ---------- */
+/* Puces compactes dans le tableau : une formule en compte jusqu'à huit, une
+   liste verticale ferait exploser la hauteur de ligne. */
+.fonctionnalites-puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 320px;
+}
+.fonctionnalites-puces .chip {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* Cases à cocher du formulaire — deux colonnes, les libellés étant courts. */
+.fonctionnalites-choix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 6px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+/* Bandeau d'information — rappelle une garantie du système plutôt qu'une
+   alerte : ton neutre, pas d'icône d'avertissement. */
+.info-bandeau {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-size: 13px;
 }

@@ -15,8 +15,10 @@ import { formatDate } from '../../utils/format.js';
 import { TYPES_PARTENAIRE, enumLabel } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 export default function Partenaires() {
+  const typesPartenaire = useEnum('typesPartenaire');
   const { t } = useTranslation('organisation');
   const { user } = useUser();
   const canDelete = user?.role === 'ChefProjet' || user?.role === 'Admin';
@@ -67,7 +69,7 @@ export default function Partenaires() {
         </div>
         <Select value={type} onChange={(e) => setType(e.target.value)} label="">
           <option value="">{t('partenaires.tousTypes')}</option>
-          {Object.entries(TYPES_PARTENAIRE).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+          {typesPartenaire.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_PARTENAIRE[value])}</option>)}
         </Select>
       </div>
 
@@ -106,6 +108,7 @@ export default function Partenaires() {
 }
 
 function PartenaireModal({ open, onClose, partenaire, onSaved }) {
+  const typesPartenaire = useEnum('typesPartenaire');
   const { t } = useTranslation('organisation');
   const isEdit = !!partenaire;
   const [form, setForm] = useState({ nom: '', type: 'bureau_etudes', email: '', telephone: '', adresse: '', description: '' });
@@ -154,7 +157,7 @@ function PartenaireModal({ open, onClose, partenaire, onSaved }) {
       <form onSubmit={submit}>
         <Input label={t('partenaires.modal.nom')} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} error={errors.nom} required />
         <Select label={t('champs.type')} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          {Object.entries(TYPES_PARTENAIRE).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+          {typesPartenaire.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_PARTENAIRE[value])}</option>)}
         </Select>
         <div className="grid-2">
           <Input label={t('champs.email')} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} />

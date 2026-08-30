@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { CreditCard, Check, Loader2, AlertCircle, Shield, Zap, Users, Infinity as InfinityIcon, Star, Smartphone, ArrowRight } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 
@@ -9,7 +9,6 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { useUser } from '../../context/useUser.js';
-import { ABONNEMENTS } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import '../../assets/css/abonnement.css';
 
@@ -19,7 +18,27 @@ const USE_PAYTECH = import.meta.env.VITE_USE_PAYTECH === 'true';
 const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 /* ── Composant interne pour le formulaire de carte (isolé pour hooks Stripe) ── */
-function PaymentForm({ plan, clientSecret, onSuccess, onError, loading }) {
+/**
+ * Icône d'une formule, choisie sur son CODE.
+ *
+ * Les codes du catalogue sont administrables : une formule inconnue de cette
+ * table doit garder une icône plutôt qu'un trou. `Star` sert donc de repli.
+ */
+function IconePlan({ code, size = 28 }) {
+  if (code === 'pro') return <Zap size={size} />;
+  if (code === 'entreprise') return <InfinityIcon size={size} />;
+  return <Star size={size} />;
+}
+
+/**
+ * Formulaire de carte.
+ *
+ * Il tient son propre état d'erreur et l'affiche sous le champ : l'erreur doit
+ * être à côté de ce qui l'a provoquée. Il n'expose donc PAS de `onError` au
+ * parent — un tel rappel afficherait le même message une seconde fois, en
+ * haut de page.
+ */
+function PaymentForm({ plan, clientSecret, onSuccess, loading }) {
   const { t } = useTranslation('plateforme');
   const stripe = useStripe();
   const elements = useElements();
@@ -116,8 +135,9 @@ function PaymentForm({ plan, clientSecret, onSuccess, onError, loading }) {
 /* ── Page principale ── */
 export default function Abonnement() {
   const { t } = useTranslation('plateforme');
-  const navigate = useNavigate();
-  const { user, setUser } = useUser();
+  // `user` seul est lu : la page s'affiche aussi pour un visiteur non
+  // connecté, qui doit pouvoir consulter les offres avant de s'inscrire.
+  const { user } = useUser();
   const [plans, setPlans] = useState([]);
   const [status, setStatus] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -329,54 +349,80 @@ export default function Abonnement() {
             {plans.map((plan) => (
               <article
                 key={plan.id}
-                className={`plan-card ${plan.id === 'pro' ? 'popular' : ''}`}
-                data-plan={plan.id}
+                /* `plan.code` et non `plan.id` : depuis que le catalogue vit en
+                   base, l'identifiant est un UUID. Le code (`pro`) est la clé
+                   stable, celle que l'administrateur ne peut pas changer. */
+                className={`plan-card ${plan.code === 'pro' ? 'popular' : ''}`}
+                data-plan={plan.code}
               >
-                {plan.id === 'pro' && <div className="plan-popular-badge">{t('abonnement.lePlusChoisi')}</div>}
+                {plan.code === 'pro' && <div className="plan-popular-badge">{t('abonnement.lePlusChoisi')}</div>}
 
                 <div className="plan-header">
                   <div className="plan-icon-wrapper">
-                    {plan.id === 'starter' && <Star size={28} />}
-                    {plan.id === 'pro' && <Zap size={28} />}
-                    {plan.id === 'business' && <InfinityIcon size={28} />}
+                    <IconePlan code={plan.code} size={28} />
                   </div>
                   <h2 className="plan-name">{plan.nom}</h2>
                   <p className="plan-description">{plan.description}</p>
                 </div>
 
                 <div className="plan-price">
-                  <span className="plan-amount">{plan.prix}</span>
-                  <span className="plan-period">{t('abonnement.parMois')}</span>
+                  {plan.surDevis ? (
+                    /* « Sur devis » : pas de montant, donc pas de paiement en
+                       ligne. Afficher 0 laisserait croire à une offre gratuite. */
+                    <span className="plan-amount plan-amount-devis">{t('abonnement.surDevis')}</span>
+                  ) : (
+                    <>
+                      <span className="plan-amount">{plan.prix}</span>
+                      <span className="plan-period">
+                        {plan.periode === 'an' ? t('abonnement.parAn') : t('abonnement.parMois')}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <ul className="plan-features">
-                  {plan.features.map((feature, i) => (
-                    <li key={i}><Check size={14} className="feature-check" /> {feature}</li>
+                  {/* Le serveur envoie des CODES : la traduction reste côté
+                      client, pour suivre la langue de l'utilisateur. */}
+                  {(plan.fonctionnalites || []).map((code) => (
+                    <li key={code}>
+                      <Check size={14} className="feature-check" /> {t(`abonnement.fonctionnalites.${code}`, code)}
+                    </li>
                   ))}
-                  <li><Check size={14} className="feature-check" /> {t('abonnement.essai7Jours')}</li>
-                  <li><Check size={14} className="feature-check" /> {t('abonnement.annulable')}</li>
                 </ul>
 
                 <div className="plan-limits">
-                  {plan.limiteChantiers > 0 && (
+                  <div className="limit-item">
+                    <Users size={14} />{' '}
+                    {/* `null` = illimité. L'ancien `-1` n'existe plus : une
+                        colonne nullable dit « pas de limite » sans sentinelle. */}
+                    {plan.limiteUtilisateurs == null
+                      ? t('abonnement.utilisateursIllimites')
+                      : t('abonnement.utilisateursMax', { n: plan.limiteUtilisateurs })}
+                  </div>
+                  {plan.limiteChantiers != null && (
                     <div className="limit-item">
-                      <Users size={14} /> {plan.limiteChantiers === -1 ? t('abonnement.chantiersIllimites') : t('abonnement.chantiersMax', { n: plan.limiteChantiers })}
-                    </div>
-                  )}
-                  {plan.limiteUtilisateurs > 0 && (
-                    <div className="limit-item">
-                      <Users size={14} /> {plan.limiteUtilisateurs === -1 ? t('abonnement.utilisateursIllimites') : t('abonnement.utilisateursMax', { n: plan.limiteUtilisateurs })}
+                      <Users size={14} /> {t('abonnement.chantiersMax', { n: plan.limiteChantiers })}
                     </div>
                   )}
                 </div>
 
                 <button
-                  className={`btn ${plan.id === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
-                  onClick={() => handleSelectPlan(plan)}
+                  className={`btn ${plan.code === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
+                  onClick={() => (plan.surDevis ? null : handleSelectPlan(plan))}
                   disabled={trialInfo?.type === 'subscribed'}
                 >
-                  {trialInfo?.type === 'subscribed' ? t('abonnement.planActuel') : t('abonnement.choisirPlan')}
+                  {trialInfo?.type === 'subscribed'
+                    ? t('abonnement.planActuel')
+                    : plan.surDevis ? t('abonnement.nousContacter') : t('abonnement.choisirPlan')}
                 </button>
+
+                {plan.surDevis && (
+                  <p className="plan-devis-contact">
+                    <a href="mailto:contact@widjila.com">contact@widjila.com</a>
+                    {' · '}
+                    <a href="tel:+33625755707">06 25 75 57 07</a>
+                  </p>
+                )}
               </article>
             ))}
           </div>
@@ -394,9 +440,7 @@ export default function Abonnement() {
             </button>
             <div className="payment-plan-summary">
               <div className="payment-plan-icon">
-                {selectedPlan.id === 'starter' && <Star size={24} />}
-                {selectedPlan.id === 'pro' && <Zap size={24} />}
-                {selectedPlan.id === 'business' && <InfinityIcon size={24} />}
+                <IconePlan code={selectedPlan.code} size={24} />
               </div>
               <div>
                 <strong>{selectedPlan.nom}</strong>
@@ -437,7 +481,6 @@ export default function Abonnement() {
                     plan={selectedPlan}
                     clientSecret={clientSecret}
                     onSuccess={handlePaymentSuccess}
-                    onError={(msg) => setError(msg)}
                     loading={paymentLoading}
                   />
                 </Elements>

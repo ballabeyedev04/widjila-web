@@ -22,8 +22,11 @@ import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.j
 import { STATUTS_CHANTIER, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 export default function Chantiers() {
+  // Statuts servis par l'API — voir hooks/useEnums.js.
+  const statutsChantier = useEnum('statutsChantier');
   const { t } = useTranslation('chantier');
   const { user } = useUser();
   const role = user?.role;
@@ -79,9 +82,14 @@ export default function Chantiers() {
         </div>
         <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
           <option value="">{t('commun.tousStatuts')}</option>
-          {Object.entries(STATUTS_CHANTIER).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+          {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
         </Select>
-        <button className="btn btn-ghost" onClick={reload}><RefreshCw size={16} /></button>
+        <button
+          className="btn btn-ghost"
+          onClick={reload}
+          title={t('layout:actions.rafraichir')}
+          aria-label={t('layout:actions.rafraichir')}
+        ><RefreshCw size={16} /></button>
       </div>
 
       {accessDenied ? <ErrorState variante="droits" titre={t('liste.accesRefuse')} message={erreur} />
@@ -138,6 +146,7 @@ export default function Chantiers() {
 }
 
 function ChantierModal({ open, onClose, chantier, onSaved }) {
+  const statutsChantier = useEnum('statutsChantier');
   const { t } = useTranslation('chantier');
   const { user } = useUser();
   const isEdit = !!chantier;
@@ -259,7 +268,7 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
           <Input label={t('champs.dateFin')} type="date" value={form.date_fin} onChange={(e) => setForm({ ...form, date_fin: e.target.value })} error={errors.date_fin} />
         </div>
         <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
-          {Object.entries(STATUTS_CHANTIER).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+          {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
         </Select>
       </form>
     </Modal>

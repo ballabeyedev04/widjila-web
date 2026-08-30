@@ -20,8 +20,12 @@ import { formatDate, initials } from '../../utils/format.js';
 import { ROLES, STATUTS_UTILISATEUR, enumLabel, roleLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 export default function PlateformeUtilisateurs() {
+  // Rôles et statuts servis par l'API — voir hooks/useEnums.js.
+  const roles = useEnum('roles');
+  const statutsUtilisateur = useEnum('statutsUtilisateur');
   const { t } = useTranslation('plateforme');
   const [filters, setFilters] = useState({ search: '', role: '', statut: '', organisationId: '' });
   const [organisations, setOrganisations] = useState([]);
@@ -73,17 +77,22 @@ export default function PlateformeUtilisateurs() {
         </div>
         <Select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })} label="">
           <option value="">{t('utilisateurs.filtres.tousRoles')}</option>
-          {Object.entries(ROLES).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+          {roles.map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
         </Select>
         <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
           <option value="">{t('utilisateurs.filtres.tousStatuts')}</option>
-          {Object.entries(STATUTS_UTILISATEUR).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+          {statutsUtilisateur.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_UTILISATEUR[value]?.label)}</option>)}
         </Select>
         <Select value={filters.organisationId} onChange={(e) => setFilters({ ...filters, organisationId: e.target.value })} label="">
           <option value="">{t('utilisateurs.filtres.toutesOrganisations')}</option>
           {organisations.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
         </Select>
-        <button className="btn btn-ghost" onClick={reload}><RefreshCw size={16} /></button>
+        <button
+          className="btn btn-ghost"
+          onClick={reload}
+          title={t('layout:actions.rafraichir')}
+          aria-label={t('layout:actions.rafraichir')}
+        ><RefreshCw size={16} /></button>
       </div>
 
       {accessDenied ? <ErrorState variante="droits" titre={t('superAdmin.accesRefuse')} message={erreur} />
@@ -115,7 +124,7 @@ export default function PlateformeUtilisateurs() {
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <select className="input" style={{ width: 150, padding: 5 }} value="" onChange={(e) => { changeRole(u, e.target.value); e.target.value = ''; }}>
                             <option value="">{t('utilisateurs.changerRole')}</option>
-                            {Object.entries(ROLES).filter(([v]) => v !== u.role).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+                            {roles.filter((v) => v !== u.role).map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
                           </select>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(u)}><Pencil size={14} /></button>
                           <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(u)}><Trash2 size={14} /></button>
@@ -136,6 +145,8 @@ export default function PlateformeUtilisateurs() {
 }
 
 function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }) {
+  const roles = useEnum('roles');
+  const statutsUtilisateur = useEnum('statutsUtilisateur');
   const { t } = useTranslation('plateforme');
   const isEdit = !!utilisateur;
   const [form, setForm] = useState({
@@ -213,10 +224,10 @@ function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }
         </Select>
         <div className="grid-2">
           <Select label={t('champs.role')} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {Object.entries(ROLES).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+            {roles.map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
           </Select>
           <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
-            {Object.entries(STATUTS_UTILISATEUR).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+            {statutsUtilisateur.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_UTILISATEUR[value]?.label)}</option>)}
           </Select>
         </div>
         <Input label={t('champs.fonction')} value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} />

@@ -11,6 +11,7 @@ import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Textarea } from '../../components/FormControls.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import { listerDemandesSuppression, traiterDemandeSuppression } from '../../service/admin/adminService.js';
+import { useActionUnique } from '../../hooks/useActionUnique.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate } from '../../utils/format.js';
 import SwalCustom from '../../utils/swal.config.js';
@@ -177,29 +178,32 @@ export default function PlateformeSuppressions() {
 function ModalTraiter({ demande, onClose, onDone }) {
   const { t } = useTranslation('plateforme');
   const [note, setNote] = useState('');
-  const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState('');
+  // Traiter une demande de suppression est IRRÉVERSIBLE : le compte est
+  // pseudonymisé et supprimé. Un `setEnvoi(true)` classique ne protège pas
+  // d'un double clic — `disabled` n'arrive qu'au rendu suivant, et une garde
+  // sur l'état lit la valeur figée du rendu en cours. Voir useActionUnique.
+  const { executer, enCours: envoi } = useActionUnique();
 
   if (!demande) return null;
   const rejet = demande.cible === 'rejetee';
 
-  const confirmer = async () => {
+  const confirmer = () => {
     if (rejet && !note.trim()) {
       setErreur(t('suppressions.motifObligatoire'));
       return;
     }
-    setEnvoi(true);
     setErreur('');
-    try {
-      await traiterDemandeSuppression(demande.id, demande.cible, note.trim());
-      SwalCustom.toast({ icon: 'success', title: t('suppressions.miseAJour') });
-      onDone();
-      fermer();
-    } catch (err) {
-      setErreur(getErrorMessage(err));
-    } finally {
-      setEnvoi(false);
-    }
+    return executer(async () => {
+      try {
+        await traiterDemandeSuppression(demande.id, demande.cible, note.trim());
+        SwalCustom.toast({ icon: 'success', title: t('suppressions.miseAJour') });
+        onDone();
+        fermer();
+      } catch (err) {
+        setErreur(getErrorMessage(err));
+      }
+    });
   };
 
   const fermer = () => {

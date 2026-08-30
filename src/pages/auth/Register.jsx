@@ -3,16 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Mail, Lock, User, Building, Phone, KeyRound, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
-import { register, validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
+import { register, validatePassword } from '../../service/auth/authService.js';
 import { getErrorMessage } from '../../service/helpers.js';
-import { useUser } from '../../context/useUser.js';
 import '../../assets/css/auth.css';
 import SwalCustom from '../../utils/swal.config.js';
 
 export default function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
-  const { setUser } = useUser();
 
   const [form, setForm] = useState({
     // Utilisateur

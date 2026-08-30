@@ -8,6 +8,21 @@ import i18n from '../i18n/index.js';
  */
 
 /** Déballe `data` de l'enveloppe backend (repli sur le corps brut). */
+/**
+ * Plafond de page accepté par le backend (`LIMITE_MAX` de
+ * `pagination.middleware.js`).
+ *
+ * Les listes ci-dessous partaient SANS `limit` : le middleware appliquait
+ * alors son défaut de 20, et l'écran paginait ces 20 éléments comme s'ils
+ * étaient le total. Au-delà, les enregistrements disparaissaient de
+ * l'interface sans le moindre signe.
+ *
+ * Le `total` renvoyé par le serveur est conservé par `normalizeList` : les
+ * écrans le comparent au nombre d'éléments reçus pour avertir quand il reste
+ * des données hors de vue.
+ */
+export const LIMITE_MAX_PAGE = 100;
+
 export const unwrap = (response) => {
   const body = response?.data;
   if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
@@ -55,18 +70,37 @@ export const toFormData = (data) => {
 
 /**
  * Normalise un payload de liste paginée : `{ items, total }`.
- * Le backend renvoie parfois `{ membres, total }`, `{ chantiers, total }`…
+ *
+ * Le backend renvoie le total sous DEUX formes selon les modules :
+ *   - à plat, `{ membres, total }` — la forme historique ;
+ *   - imbriquée, `{ corpsEtat, pagination: { total, page, limit } }` — les
+ *     référentiels et le catalogue des formules.
+ *
+ * La seconde n'était pas lue : le total retombait sur `items.length`, donc sur
+ * la TAILLE DE PAGE. La pagination affichait alors une seule page et les
+ * suivantes étaient inatteignables — invisible tant que le catalogue tenait
+ * sur une page.
+ *
+ * L'ordre de préférence va du plus précis au plus approximatif ; `?? 0` n'est
+ * pas utilisé pour `total` car un total de 0 légitime doit rester 0.
  */
+const lireTotal = (payload, items) => {
+  if (typeof payload.total === 'number') return payload.total;
+  if (typeof payload.pagination?.total === 'number') return payload.pagination.total;
+  return items.length;
+};
+
 export const normalizeList = (payload, listKey = null) => {
   if (!payload) return { items: [], total: 0 };
   if (listKey && Array.isArray(payload[listKey])) {
-    return { items: payload[listKey], total: payload.total ?? payload[listKey].length };
+    return { items: payload[listKey], total: lireTotal(payload, payload[listKey]) };
   }
   const candidates = ['items', 'liste', 'membres', 'chantiers', 'utilisateurs', 'organisations',
     'filiales', 'equipes', 'plans', 'reserves', 'inspections', 'documents', 'notifications',
-    'connexions', 'sessions', 'logs', 'rapports', 'partenaires', 'medias', 'pieces', 'phases', 'lots'];
+    'connexions', 'sessions', 'logs', 'rapports', 'partenaires', 'medias', 'pieces', 'phases', 'lots',
+    'types'];
   for (const key of candidates) {
-    if (Array.isArray(payload[key])) return { items: payload[key], total: payload.total ?? payload[key].length };
+    if (Array.isArray(payload[key])) return { items: payload[key], total: lireTotal(payload, payload[key]) };
   }
   return { items: [], total: 0 };
 };

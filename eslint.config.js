@@ -25,11 +25,29 @@ export default [
       ...reactHooks.configs.recommended.rules,
       // Le template officiel Vite React ignore les identifiants capitalisés (composants) :
       // no-unused-vars ne compte pas l'usage JSX (comportement connu d'ESLint 9).
-      'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]' }],
+      // `varsIgnorePattern` ne couvre QUE les variables. Un composant reçu en
+      // paramètre — `({ icon: Icon }) => <Icon />`, motif utilisé dans les
+      // formulaires et la navigation des plans — relève d'`argsIgnorePattern`,
+      // et était donc signalé alors qu'il est bel et bien rendu : ESLint ne
+      // compte pas l'usage JSX pour un paramètre renommé.
+      'no-unused-vars': ['warn', {
+        varsIgnorePattern: '^[A-Z_]',
+        argsIgnorePattern: '^[A-Z_]',
+      }],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       // Nouvelle règle v7 (pas dans la v5 recommandée) : signale le pattern standard
       // « chargement au montage » (setLoading + fetch) utilisé partout ici — désactivée.
       'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
+    // Outillage exécuté par Node, pas par le navigateur : `process`, `console`
+    // et consorts y sont légitimes. Sans cette entrée, le bloc ci-dessus leur
+    // applique les seuls globaux du navigateur et signale `process` comme
+    // indéfini.
+    files: ['scripts/**/*.js', '*.config.js'],
+    languageOptions: {
+      globals: { ...globals.node },
     },
   },
 ];

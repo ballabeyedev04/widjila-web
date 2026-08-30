@@ -18,6 +18,7 @@ import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, initials } from '../../utils/format.js';
 import { ROLES, enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 /** Onglets = valeurs de `statut` envoyées au backend. */
 const ONGLETS = [
@@ -158,6 +159,7 @@ export default function PlateformeDemandes() {
 
 /** Validation — l'admin confirme, et fixe au passage le rôle définitif. */
 function ModalValider({ demande, onClose, onDone }) {
+  const roles = useEnum('roles');
   const { t } = useTranslation('plateforme');
   const [role, setRole] = useState('');
   const [saving, setSaving] = useState(false);
@@ -205,9 +207,9 @@ function ModalValider({ demande, onClose, onDone }) {
         {/* 'Admin' est absent : le backend le refuse (voir
             demandeInscription.validation.js) — une inscription publique ne
             peut pas produire un super-admin. */}
-        {Object.entries(ROLES)
-          .filter(([v]) => v !== 'Admin')
-          .map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+        {roles
+          .filter((v) => v !== 'Admin')
+          .map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
       </Select>
     </Modal>
   );

@@ -139,3 +139,51 @@ textarea {
 .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
 .gap-2 { gap: 8px; } .gap-3 { gap: 12px; }
 .w-full { width: 100%; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCUS CLAVIER
+   ══════════════════════════════════════════════════════════════════════════
+   Les champs de saisie avaient leur style de focus (components.css), mais
+   BOUTONS, LIENS et onglets n'en avaient aucun : au clavier, rien n'indiquait
+   où l'on se trouvait. Sur un écran comme « Membres », qui aligne trois
+   boutons d'action par ligne, la navigation devenait un jeu de devinettes.
+
+   `:focus-visible` et non `:focus` : le navigateur ne l'applique qu'à une
+   navigation au CLAVIER. Un clic à la souris ne laisse donc aucun anneau
+   derrière lui — c'est ce qui avait conduit à poser `outline: none` un peu
+   partout, en supprimant du même geste l'indicateur pour ceux qui en ont
+   besoin.
+
+   L'anneau est posé en `box-shadow` plutôt qu'en `outline` pour épouser les
+   coins arrondis des boutons de l'application. */
+:where(a, button, [role="button"], [role="tab"], summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid transparent;   /* conserve un repère en mode contraste élevé */
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--card, #fff), 0 0 0 4px var(--primary);
+  border-radius: inherit;
+}
+
+/* Les champs gardent leur propre traitement (bordure + halo) : on ne fait
+   qu'y ajouter l'anneau au clavier, sans écraser l'existant. */
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+/* Lien d'évitement : première tabulation de la page, invisible à la souris.
+   Sans lui, un utilisateur au clavier retraverse tout le menu latéral à
+   chaque changement de page. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 200;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+  left: 0;
+}

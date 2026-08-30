@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   HardHat,
+  Wrench,
+  ListOrdered,
+  FileType,
+  Contact,
   Users,
   UserPlus,
   Handshake,
@@ -32,7 +36,7 @@ import { logout as authLogout } from '../service/auth/authService.js';
 import { compterNonLues } from '../service/notification/notificationService.js';
 import { useUser } from '../context/useUser.js';
 import { useSubscription, getTrialDisplayInfo } from '../context/SubscriptionContext.jsx';
-import { roleLabel, roleAllowed } from '../utils/constants.js';
+import { roleLabel, roleAllowed, ROLES_GESTION, ROLES_GESTION_MEMBRES } from '../utils/constants.js';
 import { initials } from '../utils/format.js';
 import '../assets/css/layout.css';
 
@@ -102,7 +106,9 @@ function NavSection({ title, items, activePath, onNavigate, collapsed, badges = 
 export default function AdminLayout() {
   const { t } = useTranslation('layout');
   const { user, clearUser } = useUser();
-  const { status: subStatus, isLoading: subLoading, refreshStatus } = useSubscription();
+  // Seul `status` est lu ici : le bandeau d'essai. Le chargement et le
+  // rafraîchissement sont pilotés par le contexte lui-même.
+  const { status: subStatus } = useSubscription();
   const trialInfo = getTrialDisplayInfo(subStatus);
   const navigate = useNavigate();
   const location = useLocation();
@@ -151,10 +157,15 @@ export default function AdminLayout() {
     { path: '/chantiers', label: t('nav.chantiers'), icon: HardHat, roles: 'all' },
     { path: '/reserves', label: t('nav.toutesReserves'), icon: AlertTriangle, roles: 'all' },
     { path: '/plans', label: t('nav.tousPlans'), icon: Map, roles: 'all' },
-    { path: '/membres', label: t('nav.membres'), icon: Users, roles: ['Admin', 'ChefProjet', 'MaitreOuvrage'] },
-    { path: '/equipes', label: t('nav.equipes'), icon: UserPlus, roles: ['Admin', 'ChefProjet', 'MaitreOuvrage'] },
+    { path: '/membres', label: t('nav.membres'), icon: Users, roles: ROLES_GESTION_MEMBRES },
+    { path: '/equipes', label: t('nav.equipes'), icon: UserPlus, roles: ROLES_GESTION },
+    { path: '/corps-etat', label: t('nav.corpsEtat'), icon: Wrench, roles: ROLES_GESTION },
+    { path: '/phases', label: t('nav.phases'), icon: ListOrdered, roles: ROLES_GESTION },
+    { path: '/types-document', label: t('nav.typesDocument'), icon: FileType, roles: ROLES_GESTION },
+    { path: '/types-intervenant', label: t('nav.typesIntervenant'), icon: Contact, roles: ROLES_GESTION },
+    { path: '/types-inspection', label: t('nav.typesInspection'), icon: ClipboardList, roles: ROLES_GESTION },
     { path: '/partenaires', label: t('nav.partenaires'), icon: Handshake, roles: ['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre'] },
-    { path: '/organisation', label: t('nav.organisation'), icon: Building2, roles: ['Admin', 'ChefProjet', 'MaitreOuvrage'] },
+    { path: '/organisation', label: t('nav.organisation'), icon: Building2, roles: ROLES_GESTION },
     { path: '/notifications', label: t('nav.notifications'), icon: Bell, roles: 'all' },
     { path: '/profil', label: t('nav.monProfil'), icon: UserRound, roles: 'all' },
   ];
@@ -165,6 +176,7 @@ export default function AdminLayout() {
     { path: '/plateforme/organisations', label: t('nav.organisations'), icon: Building2 },
     { path: '/plateforme/demandes', label: t('nav.demandesInscription'), icon: UserCheck },
     { path: '/plateforme/suppressions', label: t('nav.demandesSuppression'), icon: UserX },
+    { path: '/plateforme/prix-abonnements', label: t('nav.prixAbonnements'), icon: CreditCard },
     { path: '/plateforme/audit', label: t('nav.journalAudit'), icon: FileSearch },
   ];
 
@@ -201,6 +213,10 @@ export default function AdminLayout() {
 
   return (
     <div className="dashboard">
+      {/* Premier élément tabulable de la page, invisible à la souris. Sans lui,
+          un utilisateur au clavier retraverse tout le menu latéral à chaque
+          changement d'écran avant d'atteindre le contenu. */}
+      <a href="#contenu-principal" className="skip-link">{t('sidebar.allerAuContenu')}</a>
       {isMobile && mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
       {isMobile && !mobileOpen && (
         <button className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label={t('sidebar.ouvrirMenu')}>
@@ -304,7 +320,11 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="content">
+        {/* Région principale nommée : `aria-live="polite"` fait annoncer le
+            changement d'écran, qui n'était signalé par rien pour une synthèse
+            vocale — la navigation dans une application à page unique ne
+            recharge pas le document. */}
+        <main className="content" id="contenu-principal" tabIndex={-1} aria-live="polite">
           <Outlet />
         </main>
       </div>

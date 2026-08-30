@@ -27,6 +27,10 @@ export default function RapportsTab({ chantierId }) {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Total côté SERVEUR : ce tableau pagine côté client, il ne voit que la
+  // page reçue. Sans ce total, les lignes au-delà disparaissaient sans
+  // le moindre signe — voir la prop `totalServeur` de DataTable.
+  const [totalServeur, setTotalServeur] = useState(null);
   const [showGen, setShowGen] = useState(false);
   const [viewing, setViewing] = useState(null);
 
@@ -35,6 +39,7 @@ export default function RapportsTab({ chantierId }) {
     try {
       const d = await listerRapports(chantierId);
       setItems(d.items);
+      setTotalServeur(d.total);
     } catch (err) {
       SwalCustom.error({ title: t('rapports.erreurChargement'), text: getErrorMessage(err) });
     } finally {
@@ -107,6 +112,7 @@ export default function RapportsTab({ chantierId }) {
         </div>
         <div className="card-body">
           <DataTable
+            totalServeur={totalServeur}
             donnees={items}
             colonnes={colonnes}
             chargement={loading}

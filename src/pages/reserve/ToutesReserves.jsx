@@ -14,6 +14,7 @@ import { listerToutesReserves } from '../../service/reserve/reserveService.js';
 import { listerChantiers } from '../../service/chantier/chantierService.js';
 import { formatDate } from '../../utils/format.js';
 import { STATUTS_RESERVE, SEVERITES, PRIORITES, enumLabel } from '../../utils/constants.js';
+import { useEnum } from '../../hooks/useEnums.js';
 
 const FILTRES_VIDES = { search: '', statut: '', severite: '', priorite: '', chantierId: '' };
 
@@ -42,6 +43,10 @@ function estEnRetard(reserve) {
  * page contient, ce qui donne des résultats faux dès le second écran.
  */
 export default function ToutesReserves() {
+  // Statuts, sévérités et priorités servis par l'API — hooks/useEnums.js.
+  const statutsReserve = useEnum('statutsReserve');
+  const severites = useEnum('severites');
+  const priorites = useEnum('priorites');
   const { t } = useTranslation('chantier');
   const [filters, setFilters] = useState(FILTRES_VIDES);
   const [chantiers, setChantiers] = useState([]);
@@ -84,22 +89,22 @@ export default function ToutesReserves() {
 
           <select className="input" style={{ minWidth: 150 }} value={filters.statut} onChange={(e) => maj('statut', e.target.value)}>
             <option value="">{t('reserves.tousStatuts')}</option>
-            {Object.entries(STATUTS_RESERVE).map(([cle, v]) => (
-              <option key={cle} value={cle}>{enumLabel(cle, v.label)}</option>
+            {statutsReserve.map((cle) => (
+              <option key={cle} value={cle}>{enumLabel(cle, STATUTS_RESERVE[cle]?.label)}</option>
             ))}
           </select>
 
           <select className="input" style={{ minWidth: 140 }} value={filters.severite} onChange={(e) => maj('severite', e.target.value)}>
             <option value="">{t('reserves.toutesSeverites')}</option>
-            {Object.entries(SEVERITES).map(([cle, v]) => (
-              <option key={cle} value={cle}>{enumLabel(cle, v.label)}</option>
+            {severites.map((cle) => (
+              <option key={cle} value={cle}>{enumLabel(cle, SEVERITES[cle]?.label)}</option>
             ))}
           </select>
 
           <select className="input" style={{ minWidth: 140 }} value={filters.priorite} onChange={(e) => maj('priorite', e.target.value)}>
             <option value="">{t('reserves.toutesPriorites')}</option>
-            {Object.entries(PRIORITES).map(([cle, v]) => (
-              <option key={cle} value={cle}>{enumLabel(cle, v.label)}</option>
+            {priorites.map((cle) => (
+              <option key={cle} value={cle}>{enumLabel(cle, PRIORITES[cle]?.label)}</option>
             ))}
           </select>
 

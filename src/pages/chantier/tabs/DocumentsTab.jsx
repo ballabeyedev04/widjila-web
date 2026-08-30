@@ -15,8 +15,12 @@ import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate } from '../../../utils/format.js';
 import { TYPES_DOCUMENT, STATUTS_DOCUMENT, enumLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
+import { useEnum } from '../../../hooks/useEnums.js';
 
 export default function DocumentsTab({ chantierId, canManage }) {
+  // Types et statuts servis par l'API — voir hooks/useEnums.js.
+  const typesDocument = useEnum('typesDocument');
+  const statutsDocument = useEnum('statutsDocument');
   const { t } = useTranslation('chantier');
   const [filters, setFilters] = useState({ search: '', type: '', statut: '' });
   const [items, setItems] = useState([]);
@@ -90,7 +94,7 @@ export default function DocumentsTab({ chantierId, canManage }) {
       cle: 'type',
       titre: t('champs.type'),
       filtre: 'select',
-      options: Object.keys(TYPES_DOCUMENT).map((v) => ({
+      options: typesDocument.map((v) => ({
         valeur: v,
         label: enumLabel(v, TYPES_DOCUMENT[v]),
       })),
@@ -154,15 +158,16 @@ export default function DocumentsTab({ chantierId, canManage }) {
             </div>
             <Select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} label="">
               <option value="">{t('commun.tousTypes')}</option>
-              {Object.entries(TYPES_DOCUMENT).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+              {typesDocument.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_DOCUMENT[value])}</option>)}
             </Select>
             <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
               <option value="">{t('commun.tousStatuts')}</option>
-              {Object.entries(STATUTS_DOCUMENT).map(([value, def]) => <option key={value} value={value}>{enumLabel(value, def.label)}</option>)}
+              {statutsDocument.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_DOCUMENT[value]?.label)}</option>)}
             </Select>
           </div>
 
           <DataTable
+            totalServeur={total}
             donnees={items}
             colonnes={colonnes}
             chargement={loading}
@@ -181,6 +186,7 @@ export default function DocumentsTab({ chantierId, canManage }) {
 }
 
 function UploadModal({ open, onClose, chantierId, onSaved }) {
+  const typesDocument = useEnum('typesDocument');
   const { t } = useTranslation('chantier');
   const [fichier, setFichier] = useState(null);
   const [nom, setNom] = useState('');
@@ -220,7 +226,7 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
         <Input label={t('commun.nom')} value={nom} onChange={(e) => setNom(e.target.value)} required />
         <div className="grid-2">
           <Select label={t('champs.type')} value={type} onChange={(e) => setType(e.target.value)}>
-            {Object.entries(TYPES_DOCUMENT).map(([value, label]) => <option key={value} value={value}>{enumLabel(value, label)}</option>)}
+            {typesDocument.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_DOCUMENT[value])}</option>)}
           </Select>
           <Input label={t('champs.description')} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>

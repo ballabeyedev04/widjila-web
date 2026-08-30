@@ -79,6 +79,30 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+/**
+ * Faut-il DÉCONNECTER après l'échec d'un renouvellement de session ?
+ *
+ * Extrait de l'intercepteur pour être testable : c'est une règle de sécurité,
+ * et une règle de sécurité qu'on ne peut pas tester finit par dériver.
+ *
+ * @param {number|undefined} statut  code HTTP renvoyé par `/auth/refresh`,
+ *   ou `undefined` si le serveur n'a pas répondu du tout (coupure réseau).
+ * @param {boolean} jetonLocalExpire  l'access token local est-il périmé ?
+ * @returns {boolean}
+ */
+export const doitDeconnecter = (statut, jetonLocalExpire) => {
+  // Le serveur a RÉPONDU que le refresh est refusé : la session est morte.
+  // 400 compris — `auth.controller.js#refresh` lève un BadRequestError quand
+  // le refreshToken est absent ou invalide, et c'est le cas le plus fréquent.
+  if (statut === 400 || statut === 401 || statut === 403) return true;
+
+  // Le serveur n'a pas répondu (undefined) ou a renvoyé une 5xx : panne
+  // passagère probable. On ne déconnecte que si le jeton local est de toute
+  // façon périmé — sinon un utilisateur en 3G sur un chantier perdrait sa
+  // session à la première requête ratée.
+  return jetonLocalExpire;
+};
+
 /* ---------- Refresh silencieux ---------- */
 let isRefreshing = false;
 let failedQueue = [];
@@ -100,6 +124,10 @@ api.interceptors.response.use(
 
     if (error?.response?.status === 401 && original && !original._retry && !isAuthRoute) {
       if (isRefreshing) {
+        // Drapeau posé AVANT la mise en file : sans lui, une requête rejouée
+        // qui reçoit un nouveau 401 relancerait un second cycle de
+        // rafraîchissement pour rien.
+        original._retry = true;
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -119,9 +147,39 @@ api.interceptors.response.use(
         return api(original);
       } catch (refreshError) {
         processQueue(refreshError);
-        if (isTokenExpired()) {
+
+        // ── Quand faut-il DÉCONNECTER ? ──────────────────────────────────
+        //
+        // La condition d'origine (`isTokenExpired()`) regardait l'expiration
+        // de l'access token LOCAL. Elle laissait passer le cas le plus
+        // fréquent d'une session révoquée : le serveur invalide le
+        // refreshToken (changement de mot de passe, compte désactivé,
+        // sessions révoquées, `tokenVersion` incrémentée) alors que l'access
+        // token local n'a pas encore expiré. L'utilisateur restait alors
+        // « connecté » avec un jeton mort : chaque appel échouait en 401,
+        // chaque 401 relançait un refresh voué à échouer, et rien ne le
+        // ramenait à l'écran de connexion.
+        //
+        // On déconnecte donc dès que le serveur RÉPOND que le refresh est
+        // refusé. Une panne réseau ou une erreur 5xx n'entre pas dans ce cas :
+        // déconnecter sur une coupure passagère ferait perdre sa session à un
+        // utilisateur en 3G sur un chantier, alors que le refreshToken est
+        // parfaitement valide.
+        //
+        // 400 fait partie de la liste, et c'est le cas le plus FRÉQUENT :
+        // `auth.controller.js#refresh` lève un `BadRequestError` (400, pas
+        // 401) quand le refreshToken est absent ou invalide — et il efface
+        // même le cookie au passage. Ne tester que 401/403 laissait donc
+        // passer exactement la situation qu'on cherche à rattraper.
+        if (doitDeconnecter(refreshError?.response?.status, isTokenExpired())) {
           clearUser();
-          window.location.href = '/login';
+          // Garde anti-boucle : sur la page de connexion elle-même, une
+          // redirection relancerait un chargement complet en continu.
+          if (!window.location.pathname.startsWith('/login')) {
+            // `replace` et non `href` : la page morte ne doit pas rester dans
+            // l'historique, sinon « précédent » y ramène après reconnexion.
+            window.location.replace('/login');
+          }
         }
         return Promise.reject(refreshError);
       } finally {

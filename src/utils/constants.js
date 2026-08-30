@@ -36,6 +36,24 @@ export const ROLES = {
 
 export const roleLabel = (role) => enumLabel(role, ROLES[role]?.label || role || '—');
 
+/**
+ * Rôles qu'un compte a le droit d'ATTRIBUER à un membre.
+ *
+ * Miroir de `OrganisationService._refusElevation` côté serveur :
+ *   - `Admin` n'est jamais assignable depuis une organisation ;
+ *   - un appelant hors [ROLES_GESTION] ne peut pas attribuer un rôle DE
+ *     gestion, sans quoi une entreprise se fabriquerait un compte chef de
+ *     projet et récupérerait tout ce qui lui est fermé.
+ *
+ * Le serveur refuse de toute façon : cette liste évite seulement de proposer
+ * un choix qui finirait en erreur après saisie complète du formulaire.
+ */
+export const rolesAttribuables = (roleAuteur) => {
+  const sansAdmin = Object.keys(ROLES).filter((r) => r !== 'Admin');
+  if (ROLES_GESTION.includes(roleAuteur)) return sansAdmin;
+  return sansAdmin.filter((r) => !ROLES_GESTION.includes(r));
+};
+
 /* ════════════════════════════════════════════════════════════════════════
  * Rôles & portails — alignés sur les groupes backend (src/config/roles.js).
  * ════════════════════════════════════════════════════════════════════════ */
@@ -49,8 +67,18 @@ export const ROLES_OPERATIONNELS_CONTROLE = ['ChefProjet', 'ConducteurTravaux', 
 /** Pilotage / validation — le maître d'ouvrage décide et valide chaque étape. */
 export const ROLES_PILOTAGE = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre'];
 
-/** Gestion de l'organisation, des membres et des équipes. */
+/** Gestion de l'organisation, des filiales et des équipes. */
 export const ROLES_GESTION = ['Admin', 'ChefProjet', 'MaitreOuvrage'];
+
+/**
+ * Gestion des MEMBRES seulement — miroir de `GESTION_MEMBRES` côté backend.
+ *
+ * Plus large que [ROLES_GESTION] : une entreprise connectée au web doit
+ * pouvoir constituer son propre effectif, comme elle le fait déjà depuis le
+ * mobile. Elle n'accède pour autant ni aux réglages de l'organisation, ni aux
+ * filiales, ni aux équipes — ceux-là restent sur [ROLES_GESTION].
+ */
+export const ROLES_GESTION_MEMBRES = [...ROLES_GESTION, 'Entreprise'];
 
 /**
  * Interventions sur les réserves (signalement, correction, validation).
@@ -130,18 +158,15 @@ export const PRIORITES = {
   critique: { label: 'Critique', tone: 'danger' },
 };
 
-export const CATEGORIES_RESERVE = {
-  maconnerie: 'Maçonnerie',
-  gros_oeuvre: 'Gros œuvre',
-  plomberie: 'Plomberie',
-  electricite: 'Électricité',
-  carrelage: 'Carrelage',
-  peinture: 'Peinture',
-  menuiserie: 'Menuiserie',
-  etancheite: 'Étanchéité',
-  isolation: 'Isolation',
-  autre: 'Autre',
-};
+// Les CATÉGORIES de réserve ne sont plus listées ici.
+//
+// Elles sont remplacées par le référentiel des CORPS D'ÉTAT, administrable
+// (« Corps d'état » dans le menu) et servi par `/corps-etat/actifs`. Plus
+// aucun écran ne s'appuyait sur cette liste figée — elle n'aurait fait que
+// réapparaître un jour dans un formulaire, en concurrence du référentiel.
+//
+// La colonne `reserve.categorie` existe toujours en base pour les réserves
+// anciennes et pour l'export Excel ; c'est le backend qui la gère.
 
 export const STATUTS_INSPECTION = {
   planifiee: { label: 'Planifiée', tone: 'info' },
@@ -198,12 +223,14 @@ export const TYPES_PARTENAIRE = {
   autre: 'Autre',
 };
 
-export const ABONNEMENTS = {
-  Starter: { label: 'Starter', tone: 'neutral' },
-  Pro: { label: 'Pro', tone: 'info' },
-  Business: { label: 'Business', tone: 'warning' },
-  Enterprise: { label: 'Enterprise', tone: 'primary' },
-};
+// Les FORMULES d'abonnement ne sont plus listées ici.
+//
+// Elles vivent en base (`plans_abonnement`), sont administrables depuis
+// « Prix abonnements » et sont servies par `/admin/plans-abonnement` (vue
+// complète) ou `/abonnement/plans` (vue publique). La table qui figurait ici
+// — Starter / Pro / Business / Enterprise — ne correspondait à AUCUN code du
+// catalogue réel : le formulaire proposait des valeurs inexistantes et les
+// filtres ne ramenaient jamais rien.
 
 /**
  * Langues proposées à l'utilisateur. Chaque entrée doit avoir sa traduction

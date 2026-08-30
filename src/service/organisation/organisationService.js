@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { unwrap, normalizeList, toFormData } from '../helpers.js';
+import { unwrap, normalizeList, toFormData, LIMITE_MAX_PAGE } from '../helpers.js';
 
 /** Module Organisation : profil de l'entreprise, filiales, membres, équipes, partenaires. */
 
@@ -17,8 +17,8 @@ export const modifierOrganisation = async (data) => {
 };
 
 /* ---------- Filiales & agences ---------- */
-export const listerFiliales = async () => {
-  const response = await api.get('/organisation/filiales');
+export const listerFiliales = async ({ limit = LIMITE_MAX_PAGE } = {}) => {
+  const response = await api.get('/organisation/filiales', { params: { limit } });
   return normalizeList(unwrap(response), 'filiales');
 };
 

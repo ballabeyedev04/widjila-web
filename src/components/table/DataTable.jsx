@@ -44,6 +44,19 @@ export default function DataTable({
   actions,
   onLigneClic,
   compact = false,
+  /**
+   * Nombre TOTAL d'éléments côté serveur, quand la liste a été chargée en une
+   * seule page.
+   *
+   * Ce tableau pagine côté CLIENT : il ne voit que ce qu'on lui a donné. Si le
+   * serveur en détient davantage, il paginait ces quelques lignes comme si
+   * elles étaient le tout, et le reste devenait invisible sans le moindre
+   * signe. Renseigner cette prop fait apparaître un avertissement.
+   *
+   * `null` = information non fournie : aucun avertissement, comportement
+   * inchangé pour les appelants qui ne la passent pas.
+   */
+  totalServeur = null,
 }) {
   const { t } = useTranslation('layout');
   const idBase = useId();
@@ -67,8 +80,17 @@ export default function DataTable({
     return table.tri.sens === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
+  // Des lignes existent côté serveur mais ne sont pas dans ce tableau : on le
+  // DIT plutôt que de laisser croire à un jeu complet.
+  const donneesTronquees = totalServeur != null && donnees.length < totalServeur;
+
   return (
     <div className="datatable">
+      {donneesTronquees && (
+        <div className="datatable-tronque" role="status">
+          {t('tableau.tronque', { affiches: donnees.length, total: totalServeur })}
+        </div>
+      )}
       {(rechercheGlobale || colonnesFiltrables.length > 0 || actions) && (
         <div className="datatable-barre">
           {rechercheGlobale && (

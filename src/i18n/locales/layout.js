@@ -11,14 +11,27 @@
  */
 export default {
   fr: {
+    actions: {
+      rafraichir: 'Rafraîchir la liste',
+    },
+    tableau: {
+      tronque: '{{affiches}} éléments affichés sur {{total}}. Affinez la recherche pour voir les autres.',
+    },
     sidebar: {
       espaceAdmin: 'Espace admin',
       groupePilotage: 'Pilotage',
       groupePlateforme: 'Plateforme',
       ouvrirMenu: 'Ouvrir le menu',
+      allerAuContenu: 'Aller au contenu',
       basculerMenu: 'Réduire / agrandir le menu',
     },
     nav: {
+      prixAbonnements: 'Prix abonnements',
+      phases: 'Phases',
+      corpsEtat: 'Corps d’état',
+      typesDocument: 'Types de document',
+      typesIntervenant: 'Types d’intervenant',
+      typesInspection: 'Types d’inspection',
       tableauDeBord: 'Tableau de bord',
       chantiers: 'Chantiers',
       toutesReserves: 'Toutes les réserves',
@@ -84,14 +97,27 @@ export default {
   },
 
   en: {
+    actions: {
+      rafraichir: 'Refresh the list',
+    },
+    tableau: {
+      tronque: 'Showing {{affiches}} of {{total}} items. Refine your search to see the rest.',
+    },
     sidebar: {
       espaceAdmin: 'Admin area',
       groupePilotage: 'Management',
       groupePlateforme: 'Platform',
       ouvrirMenu: 'Open menu',
+      allerAuContenu: 'Skip to content',
       basculerMenu: 'Collapse / expand menu',
     },
     nav: {
+      prixAbonnements: 'Subscription pricing',
+      phases: 'Phases',
+      corpsEtat: 'Trades',
+      typesDocument: 'Document types',
+      typesIntervenant: 'Stakeholder types',
+      typesInspection: 'Inspection types',
       tableauDeBord: 'Dashboard',
       chantiers: 'Projects',
       toutesReserves: 'All snags',
@@ -157,14 +183,27 @@ export default {
   },
 
   de: {
+    actions: {
+      rafraichir: 'Liste aktualisieren',
+    },
+    tableau: {
+      tronque: '{{affiches}} von {{total}} Einträgen angezeigt. Verfeinern Sie die Suche, um die übrigen zu sehen.',
+    },
     sidebar: {
       espaceAdmin: 'Admin-Bereich',
       groupePilotage: 'Steuerung',
       groupePlateforme: 'Plattform',
       ouvrirMenu: 'Menü öffnen',
+      allerAuContenu: 'Zum Inhalt springen',
       basculerMenu: 'Menü ein-/ausklappen',
     },
     nav: {
+      prixAbonnements: 'Abonnementpreise',
+      phases: 'Phasen',
+      corpsEtat: 'Gewerke',
+      typesDocument: 'Dokumenttypen',
+      typesIntervenant: 'Beteiligtentypen',
+      typesInspection: 'Prüfungstypen',
       tableauDeBord: 'Übersicht',
       chantiers: 'Baustellen',
       toutesReserves: 'Alle Mängel',
@@ -230,14 +269,27 @@ export default {
   },
 
   es: {
+    actions: {
+      rafraichir: 'Actualizar la lista',
+    },
+    tableau: {
+      tronque: '{{affiches}} de {{total}} elementos mostrados. Afine la búsqueda para ver los demás.',
+    },
     sidebar: {
       espaceAdmin: 'Área de administración',
       groupePilotage: 'Gestión',
       groupePlateforme: 'Plataforma',
       ouvrirMenu: 'Abrir el menú',
+      allerAuContenu: 'Ir al contenido',
       basculerMenu: 'Contraer / expandir el menú',
     },
     nav: {
+      prixAbonnements: 'Precios de suscripción',
+      phases: 'Fases',
+      corpsEtat: 'Oficios',
+      typesDocument: 'Tipos de documento',
+      typesIntervenant: 'Tipos de interviniente',
+      typesInspection: 'Tipos de inspección',
       tableauDeBord: 'Panel de control',
       chantiers: 'Obras',
       toutesReserves: 'Todas las reservas',

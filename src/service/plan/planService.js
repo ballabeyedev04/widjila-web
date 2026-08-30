@@ -69,6 +69,33 @@ export const supprimerAnnotation = async (annotationId) => {
   return unwrap(response);
 };
 
+/* ---------- Zones cliquables (hotspots) ---------- */
+/**
+ * Repères cliquables posés sur un plan : ils font descendre le consultant du
+ * plan global vers un bâtiment, d'un bâtiment vers un étage, d'un étage vers
+ * un appartement. Coordonnées en POURCENTAGES de la page (0-100), jamais en
+ * pixels — voir backend/src/models/planHotspot.model.js.
+ */
+export const listerHotspots = async (planId) => {
+  const response = await api.get(`/plans/${planId}/hotspots`);
+  return normalizeList(unwrap(response), 'hotspots');
+};
+
+export const creerHotspot = async (planId, body) => {
+  const response = await api.post(`/plans/${planId}/hotspots`, body);
+  return unwrap(response)?.hotspot;
+};
+
+export const modifierHotspot = async (hotspotId, body) => {
+  const response = await api.put(`/hotspots/${hotspotId}`, body);
+  return unwrap(response)?.hotspot;
+};
+
+export const supprimerHotspot = async (hotspotId) => {
+  const response = await api.delete(`/hotspots/${hotspotId}`);
+  return unwrap(response);
+};
+
 /**
  * Récupère un fichier du stockage protégé (/uploads/...) sous forme de blob,
  * avec le Bearer token (nécessaire — les fichiers exigent une authentification).
