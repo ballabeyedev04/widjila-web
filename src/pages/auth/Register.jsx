@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Mail, Lock, User, Building, Phone, KeyRound, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 import { register, validatePassword } from '../../service/auth/authService.js';
+import { usePays } from '../../hooks/usePays.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import '../../assets/css/auth.css';
 import SwalCustom from '../../utils/swal.config.js';
@@ -11,6 +12,17 @@ import SwalCustom from '../../utils/swal.config.js';
 export default function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+
+  // Catalogue des pays et de leurs identifiants — servi par l'API, jamais
+  // recopié ici : une table locale divergerait de celle que le backend
+  // applique, et l'écart ne se verrait qu'au moment d'un refus d'inscription.
+  const { pays, chargement: paysEnCours, erreur: paysErreur } = usePays();
+
+  /** Identifiants attendus pour un code pays donné. */
+  const champsDuPays = (code) => pays.find((p) => p.code === code)?.champs ?? [];
+
+  /** Toutes les clés d'identifiant, tous pays confondus. */
+  const toutesLesCles = [...new Set(pays.flatMap((p) => p.champs.map((c) => c.cle)))];
 
   const [form, setForm] = useState({
     // Utilisateur
@@ -25,14 +37,16 @@ export default function Register() {
     // Organisation
     organisationNom: '',
     raison_sociale: '',
-    siret: '',
-    rccm: '',
-    ninea: '',
+    // Les identifiants d'entreprise ne sont plus listés ici : ils dépendent du
+    // pays et sont ajoutés au formulaire quand celui-ci est choisi.
     organisationTelephone: '',
     organisationEmail: '',
     organisationAdresse: '',
     organisationVille: '',
-    organisationPays: 'France',
+    // Vide, et non « France » : présélectionner un pays ferait passer des
+    // inscriptions sous un pays que le visiteur n'a jamais choisi, et
+    // afficherait d'emblée des champs qui ne le concernent peut-être pas.
+    organisationPays: '',
     // RGPD art. 7 — consentement explicite. Le formulaire se contentait d'une
     // mention passive « en vous inscrivant vous acceptez… » : un consentement
     // ni actif ni prouvable. Case décochée par défaut (aucune case pré-cochée),
@@ -50,6 +64,22 @@ export default function Register() {
   // soumission — une seule source de vérité, plus de désynchronisation
   // possible entre les deux.
   const getFieldError = (name, value, formValues) => {
+    // Identifiant d'entreprise : le motif vient du catalogue, donc du serveur.
+    // Le recopier ici le ferait diverger de la règle réellement appliquée, et
+    // l'écart ne se verrait qu'au moment d'un refus.
+    //
+    // Aucun n'est OBLIGATOIRE : une entreprise en cours d'immatriculation n'a
+    // pas encore ses numéros, les exiger l'empêcherait de s'inscrire.
+    const identifiant = champsDuPays(formValues?.organisationPays ?? form.organisationPays)
+      .find((c) => c.cle === name);
+    if (identifiant) {
+      const v = (value ?? '').trim();
+      if (!v) return undefined;
+      return new RegExp(identifiant.motif).test(v)
+        ? undefined
+        : t('register.validation.identifiantFormat', { aide: identifiant.aide });
+    }
+
     switch (name) {
       case 'nom':
         return !value.trim() ? t('register.validation.nomRequis') : undefined;
@@ -71,8 +101,11 @@ export default function Register() {
         return undefined;
       case 'organisationNom':
         return !value.trim() ? t('register.validation.organisationRequise') : undefined;
-      case 'siret':
-        return value && !/^\d{14}$/.test(value) ? t('register.validation.siretInvalide') : undefined;
+      // Les identifiants d'entreprise sont validés d'après le catalogue
+      // (`champsPays`), chacun avec le motif que le serveur applique lui-même :
+      // un seul endroit à corriger si une administration change son format.
+      case 'organisationPays':
+        return !value ? t('register.validation.paysRequis') : undefined;
       case 'consentement':
         return !value ? t('register.validation.consentementRequis') : undefined;
       default:
@@ -88,6 +121,17 @@ export default function Register() {
     if (name === 'siret') valeur = value.replace(/\D/g, '').slice(0, 14);
 
     const nextForm = { ...form, [name]: valeur };
+
+    // Changer de pays RETIRE les identifiants devenus hors sujet. Sans cela,
+    // un NINEA saisi puis passage en France partirait quand même au serveur,
+    // qui le refuse — pour une valeur devenue invisible à l'écran.
+    if (name === 'organisationPays') {
+      const gardes = new Set(champsDuPays(valeur).map((c) => c.cle));
+      for (const champ of toutesLesCles) {
+        if (!gardes.has(champ)) delete nextForm[champ];
+      }
+    }
+
     setForm(nextForm);
 
     // Correction du bug « le message d'erreur ne disparaît pas » : on repart
@@ -162,17 +206,29 @@ export default function Register() {
     { name: 'fonction', label: t('register.champs.fonctionOptionnel'), icon: KeyRound, required: false },
   ];
 
+  // Le PAYS n'est plus dans cette liste : c'est un sélecteur, rendu à part et
+  // placé EN PREMIER — il commande les identifiants affichés ensuite.
   const orgFields = [
     { name: 'organisationNom', label: t('register.champs.organisationNom'), icon: Building, required: true },
     { name: 'raison_sociale', label: t('register.champs.raisonSociale'), icon: Building, required: false },
-    { name: 'siret', label: t('register.champs.siret'), icon: Building, required: false, maxLength: 14, inputMode: 'numeric' },
-    { name: 'rccm', label: t('register.champs.rccm'), icon: Building, required: false },
-    { name: 'ninea', label: t('register.champs.ninea'), icon: Building, required: false },
+
+    // Identifiants du pays choisi. Le motif de validation et le texte d'aide
+    // viennent du serveur : un seul endroit à corriger si une administration
+    // change son format.
+    ...champsDuPays(form.organisationPays).map((c) => ({
+      name: c.cle,
+      label: c.libelle,
+      icon: Building,
+      required: false,
+      aide: c.aide,
+      motif: c.motif,
+      ...(c.cle === 'siret' ? { maxLength: 14, inputMode: 'numeric' } : {}),
+    })),
+
     { name: 'organisationTelephone', label: t('register.champs.organisationTelephone'), icon: Phone, required: false },
     { name: 'organisationEmail', label: t('register.champs.organisationEmail'), icon: Mail, type: 'email', required: false },
     { name: 'organisationAdresse', label: t('champs.adresse'), icon: Building, required: false },
     { name: 'organisationVille', label: t('register.champs.organisationVille'), icon: Building, required: false },
-    { name: 'organisationPays', label: t('register.champs.organisationPays'), icon: Building, required: false },
   ];
 
   return (
@@ -282,8 +338,39 @@ export default function Register() {
               <legend style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)', padding: '0 8px' }}>
                 <Building size={15} style={{ verticalAlign: -2, marginRight: 6 }} /> {t('register.sectionOrganisation')}
               </legend>
+              {/* ── Le PAYS d'abord ───────────────────────────────────────
+                  Il décide des identifiants demandés juste après : le placer
+                  plus bas obligeait à ressaisir, et laissait afficher des
+                  champs sans rapport avec le pays. */}
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label>
+                  {t('register.champs.organisationPays')}{' '}
+                  <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <select
+                  className="input"
+                  name="organisationPays"
+                  value={form.organisationPays}
+                  onChange={handleChange}
+                  disabled={paysEnCours}
+                >
+                  <option value="">
+                    {paysEnCours ? t('register.paysChargement') : t('register.paysChoisir')}
+                  </option>
+                  {pays.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.nom} — {p.champs.map((c) => c.libelle).join(' · ')}
+                    </option>
+                  ))}
+                </select>
+                {errors.organisationPays && <div className="error">{errors.organisationPays}</div>}
+                {/* Sans catalogue, aucun pays n'est proposable : on le DIT,
+                    plutôt que d'afficher une liste vide inexplicable. */}
+                {paysErreur && <div className="error">{t('register.paysIndisponibles')}</div>}
+              </div>
+
               <div className="grid-2">
-                {orgFields.map(({ name, label, icon: Icon, type = 'text', required, maxLength, inputMode }) => (
+                {orgFields.map(({ name, label, icon: Icon, type = 'text', required, maxLength, inputMode, aide }) => (
                   <div key={name} className="field" style={{ marginBottom: 0 }}>
                     <label>
                       {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
@@ -295,7 +382,7 @@ export default function Register() {
                         style={{ paddingLeft: 38 }}
                         type={type}
                         name={name}
-                        value={form[name]}
+                        value={form[name] ?? ''}
                         onChange={handleChange}
                         placeholder={label}
                         required={required}
@@ -305,6 +392,9 @@ export default function Register() {
                       />
                     </div>
                     {errors[name] && <div className="error">{errors[name]}</div>}
+                    {!errors[name] && aide && (
+                      <div className="hint" style={{ fontSize: 11.5 }}>{aide}</div>
+                    )}
                   </div>
                 ))}
               </div>

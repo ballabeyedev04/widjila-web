@@ -122,6 +122,17 @@ export const STATUTS_CHANTIER = {
   cloture: { label: 'Clôturé', tone: 'danger' },
 };
 
+/**
+ * Statuts qui appartiennent au CIRCUIT de validation, et non à l'exploitation.
+ *
+ * Ils sont servis par `/referentiels/enums` comme les autres, mais ne se
+ * choisissent pas : on valide ou on refuse une demande, on ne bascule pas un
+ * chantier « en attente » depuis une liste déroulante. Le serveur refuse ces
+ * transitions ; les écrans retirent l'option plutôt que de promettre une
+ * action qui échouera.
+ */
+export const STATUTS_CHANTIER_CIRCUIT = ['en_attente_validation', 'rejete'];
+
 export const STATUTS_RESERVE = {
   creee: { label: 'Créée', tone: 'neutral' },
   affectee: { label: 'Affectée', tone: 'info' },

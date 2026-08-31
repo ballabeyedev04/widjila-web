@@ -17,7 +17,7 @@ import {
 } from '../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, ROLES_PILOTAGE, ROLES_OPERATIONNELS, ROLES_RESERVE_INTERVENANTS, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_PILOTAGE, ROLES_OPERATIONNELS, ROLES_RESERVE_INTERVENANTS, roleAllowed, enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import ApercuTab from './tabs/ApercuTab.jsx';
 import StructureTab from './tabs/StructureTab.jsx';
@@ -320,7 +320,11 @@ function StatutModal({ open, onClose, chantier, onSaved }) {
       </>
     }>
       <Select label={t('champs.statut')} value={statut} onChange={(e) => setStatut(e.target.value)}>
-        {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
+        {/* Les statuts du circuit sont écartés : une demande se valide ou se
+            refuse, elle ne se bascule pas ici — et le serveur le refuse. */}
+        {statutsChantier
+          .filter((value) => !STATUTS_CHANTIER_CIRCUIT.includes(value))
+          .map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
       </Select>
     </Modal>
   );

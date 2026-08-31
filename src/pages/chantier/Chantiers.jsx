@@ -19,7 +19,7 @@ import {
 import { listerOrganisations } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { useEnum } from '../../hooks/useEnums.js';
@@ -82,7 +82,11 @@ export default function Chantiers() {
         </div>
         <Select value={filters.statut} onChange={(e) => setFilters({ ...filters, statut: e.target.value })} label="">
           <option value="">{t('commun.tousStatuts')}</option>
-          {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
+          {/* Les demandes ont leur propre écran (« Demandes de chantier ») :
+              les proposer ici aussi couperait la même file en deux endroits. */}
+          {statutsChantier
+            .filter((value) => !STATUTS_CHANTIER_CIRCUIT.includes(value))
+            .map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
         </Select>
         <button
           className="btn btn-ghost"
@@ -162,6 +166,9 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
   // d'origine. Le super-admin voyant le portefeuille de TOUS les clients, il
   // lui faut au moins savoir lequel il est en train de modifier.
   const afficheOrganisation = user?.role === 'Admin' && isEdit;
+  // Même règle que le serveur : « n'importe qui qui crée le chantier sauf
+  // Admin reste en attente » (chantier.service.js#_naitEnAttente).
+  const passeParValidation = !isEdit && user?.role !== 'Admin';
   const [organisations, setOrganisations] = useState([]);
   const [form, setForm] = useState({
     // Noms alignés sur le contrat de l'API (snake_case) : le schéma Joi valide
@@ -267,9 +274,22 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
           <Input label={t('champs.dateDebut')} type="date" value={form.date_debut} onChange={(e) => setForm({ ...form, date_debut: e.target.value })} />
           <Input label={t('champs.dateFin')} type="date" value={form.date_fin} onChange={(e) => setForm({ ...form, date_fin: e.target.value })} error={errors.date_fin} />
         </div>
-        <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
-          {statutsChantier.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
-        </Select>
+        {/* À la CRÉATION par un compte non super-admin, le statut choisi
+            n'a aucun effet : le chantier part en demande de validation quoi
+            qu'il arrive. Laisser la liste promettrait un « En cours » qui ne
+            se produirait pas — on annonce à la place ce qui va réellement se
+            passer. */}
+        {passeParValidation ? (
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+            {t('liste.passeParValidation')}
+          </p>
+        ) : (
+          <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
+            {statutsChantier
+              .filter((value) => !STATUTS_CHANTIER_CIRCUIT.includes(value))
+              .map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
+          </Select>
+        )}
       </form>
     </Modal>
   );

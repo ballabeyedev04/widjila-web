@@ -18,6 +18,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   ShieldCheck,
   FileSearch,
@@ -155,6 +156,7 @@ export default function AdminLayout() {
   const baseMenu = [
     { path: '/dashboard', label: t('nav.tableauDeBord'), icon: LayoutDashboard, roles: 'all' },
     { path: '/chantiers', label: t('nav.chantiers'), icon: HardHat, roles: 'all' },
+    { path: '/chantiers/demandes', label: t('nav.demandesChantier'), icon: ClipboardCheck, roles: 'all' },
     { path: '/reserves', label: t('nav.toutesReserves'), icon: AlertTriangle, roles: 'all' },
     { path: '/plans', label: t('nav.tousPlans'), icon: Map, roles: 'all' },
     { path: '/membres', label: t('nav.membres'), icon: Users, roles: ROLES_GESTION_MEMBRES },

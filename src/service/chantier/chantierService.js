@@ -3,9 +3,23 @@ import { unwrap, normalizeList, LIMITE_MAX_PAGE } from '../helpers.js';
 
 /** Module Chantier : CRUD, structure (bâtiments/étages/zones/lots), phases, affectations. */
 
-export const listerChantiers = async ({ page = 1, limit = 20, search = '', statut = '' } = {}) => {
+/**
+ * @param {object} [params]
+ * @param {'mes'|'a_valider'} [params.demandes]  Ouvre la liste aux chantiers
+ *   EN DEMANDE, que le serveur écarte par défaut : un chantier en attente ou
+ *   refusé n'est pas un chantier en activité.
+ *     - 'mes'       → les demandes déposées par le compte connecté ;
+ *     - 'a_valider' → la file d'attente de ceux qui tranchent.
+ */
+export const listerChantiers = async ({ page = 1, limit = 20, search = '', statut = '', demandes = '' } = {}) => {
   const response = await api.get('/chantiers', {
-    params: { page, limit, search: search?.trim() || undefined, statut: statut || undefined },
+    params: {
+      page,
+      limit,
+      search: search?.trim() || undefined,
+      statut: statut || undefined,
+      demandes: demandes || undefined,
+    },
   });
   return normalizeList(unwrap(response), 'chantiers');
 };
@@ -27,6 +41,24 @@ export const modifierChantier = async (id, body) => {
 
 export const changerStatutChantier = async (id, statut) => {
   const response = await api.patch(`/chantiers/${id}/statut`, { statut });
+  return unwrap(response)?.chantier;
+};
+
+/* ---------- Validation des demandes de chantier ---------- */
+
+/** Accepte une demande : le chantier devient réellement utilisable. */
+export const validerChantier = async (id) => {
+  const response = await api.patch(`/chantiers/${id}/valider`);
+  return unwrap(response)?.chantier;
+};
+
+/**
+ * Refuse une demande. Le motif est OBLIGATOIRE côté serveur (10 caractères au
+ * minimum) : c'est la seule indication dont dispose le demandeur pour
+ * corriger, et il part tel quel dans le courriel.
+ */
+export const rejeterChantier = async (id, motif) => {
+  const response = await api.patch(`/chantiers/${id}/rejeter`, { motif });
   return unwrap(response)?.chantier;
 };
 

@@ -16,3 +16,18 @@ export const chargerEnums = async () => {
   const response = await api.get('/referentiels/enums');
   return unwrap(response)?.enums ?? {};
 };
+
+/**
+ * Pays proposés à l'inscription, et les identifiants d'entreprise de chacun.
+ *
+ * Le formulaire affichait SIRET, RCCM et NINEA à tout le monde : une
+ * entreprise française se voyait demander un NINEA — identifiant sénégalais —
+ * et une entreprise malienne n'avait nulle part où saisir son NIF.
+ *
+ * Route PUBLIQUE : c'est le formulaire d'INSCRIPTION qui la consomme, et son
+ * visiteur n'a par définition pas encore de session.
+ */
+export const chargerPays = async () => {
+  const response = await api.get('/referentiels/pays');
+  return unwrap(response)?.pays ?? [];
+};

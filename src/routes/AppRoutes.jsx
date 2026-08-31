@@ -44,6 +44,7 @@ import Phases from '../pages/phase/Phases.jsx';
 import ReferentielTypes from '../pages/referentiel/ReferentielTypes.jsx';
 import Chantiers from '../pages/chantier/Chantiers.jsx';
 import ChantierDetail from '../pages/chantier/ChantierDetail.jsx';
+import DemandesChantier from '../pages/chantier/DemandesChantier.jsx';
 import Notifications from '../pages/notification/Notifications.jsx';
 import NotFound from '../pages/error/NotFound.jsx';
 
@@ -119,6 +120,10 @@ export default function AppRoutes() {
         <Route path="reserves" element={<ToutesReserves />} />
         <Route path="reserves/:id" element={<ReserveDetail />} />
         <Route path="plans" element={<TousPlans />} />
+        {/* Demandes de creation de chantier. Ouverte a TOUS : l'onglet
+            « A valider » ne renvoie rien a qui ne valide pas, et l'onglet
+            « Mes demandes » concerne justement ceux qui deposent. */}
+        <Route path="chantiers/demandes" element={<DemandesChantier />} />
         <Route path="chantiers" element={<Chantiers />} />
         <Route path="chantiers/:id" element={<ChantierDetail />} />
         <Route path="notifications" element={<Notifications />} />

@@ -49,6 +49,9 @@ export default {
       },
     },
     register: {
+      paysChoisir: 'Sélectionnez un pays',
+      paysChargement: 'Chargement des pays…',
+      paysIndisponibles: 'Impossible de charger la liste des pays. Réessayez plus tard.',
       entete: 'Créer un compte administrateur',
       titre: 'Inscription',
       intro: "Créez votre organisation et votre compte administrateur. Vous bénéficierez d'un essai gratuit de 7 jours.",
@@ -69,6 +72,8 @@ export default {
         organisationPays: 'Pays',
       },
       validation: {
+        identifiantFormat: 'Format attendu : {{aide}}',
+        paysRequis: 'Sélectionnez un pays',
         nomRequis: 'Le nom est requis',
         prenomRequis: 'Le prénom est requis',
         emailRequis: "L'email est requis",
@@ -187,6 +192,9 @@ export default {
       },
     },
     register: {
+      paysChoisir: 'Select a country',
+      paysChargement: 'Loading countries…',
+      paysIndisponibles: 'Could not load the country list. Try again later.',
       entete: 'Create an administrator account',
       titre: 'Sign up',
       intro: 'Create your organisation and your administrator account. You get a 7-day free trial.',
@@ -207,6 +215,8 @@ export default {
         organisationPays: 'Country',
       },
       validation: {
+        identifiantFormat: 'Expected format: {{aide}}',
+        paysRequis: 'Select a country',
         nomRequis: 'Last name is required',
         prenomRequis: 'First name is required',
         emailRequis: 'Email is required',
@@ -325,6 +335,9 @@ export default {
       },
     },
     register: {
+      paysChoisir: 'Land auswählen',
+      paysChargement: 'Länder werden geladen…',
+      paysIndisponibles: 'Die Länderliste konnte nicht geladen werden. Versuchen Sie es später erneut.',
       entete: 'Administratorkonto erstellen',
       titre: 'Registrierung',
       intro: 'Erstellen Sie Ihre Organisation und Ihr Administratorkonto. Sie erhalten eine kostenlose Testphase von 7 Tagen.',
@@ -345,6 +358,8 @@ export default {
         organisationPays: 'Land',
       },
       validation: {
+        identifiantFormat: 'Erwartetes Format: {{aide}}',
+        paysRequis: 'Land auswählen',
         nomRequis: 'Der Nachname ist erforderlich',
         prenomRequis: 'Der Vorname ist erforderlich',
         emailRequis: 'Die E-Mail-Adresse ist erforderlich',
@@ -465,6 +480,9 @@ export default {
       },
     },
     register: {
+      paysChoisir: 'Seleccione un país',
+      paysChargement: 'Cargando países…',
+      paysIndisponibles: 'No se pudo cargar la lista de países. Inténtelo más tarde.',
       entete: 'Crear una cuenta de administrador',
       titre: 'Registro',
       intro: 'Cree su organización y su cuenta de administrador. Dispondrá de una prueba gratuita de 7 días.',
@@ -485,6 +503,8 @@ export default {
         organisationPays: 'País',
       },
       validation: {
+        identifiantFormat: 'Formato esperado: {{aide}}',
+        paysRequis: 'Seleccione un país',
         nomRequis: 'El apellido es obligatorio',
         prenomRequis: 'El nombre es obligatorio',
         emailRequis: 'El correo electrónico es obligatorio',
