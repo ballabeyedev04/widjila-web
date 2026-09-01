@@ -121,9 +121,11 @@ export default function DemandesChantier() {
                   {items.map((c) => (
                     <tr key={c.id}>
                       <td>
-                        {/* Le nom mène au chantier : on ne tranche pas une
-                            demande sans pouvoir en regarder le contenu. */}
-                        <Link to={`/chantiers/${c.id}`}><strong>{c.nom}</strong></Link>
+                        {/* Le nom mène à l'EXAMEN de la demande, et non à
+                            la fiche du chantier : on tranche en regardant les
+                            plans déposés, section par section, ce que la fiche
+                            ordinaire ne montre pas. */}
+                        <Link to={`/chantiers/demandes/${c.id}`}><strong>{c.nom}</strong></Link>
                         <div className="text-muted" style={{ fontSize: 12 }}>{c.code}</div>
                         {c.adresse && <div className="text-muted" style={{ fontSize: 12 }}>{c.adresse}</div>}
                       </td>

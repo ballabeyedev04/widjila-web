@@ -45,6 +45,7 @@ import ReferentielTypes from '../pages/referentiel/ReferentielTypes.jsx';
 import Chantiers from '../pages/chantier/Chantiers.jsx';
 import ChantierDetail from '../pages/chantier/ChantierDetail.jsx';
 import DemandesChantier from '../pages/chantier/DemandesChantier.jsx';
+import DemandeChantierDetail from '../pages/chantier/DemandeChantierDetail.jsx';
 import Notifications from '../pages/notification/Notifications.jsx';
 import NotFound from '../pages/error/NotFound.jsx';
 
@@ -124,6 +125,13 @@ export default function AppRoutes() {
             « A valider » ne renvoie rien a qui ne valide pas, et l'onglet
             « Mes demandes » concerne justement ceux qui deposent. */}
         <Route path="chantiers/demandes" element={<DemandesChantier />} />
+        {/* Examen d'une demande : les plans y sont presentes par sections,
+            comme sur mobile, et consultables SANS creation de reserve.
+            Declaree avant `chantiers/:id`, qui prendrait sinon « demandes »
+            pour un identifiant — React Router classe pourtant les segments
+            statiques avant les dynamiques, l'ordre n'est ici que pour la
+            lecture. */}
+        <Route path="chantiers/demandes/:id" element={<DemandeChantierDetail />} />
         <Route path="chantiers" element={<Chantiers />} />
         <Route path="chantiers/:id" element={<ChantierDetail />} />
         <Route path="notifications" element={<Notifications />} />
