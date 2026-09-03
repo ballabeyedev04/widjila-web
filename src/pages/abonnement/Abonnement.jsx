@@ -68,13 +68,36 @@ function PaymentForm({ plan, clientSecret, onSuccess, loading }) {
     );
 
     if (stripeError) {
+      // Carte refusee, fonds insuffisants, 3-D Secure echoue : le message de
+      // Stripe est deja precis et traduit, mieux vaut le relayer tel quel.
       setError(stripeError.message || t('abonnement.erreurPaiement'));
       setProcessing(false);
-    } else if (paymentIntent?.status === 'succeeded') {
-      onSuccess();
-    } else {
-      setError(t('abonnement.paiementEnAttente'));
-      setProcessing(false);
+      return;
+    }
+
+    // Le statut decide, et rien d'autre. Cet ecran ne fait qu'AUTORISER le
+    // debit ; c'est le webhook, cote serveur, qui activera l'abonnement.
+    switch (paymentIntent?.status) {
+      case 'succeeded':
+      case 'processing':
+        // `processing` n'est PAS un echec. Certains paiements se denouent en
+        // differe : les afficher en rouge alarmait pour un debit qui aboutit.
+        // On laisse le serveur trancher.
+        onSuccess(paymentIntent.status);
+        break;
+
+      case 'requires_payment_method':
+        // Stripe a rendu le PaymentIntent reutilisable : la carte a ete
+        // refusee, une autre peut etre saisie sans tout recommencer.
+        setError(t('abonnement.paiementRefuse'));
+        setProcessing(false);
+        break;
+
+      default:
+        // `requires_action`, `requires_confirmation`... Rien n'est perdu, mais
+        // rien n'est acquis non plus : on ne promet pas.
+        setError(t('abonnement.paiementNonConfirme'));
+        setProcessing(false);
     }
   };
 
@@ -140,6 +163,8 @@ export default function Abonnement() {
   const { user } = useUser();
   const [plans, setPlans] = useState([]);
   const [status, setStatus] = useState(null);
+  // Vrai pendant qu'on attend le verdict du serveur apres un paiement.
+  const [confirmation, setConfirmation] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [clientSecret, setClientSecret] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -194,20 +219,71 @@ export default function Abonnement() {
     return () => { cancelled = true; };
   }, [selectedPlan]);
 
-  // Écouteur pour le retour Stripe (success_url)
+  /**
+   * Interroge le serveur jusqu'a ce qu'il confirme l'abonnement.
+   *
+   * `stripe.confirmCardPayment` rend `succeeded` des que la banque autorise le
+   * debit -- mais l'abonnement, lui, n'est active que par le webhook, quelques
+   * centaines de millisecondes a quelques secondes plus tard. Un seul appel a
+   * `getStatus()` juste apres tombait donc presque toujours AVANT le webhook :
+   * l'ecran rechargeait l'ancien statut, en silence, et celui qui venait de
+   * payer ne voyait rien changer.
+   *
+   * Attentes croissantes plutot qu'un intervalle fixe : le cas normal se regle
+   * au premier ou deuxieme essai, les suivants n'existent que pour les
+   * lendemains difficiles. Une quinzaine de secondes au total, puis on renonce
+   * -- sans jamais affirmer que le paiement a echoue, ce que nous ignorons.
+   */
+  const attendreConfirmationServeur = useCallback(async () => {
+    const attentes = [0, 900, 1600, 2600, 3800, 5000];
+    for (const attente of attentes) {
+      if (attente) await new Promise((r) => setTimeout(r, attente));
+      try {
+        const res = await getStatus();
+        if (res) {
+          setStatus(res);
+          if (res.isSubscribed) return true;
+        }
+      } catch {
+        // Reseau instable : on retente. Ce n'est pas une reponse du serveur.
+      }
+    }
+    return false;
+  }, []);
+
+  // Retour depuis une page de paiement externe (`?payment=...`).
+  //
+  // Le parametre d'URL n'est PAS une preuve : n'importe qui peut l'ajouter a
+  // la main, et il survit dans l'historique du navigateur. Cet ecran affichait
+  // pourtant « Paiement reussi ! Votre abonnement est actif. » sur sa seule
+  // presence. On interroge desormais le serveur, et lui seul decide du
+  // message.
+  //
+  // Un seul ecouteur : il y en avait DEUX, sur la meme condition, chacun
+  // annoncant le succes de son cote.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      // Vider l'URL pour éviter le double-traitement
-      window.history.replaceState({}, document.title, window.location.pathname);
-      // Recharger le statut et l'utilisateur
-      SwalCustom.success(t('abonnement.paiementReussi'));
-      getStatus().then((res) => res && setStatus(res));
-    } else if (params.get('payment') === 'cancel') {
-      window.history.replaceState({}, document.title, window.location.pathname);
+    const retour = params.get('payment');
+    if (!retour) return;
+
+    const reference = params.get('ref');
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (retour === 'cancel') {
       SwalCustom.info(t('abonnement.paiementAnnule'));
+      return;
     }
-  }, [t]);
+    if (retour !== 'success') return;
+
+    (async () => {
+      if (reference) await verifyPayTechPayment(null, reference).catch(() => {});
+      setConfirmation(true);
+      const actif = await attendreConfirmationServeur();
+      setConfirmation(false);
+      if (actif) SwalCustom.success(t('abonnement.paiementReussi'));
+      else SwalCustom.info(t('abonnement.paiementNonConfirme'));
+    })();
+  }, [t, attendreConfirmationServeur]);
 
   const handleSelectPlan = (plan) => {
     setSelectedPlan(plan);
@@ -215,16 +291,19 @@ export default function Abonnement() {
   };
 
   const handlePaymentSuccess = async () => {
-    // Le webhook Stripe activera l'abonnement côté serveur
-    // On recharge le statut
-    try {
-      const res = await getStatus();
-      if (res) setStatus(res);
-      setSelectedPlan(null);
-      setClientSecret(null);
-    } catch (err) {
-      console.warn('Rechargement statut échoué:', err);
-    }
+    // Le formulaire disparait tout de suite : le debit est autorise, le
+    // laisser a l'ecran inviterait a payer une seconde fois.
+    setSelectedPlan(null);
+    setClientSecret(null);
+
+    setConfirmation(true);
+    const actif = await attendreConfirmationServeur();
+    setConfirmation(false);
+
+    if (actif) SwalCustom.success(t('abonnement.paiementReussi'));
+    // Ni succes ni echec : le paiement est parti, l'activation n'est pas
+    // encore visible. Annoncer l'un ou l'autre serait mentir.
+    else SwalCustom.info(t('abonnement.paiementNonConfirme'));
   };
 
   const handleCancelSelection = () => {
@@ -253,24 +332,6 @@ export default function Abonnement() {
       setPaymentLoading(false);
     }
   }, [selectedPlan]);
-
-  // Écouteur pour le retour PayTech (success_url)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      const ref = params.get('ref');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      SwalCustom.success(t('abonnement.paiementReussi'));
-      getStatus().then((res) => res && setStatus(res));
-      if (ref) {
-        // Vérifier spécifiquement ce paiement
-        verifyPayTechPayment(null, ref).catch(() => {});
-      }
-    } else if (params.get('payment') === 'cancel') {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      SwalCustom.info(t('abonnement.paiementAnnule'));
-    }
-  }, [t]);
 
   const getTrialInfo = () => {
     if (!status) return null;
@@ -334,6 +395,16 @@ export default function Abonnement() {
           )}
         </div>
       </header>
+
+      {/* ── Attente du verdict du serveur ──
+          Le debit est autorise, l'abonnement pas encore active : c'est le
+          webhook Stripe qui tranche. Sans ce bandeau, l'ecran paraissait
+          n'avoir rien fait pendant les quelques secondes de l'aller-retour. */}
+      {confirmation && (
+        <div className="abonnement-alert" role="status" aria-live="polite">
+          <Loader2 size={18} className="spin" /> {t('abonnement.confirmationEnCours')}
+        </div>
+      )}
 
       {/* ── Message d'erreur global ── */}
       {error && (
