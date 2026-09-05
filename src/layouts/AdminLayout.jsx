@@ -182,10 +182,27 @@ export default function AdminLayout() {
     { path: '/plateforme/audit', label: t('nav.journalAudit'), icon: FileSearch },
   ];
 
-  // Filtre le menu selon le rôle (l'Admin voit tout — roleAllowed passe toujours).
-  const menuVisible = baseMenu.filter((item) =>
-    item.roles === 'all' || roleAllowed(user?.role, item.roles)
-  );
+  // ── Ce que voit le SUPER-ADMIN plateforme ────────────────────────────────
+  //
+  // `roleAllowed` renvoie `true` pour 'Admin' sur n'importe quelle entrée : il
+  // voyait donc l'intégralité du menu métier — chantiers, réserves, plans,
+  // membres, équipes, partenaires, référentiels.
+  //
+  // Or ce compte n'appartient à AUCUNE organisation (`organisationId` vaut
+  // `null`, voir auth.service.js). Ces écrans ne lui sont pas seulement
+  // inutiles : ils sont sans objet, et interrogeaient l'API avec une
+  // organisation vide. Son métier est la plateforme, pas un chantier.
+  //
+  // Deux entrées survivent, parce qu'elles ne relèvent d'aucune organisation :
+  // son profil — c'est là qu'on change son mot de passe et qu'on active la
+  // double authentification — et ses notifications.
+  const MENU_PERSONNEL = new Set(['/notifications', '/profil']);
+
+  const menuVisible = admin
+    ? baseMenu.filter((item) => MENU_PERSONNEL.has(item.path))
+    : baseMenu.filter(
+        (item) => item.roles === 'all' || roleAllowed(user?.role, item.roles)
+      );
 
   const onNavigate = (path) => {
     setMobileOpen(false);

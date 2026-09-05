@@ -30,6 +30,10 @@ export default {
       generationImpossible: 'Génération impossible',
     },
     demandes: {
+      consulter: 'Consulter',
+      plansJoints: '{{count}} plan joint',
+      plansJoints_other: '{{count}} plans joints',
+      aucunPlan: 'Aucun plan joint',
       titre: 'Demandes de chantier',
       sousTitre: '{{total}} demande(s)',
       onglets: { aValider: 'À valider', mes: 'Mes demandes' },
@@ -519,6 +523,10 @@ export default {
       generationImpossible: 'Generation failed',
     },
     demandes: {
+      consulter: 'View',
+      plansJoints: '{{count}} drawing attached',
+      plansJoints_other: '{{count}} drawings attached',
+      aucunPlan: 'No drawing attached',
       titre: 'Site requests',
       sousTitre: '{{total}} request(s)',
       onglets: { aValider: 'To review', mes: 'My requests' },
@@ -1008,6 +1016,10 @@ export default {
       generationImpossible: 'Erstellung fehlgeschlagen',
     },
     demandes: {
+      consulter: 'Ansehen',
+      plansJoints: '{{count}} Plan angehängt',
+      plansJoints_other: '{{count}} Pläne angehängt',
+      aucunPlan: 'Kein Plan angehängt',
       titre: 'Baustellenanträge',
       sousTitre: '{{total}} Antrag/Anträge',
       onglets: { aValider: 'Zu prüfen', mes: 'Meine Anträge' },
@@ -1497,6 +1509,10 @@ export default {
       generationImpossible: 'Generación fallida',
     },
     demandes: {
+      consulter: 'Consultar',
+      plansJoints: '{{count}} plano adjunto',
+      plansJoints_other: '{{count}} planos adjuntos',
+      aucunPlan: 'Ningún plano adjunto',
       titre: 'Solicitudes de obra',
       sousTitre: '{{total}} solicitud(es)',
       onglets: { aValider: 'Por revisar', mes: 'Mis solicitudes' },

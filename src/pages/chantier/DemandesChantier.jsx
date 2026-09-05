@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, ShieldAlert, HardHat } from 'lucide-react';
+import { Check, X, ShieldAlert, HardHat, Paperclip, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -128,6 +128,23 @@ export default function DemandesChantier() {
                         <Link to={`/chantiers/demandes/${c.id}`}><strong>{c.nom}</strong></Link>
                         <div className="text-muted" style={{ fontSize: 12 }}>{c.code}</div>
                         {c.adresse && <div className="text-muted" style={{ fontSize: 12 }}>{c.adresse}</div>}
+
+                        {/* Les pièces jointes, VISIBLES DÈS LA LISTE.
+                            Une demande se juge en partie sur ses documents —
+                            « l'entreprise a-t-elle fourni le plan de masse ? ».
+                            Sans ce repère, il fallait ouvrir chaque demande une
+                            à une pour découvrir laquelle n'avait aucune pièce. */}
+                        {c.nbPlans > 0 ? (
+                          <div className="demande-plans">
+                            <Paperclip size={12} />
+                            {t('demandes.plansJoints', { count: c.nbPlans })}
+                          </div>
+                        ) : (
+                          <div className="demande-plans demande-plans-vide">
+                            <Paperclip size={12} />
+                            {t('demandes.aucunPlan')}
+                          </div>
+                        )}
                       </td>
                       <td className="text-muted" style={{ fontSize: 13 }}>
                         {c.demandeur ? (
@@ -136,12 +153,28 @@ export default function DemandesChantier() {
                             <div style={{ fontSize: 12 }}>{c.demandeur.email}</div>
                           </>
                         ) : '—'}
+                        {/* L'ENTREPRISE qui demande. Deux chantiers peuvent
+                            porter le même nom chez deux clients differents :
+                            sans elle, on tranche sans savoir pour qui. */}
+                        {c.organisation?.nom && (
+                          <div className="demande-entreprise">{c.organisation.nom}</div>
+                        )}
                       </td>
                       <td className="text-muted" style={{ fontSize: 13 }}>
                         {formatDate(c.createdAt)}
                         <div><Badge statusKey={c.statut} /></div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {/* « Consulter » AVANT les deux décisions, et pour
+                            toutes les demandes quel qu'en soit le statut : on
+                            relit aussi une demande déjà tranchée. Le nom du
+                            chantier y mène également, mais un lien dans un
+                            tableau ne se voit pas comme une action. */}
+                        <Link
+                          to={`/chantiers/demandes/${c.id}`}
+                          className="btn btn-sm btn-ghost"
+                        ><Eye size={14} /> {t('demandes.consulter')}</Link>
+                        {' '}
                         {c.statut === 'en_attente_validation' && fileAValider ? (
                           <>
                             <button className="btn btn-sm btn-primary" onClick={() => setAValider(c)}>

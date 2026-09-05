@@ -93,7 +93,11 @@ export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'B
  * Tous arrivent sur le tableau de bord : le menu affiché dépend du rôle.
  */
 export const ROLE_HOME = {
-  Admin: '/dashboard',
+  // Le super-admin plateforme n'appartient a AUCUNE organisation : le tableau
+  // de bord metier l'interrogeait avec `organisationId = null` et lui servait
+  // un ecran vide, alors que son travail — organisations, inscriptions,
+  // abonnements, journal d'audit — vit sous /plateforme.
+  Admin: '/plateforme',
   ChefProjet: '/dashboard',
   ConducteurTravaux: '/dashboard',
   BureauControle: '/dashboard',
