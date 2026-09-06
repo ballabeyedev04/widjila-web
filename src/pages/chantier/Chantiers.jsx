@@ -19,7 +19,7 @@ import {
 import { listerOrganisations } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_OPERATIONNELS, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_OPERATIONNELS, peutGerer, enumLabel, ROLE_TITULAIRE } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { useEnum } from '../../hooks/useEnums.js';
@@ -31,8 +31,12 @@ export default function Chantiers() {
   const { user } = useUser();
   const role = user?.role;
   // Gestion opérationnelle (créer/modifier/dupliquer) ; suppression réservée au chef de projet.
-  const canManage = roleAllowed(role, ROLES_OPERATIONNELS);
-  const canDelete = role === 'ChefProjet' || role === 'Admin';
+  // `peutGerer` et non `roleAllowed` : le super-admin plateforme consulte ce
+  // parc pour surveiller et pour trancher des demandes, il ne crée pas de
+  // chantier dans une entreprise cliente. Pour tous les autres rôles, la règle
+  // est inchangée.
+  const canManage = peutGerer(role, ROLES_OPERATIONNELS);
+  const canDelete = role === 'ChefProjet' || role === 'Admin' || role === ROLE_TITULAIRE;
 
   const [filters, setFilters] = useState({ search: '', statut: '' });
   const [showCreate, setShowCreate] = useState(false);

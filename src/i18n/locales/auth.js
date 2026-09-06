@@ -40,7 +40,7 @@ export default {
       },
       essai: {
         titre: '⚠️ Essai gratuit bientôt terminé',
-        html: 'Votre essai de 7 jours se termine dans <strong>{{jours}} {{unite}}</strong> (le {{date}}).<br><br>Votre organisation passera en mode lecture seule.<br>Voulez-vous souscrire un abonnement maintenant pour continuer sans interruption ?',
+        html: 'Votre essai de 2 jours se termine dans <strong>{{jours}} {{unite}}</strong> (le {{date}}).<br><br>Votre organisation passera en mode lecture seule.<br>Voulez-vous souscrire un abonnement maintenant pour continuer sans interruption ?',
         jour: 'jour',
         jours: 'jours',
         bientot: 'bientôt',
@@ -54,7 +54,7 @@ export default {
       paysIndisponibles: 'Impossible de charger la liste des pays. Réessayez plus tard.',
       entete: 'Créer un compte administrateur',
       titre: 'Inscription',
-      intro: "Créez votre organisation et votre compte administrateur. Vous bénéficierez d'un essai gratuit de 7 jours.",
+      intro: "Créez votre organisation et votre compte administrateur. Vous bénéficierez d'un essai gratuit de 2 jours.",
       sectionUtilisateur: 'Vos informations',
       sectionOrganisation: 'Votre organisation',
       champs: {
@@ -183,7 +183,7 @@ export default {
       },
       essai: {
         titre: '⚠️ Free trial ending soon',
-        html: 'Your 7-day trial ends in <strong>{{jours}} {{unite}}</strong> (on {{date}}).<br><br>Your organisation will switch to read-only mode.<br>Would you like to subscribe now to continue without interruption?',
+        html: 'Your 2-day trial ends in <strong>{{jours}} {{unite}}</strong> (on {{date}}).<br><br>Your organisation will switch to read-only mode.<br>Would you like to subscribe now to continue without interruption?',
         jour: 'day',
         jours: 'days',
         bientot: 'soon',
@@ -197,7 +197,7 @@ export default {
       paysIndisponibles: 'Could not load the country list. Try again later.',
       entete: 'Create an administrator account',
       titre: 'Sign up',
-      intro: 'Create your organisation and your administrator account. You get a 7-day free trial.',
+      intro: 'Create your organisation and your administrator account. You get a 2-day free trial.',
       sectionUtilisateur: 'Your details',
       sectionOrganisation: 'Your organisation',
       champs: {
@@ -326,7 +326,7 @@ export default {
       },
       essai: {
         titre: '⚠️ Kostenlose Testphase endet bald',
-        html: 'Ihre 7-tägige Testphase endet in <strong>{{jours}} {{unite}}</strong> (am {{date}}).<br><br>Ihre Organisation wechselt in den Nur-Lese-Modus.<br>Möchten Sie jetzt ein Abonnement abschließen, um ohne Unterbrechung fortzufahren?',
+        html: 'Ihre 2-tägige Testphase endet in <strong>{{jours}} {{unite}}</strong> (am {{date}}).<br><br>Ihre Organisation wechselt in den Nur-Lese-Modus.<br>Möchten Sie jetzt ein Abonnement abschließen, um ohne Unterbrechung fortzufahren?',
         jour: 'Tag',
         jours: 'Tagen',
         bientot: 'bald',
@@ -340,7 +340,7 @@ export default {
       paysIndisponibles: 'Die Länderliste konnte nicht geladen werden. Versuchen Sie es später erneut.',
       entete: 'Administratorkonto erstellen',
       titre: 'Registrierung',
-      intro: 'Erstellen Sie Ihre Organisation und Ihr Administratorkonto. Sie erhalten eine kostenlose Testphase von 7 Tagen.',
+      intro: 'Erstellen Sie Ihre Organisation und Ihr Administratorkonto. Sie erhalten eine kostenlose Testphase von 2 Tagen.',
       sectionUtilisateur: 'Ihre Angaben',
       sectionOrganisation: 'Ihre Organisation',
       champs: {
@@ -471,7 +471,7 @@ export default {
       },
       essai: {
         titre: '⚠️ La prueba gratuita termina pronto',
-        html: 'Su prueba de 7 días termina en <strong>{{jours}} {{unite}}</strong> (el {{date}}).<br><br>Su organización pasará al modo de solo lectura.<br>¿Desea suscribirse ahora para continuar sin interrupción?',
+        html: 'Su prueba de 2 días termina en <strong>{{jours}} {{unite}}</strong> (el {{date}}).<br><br>Su organización pasará al modo de solo lectura.<br>¿Desea suscribirse ahora para continuar sin interrupción?',
         jour: 'día',
         jours: 'días',
         bientot: 'pronto',
@@ -485,7 +485,7 @@ export default {
       paysIndisponibles: 'No se pudo cargar la lista de países. Inténtelo más tarde.',
       entete: 'Crear una cuenta de administrador',
       titre: 'Registro',
-      intro: 'Cree su organización y su cuenta de administrador. Dispondrá de una prueba gratuita de 7 días.',
+      intro: 'Cree su organización y su cuenta de administrador. Dispondrá de una prueba gratuita de 2 días.',
       sectionUtilisateur: 'Sus datos',
       sectionOrganisation: 'Su organización',
       champs: {

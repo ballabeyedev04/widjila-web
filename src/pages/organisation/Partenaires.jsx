@@ -12,7 +12,7 @@ import {
 } from '../../service/organisation/organisationService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate } from '../../utils/format.js';
-import { TYPES_PARTENAIRE, enumLabel } from '../../utils/constants.js';
+import { TYPES_PARTENAIRE, enumLabel, ROLE_TITULAIRE } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { useEnum } from '../../hooks/useEnums.js';
@@ -21,7 +21,7 @@ export default function Partenaires() {
   const typesPartenaire = useEnum('typesPartenaire');
   const { t } = useTranslation('organisation');
   const { user } = useUser();
-  const canDelete = user?.role === 'ChefProjet' || user?.role === 'Admin';
+  const canDelete = user?.role === 'ChefProjet' || user?.role === 'Admin' || user?.role === ROLE_TITULAIRE;
 
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);

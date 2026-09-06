@@ -17,7 +17,7 @@ import {
 } from '../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_PILOTAGE, ROLES_OPERATIONNELS, ROLES_RESERVE_INTERVENANTS, roleAllowed, enumLabel } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_PILOTAGE, ROLES_OPERATIONNELS, ROLES_RESERVE_INTERVENANTS, roleAllowed, peutGerer, enumLabel, ROLES_PARTENAIRES, ROLE_TITULAIRE } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import ApercuTab from './tabs/ApercuTab.jsx';
 import StructureTab from './tabs/StructureTab.jsx';
@@ -39,7 +39,7 @@ const TABS = [
   { key: 'inspections', icon: ClipboardCheck },
   { key: 'documents', icon: FileText },
   { key: 'rapports', icon: BarChart3 },
-  { key: 'membres', icon: Users, roles: ['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre'] },
+  { key: 'membres', icon: Users, roles: ROLES_PARTENAIRES },
 ];
 
 // Onglets visibles selon le rôle de l'utilisateur connecté.
@@ -85,24 +85,28 @@ export default function ChantierDetail() {
 
   // Gestion opérationnelle : Chef de projet, Conducteur de travaux, Maître d'œuvre.
   //
-  // `roleAllowed` et non un `includes` brut : le super-admin plateforme n'est
-  // listé dans AUCUN groupe de rôles (voir config/roles.js côté back, où
-  // `requireRole` le laisse toujours passer) — un `includes` l'excluait donc,
-  // et l'onglet Structure lui affichait « Aucun bâtiment » SANS le bouton pour
-  // en créer un. Même règle que la liste des chantiers (Chantiers.jsx), que
-  // `canDelete` et `canAssign` juste en dessous, et que le backend, qui
-  // autorise déjà ces routes au rôle Admin.
-  const canManage = roleAllowed(user?.role, ROLES_OPERATIONNELS);
-  // Pilotage / validation (changer le statut d'un chantier) : le MOA et le BC valident.
-  const canPilot = roleAllowed(user?.role, ROLES_PILOTAGE);
+  // `peutGerer` : ces quatre capacités PRODUISENT du travail de chantier —
+  // créer un bâtiment, poser une réserve, changer un statut, supprimer. Le
+  // super-admin plateforme en est écarté : il consulte ce chantier pour
+  // surveiller et pour trancher la demande dont il est issu, pas pour le
+  // conduire à la place de l'entreprise. Pour tous les autres rôles la règle
+  // ne bouge pas — `peutGerer` ne se distingue de `roleAllowed` que sur
+  // 'Admin' (utils/constants.js).
+  //
+  // Les onglets, eux, restent ouverts par `roleAllowed` plus bas : consulter
+  // est justement ce qu'on attend de lui.
+  const canManage = peutGerer(user?.role, ROLES_OPERATIONNELS);
+  // Pilotage (changer le statut d'un chantier) : le MOA et le BC valident.
+  const canPilot = peutGerer(user?.role, ROLES_PILOTAGE);
   // Poser une réserve sur un plan : même groupe que le backend
   // (RESERVE_INTERVENANTS) — l'entreprise et le pilote en font partie, à la
   // différence de `canManage` qui ne couvre que la gestion documentaire.
-  const canCreerReserve = roleAllowed(user?.role, ROLES_RESERVE_INTERVENANTS);
-  // Suppression réservée au chef de projet (et à l'admin).
-  const canDelete = user?.role === 'ChefProjet' || user?.role === 'Admin';
+  const canCreerReserve = peutGerer(user?.role, ROLES_RESERVE_INTERVENANTS);
+  // Suppression réservée au chef de projet.
+  // Le titulaire supprime ce qu'il a créé — c'est son organisation.
+  const canDelete = user?.role === 'ChefProjet' || user?.role === ROLE_TITULAIRE;
   // Affecter/retirer des membres : Chef de projet ou Maître d'œuvre (backend).
-  const canAssign = ['ChefProjet', 'MaitreOeuvre', 'Admin'].includes(user?.role);
+  const canAssign = ['ChefProjet', 'MaitreOeuvre', ROLE_TITULAIRE].includes(user?.role);
 
   // Onglets accessibles au rôle connecté (l'Admin voit tout).
   const tabs = tabsPourRole(user?.role);

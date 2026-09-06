@@ -20,7 +20,7 @@ import AdminLayout from '../layouts/AdminLayout.jsx';
 // endpoints appelés par les pages ci-dessous doivent vérifier eux-mêmes les
 // droits côté backend — cette liste de routes n'est jamais la source de vérité.
 import ProtectedRoute, { SuperAdminRoute, RoleRoute } from './ProtectedRoute.jsx';
-import { ROLES_GESTION, ROLES_GESTION_MEMBRES, homeForRole } from '../utils/constants.js';
+import { ROLES_GESTION, ROLES_GESTION_MEMBRES, homeForRole, ROLES_PARTENAIRES } from '../utils/constants.js';
 import { useUser } from '../context/useUser.js';
 
 /** Redirige la racine vers le portail du rôle connecté. */
@@ -114,7 +114,7 @@ export default function AppRoutes() {
         <Route path="types-document" element={<RoleRoute roles={ROLES_GESTION}><ReferentielTypes referentiel="document" /></RoleRoute>} />
         <Route path="types-intervenant" element={<RoleRoute roles={ROLES_GESTION}><ReferentielTypes referentiel="intervenant" /></RoleRoute>} />
         <Route path="types-inspection" element={<RoleRoute roles={ROLES_GESTION}><ReferentielTypes referentiel="inspection" /></RoleRoute>} />
-        <Route path="partenaires" element={<RoleRoute roles={['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre']}><Partenaires /></RoleRoute>} />
+        <Route path="partenaires" element={<RoleRoute roles={ROLES_PARTENAIRES}><Partenaires /></RoleRoute>} />
         {/* Vues TRANSVERSALES — toutes les réserves et tous les plans de
             l'organisation, chantiers confondus. Déclarées avant les routes
             de chantier : elles ne dépendent d'aucun chantier précis. */}

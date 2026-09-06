@@ -59,16 +59,30 @@ export const rolesAttribuables = (roleAuteur) => {
  * ════════════════════════════════════════════════════════════════════════ */
 
 /** Gestion opérationnelle du chantier (structure, plans, docs, inspections…). */
-export const ROLES_OPERATIONNELS = ['ChefProjet', 'ConducteurTravaux', 'MaitreOeuvre'];
+/**
+ * Le TITULAIRE de son organisation.
+ *
+ * Le compte créé par l'inscription publique porte ce rôle : il ouvre
+ * l'organisation, la paie, y invite ses équipes. C'est le rôle le plus élevé
+ * après le super-admin plateforme, et il figure donc dans TOUS les groupes
+ * ci-dessous.
+ *
+ * Chaque absence produisait le même symptôme : un menu qui ne s'affiche pas,
+ * ou un bouton visible avec un 403 derrière. Miroir de `TITULAIRE` dans
+ * `backend/src/config/roles.js`.
+ */
+export const ROLE_TITULAIRE = 'Entreprise';
+
+export const ROLES_OPERATIONNELS = ['ChefProjet', 'ConducteurTravaux', 'MaitreOeuvre', ROLE_TITULAIRE];
 
 /** Opérationnel + bureau de contrôle. */
-export const ROLES_OPERATIONNELS_CONTROLE = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOeuvre'];
+export const ROLES_OPERATIONNELS_CONTROLE = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOeuvre', ROLE_TITULAIRE];
 
 /** Pilotage / validation — le maître d'ouvrage décide et valide chaque étape. */
-export const ROLES_PILOTAGE = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre'];
+export const ROLES_PILOTAGE = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', ROLE_TITULAIRE];
 
 /** Gestion de l'organisation, des filiales et des équipes. */
-export const ROLES_GESTION = ['Admin', 'ChefProjet', 'MaitreOuvrage'];
+export const ROLES_GESTION = ['Admin', 'ChefProjet', 'MaitreOuvrage', ROLE_TITULAIRE];
 
 /**
  * Gestion des MEMBRES seulement — miroir de `GESTION_MEMBRES` côté backend.
@@ -78,7 +92,7 @@ export const ROLES_GESTION = ['Admin', 'ChefProjet', 'MaitreOuvrage'];
  * mobile. Elle n'accède pour autant ni aux réglages de l'organisation, ni aux
  * filiales, ni aux équipes — ceux-là restent sur [ROLES_GESTION].
  */
-export const ROLES_GESTION_MEMBRES = [...ROLES_GESTION, 'Entreprise'];
+export const ROLES_GESTION_MEMBRES = [...ROLES_GESTION];
 
 /**
  * Interventions sur les réserves (signalement, correction, validation).
@@ -86,7 +100,16 @@ export const ROLES_GESTION_MEMBRES = [...ROLES_GESTION, 'Entreprise'];
  * `SousTraitant` n'y est PAS — accès restreint aux réserves qui lui sont
  * assignées, voir `backend/src/config/roles.js#SOUS_TRAITANT`.
  */
-export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', 'Entreprise', 'Pilote'];
+/**
+ * Partenaires — `partenaire.route.js` liste ses rôles en clair côté serveur.
+ *
+ * Écrit ici une seule fois : la même liste était recopiée dans le menu, dans
+ * les onglets d'un chantier et dans la table des routes, et c'est exactement
+ * ainsi qu'un rôle finit par manquer à un endroit sur trois.
+ */
+export const ROLES_PARTENAIRES = ['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre', ROLE_TITULAIRE];
+
+export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', ROLE_TITULAIRE, 'Pilote'];
 
 /**
  * Page d'accueil après connexion, par rôle (le « portail » de l'utilisateur).
@@ -112,11 +135,35 @@ export const ROLE_HOME = {
 /** Route d'accueil par défaut d'un rôle (fallback : tableau de bord). */
 export const homeForRole = (role) => ROLE_HOME[role] || '/dashboard';
 
-/** Vrai si le rôle de l'utilisateur appartient à la liste autorisée. */
+/**
+ * Vrai si le rôle de l'utilisateur appartient à la liste autorisée.
+ *
+ * Le super-admin plateforme passe partout : il n'est listé dans AUCUN groupe
+ * de rôles (voir config/roles.js côté back, où `requireRole` le laisse
+ * toujours passer), donc un `includes` brut l'exclurait des écrans qu'il doit
+ * pouvoir consulter.
+ *
+ * Pour ce qu'il ne doit PAS faire — produire du travail de chantier — voir
+ * `peutGerer` juste en dessous.
+ */
 export const roleAllowed = (role, allowed = []) => {
   if (role === 'Admin') return true;
   return allowed.includes(role);
 };
+
+/**
+ * Vrai si le rôle peut GÉRER (créer, modifier, supprimer) une ressource
+ * métier — par opposition à simplement la consulter.
+ *
+ * Identique à `roleAllowed`, à une exception près : le super-admin plateforme
+ * en est exclu. Il supervise et tranche les demandes ; il ne crée pas de
+ * chantier, ne pose pas de réserve et ne modifie pas le travail d'une
+ * entreprise cliente. Ses écrans métier sont des écrans de LECTURE.
+ *
+ * Pour tous les autres rôles, le comportement est celui de `roleAllowed` —
+ * cette distinction ne change donc rien pour les comptes des entreprises.
+ */
+export const peutGerer = (role, allowed = []) => role !== 'Admin' && allowed.includes(role);
 
 export const STATUTS_CHANTIER = {
   en_preparation: { label: 'En préparation', tone: 'info' },

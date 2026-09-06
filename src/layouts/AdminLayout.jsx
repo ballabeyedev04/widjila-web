@@ -37,7 +37,7 @@ import { logout as authLogout } from '../service/auth/authService.js';
 import { compterNonLues } from '../service/notification/notificationService.js';
 import { useUser } from '../context/useUser.js';
 import { useSubscription, getTrialDisplayInfo } from '../context/SubscriptionContext.jsx';
-import { roleLabel, roleAllowed, ROLES_GESTION, ROLES_GESTION_MEMBRES } from '../utils/constants.js';
+import { roleLabel, roleAllowed, ROLES_GESTION, ROLES_GESTION_MEMBRES, ROLES_PARTENAIRES } from '../utils/constants.js';
 import { initials } from '../utils/format.js';
 import '../assets/css/layout.css';
 
@@ -166,7 +166,7 @@ export default function AdminLayout() {
     { path: '/types-document', label: t('nav.typesDocument'), icon: FileType, roles: ROLES_GESTION },
     { path: '/types-intervenant', label: t('nav.typesIntervenant'), icon: Contact, roles: ROLES_GESTION },
     { path: '/types-inspection', label: t('nav.typesInspection'), icon: ClipboardList, roles: ROLES_GESTION },
-    { path: '/partenaires', label: t('nav.partenaires'), icon: Handshake, roles: ['Admin', 'ChefProjet', 'ConducteurTravaux', 'MaitreOuvrage', 'MaitreOeuvre'] },
+    { path: '/partenaires', label: t('nav.partenaires'), icon: Handshake, roles: ROLES_PARTENAIRES },
     { path: '/organisation', label: t('nav.organisation'), icon: Building2, roles: ROLES_GESTION },
     { path: '/notifications', label: t('nav.notifications'), icon: Bell, roles: 'all' },
     { path: '/profil', label: t('nav.monProfil'), icon: UserRound, roles: 'all' },
@@ -185,21 +185,34 @@ export default function AdminLayout() {
   // ── Ce que voit le SUPER-ADMIN plateforme ────────────────────────────────
   //
   // `roleAllowed` renvoie `true` pour 'Admin' sur n'importe quelle entrée : il
-  // voyait donc l'intégralité du menu métier — chantiers, réserves, plans,
-  // membres, équipes, partenaires, référentiels.
+  // voyait donc l'intégralité du menu métier — y compris membres, équipes,
+  // partenaires, organisation et référentiels, qui relèvent d'une entreprise
+  // cliente et dont il n'a pas l'usage.
   //
-  // Or ce compte n'appartient à AUCUNE organisation (`organisationId` vaut
-  // `null`, voir auth.service.js). Ces écrans ne lui sont pas seulement
-  // inutiles : ils sont sans objet, et interrogeaient l'API avec une
-  // organisation vide. Son métier est la plateforme, pas un chantier.
+  // Le filtre est une liste EXPLICITE, et non plus « seulement ses écrans
+  // personnels » : cette première version retirait aussi les demandes de
+  // chantier, les chantiers, les réserves et les plans, alors que ce sont
+  // précisément les écrans de son métier — trancher les demandes et
+  // surveiller ce qui se passe sur la plateforme.
   //
-  // Deux entrées survivent, parce qu'elles ne relèvent d'aucune organisation :
-  // son profil — c'est là qu'on change son mot de passe et qu'on active la
-  // double authentification — et ses notifications.
-  const MENU_PERSONNEL = new Set(['/notifications', '/profil']);
+  // Ces quatre écrans-là fonctionnent bien pour lui, contrairement à ce que
+  // supposait la version précédente : leurs contrôleurs traitent le cas du
+  // super-admin (`estSuperAdmin`) et lui renvoient TOUTES les organisations,
+  // pas une organisation vide. Voir chantier.controller.js#listerChantiers.
+  //
+  // Ce qu'il y voit reste en LECTURE : les boutons de création et de
+  // modification lui sont retirés par `peutGerer` (utils/constants.js).
+  const MENU_ADMIN = [
+    '/chantiers',            // supervision du parc, toutes organisations
+    '/chantiers/demandes',   // sa file d'attente : valider ou refuser
+    '/reserves',             // supervision
+    '/plans',                // supervision
+    '/notifications',        // ne relève d'aucune organisation
+    '/profil',               // mot de passe, double authentification
+  ];
 
   const menuVisible = admin
-    ? baseMenu.filter((item) => MENU_PERSONNEL.has(item.path))
+    ? baseMenu.filter((item) => MENU_ADMIN.includes(item.path))
     : baseMenu.filter(
         (item) => item.roles === 'all' || roleAllowed(user?.role, item.roles)
       );

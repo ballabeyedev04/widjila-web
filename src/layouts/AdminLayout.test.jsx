@@ -1,0 +1,166 @@
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+
+import i18n from '../i18n/index.js';
+import AdminLayout from './AdminLayout.jsx';
+import { useUser } from '../context/useUser.js';
+
+/**
+ * Le menu du super-admin plateforme.
+ *
+ * Ce menu a dérivé deux fois dans des directions opposées : il a d'abord
+ * montré l'INTÉGRALITÉ des écrans métier — membres, équipes, partenaires,
+ * référentiels d'une entreprise cliente — parce que `roleAllowed` laisse
+ * passer 'Admin' partout ; puis, en corrigeant, il s'est réduit aux seuls
+ * écrans personnels et a emporté les demandes de chantier, c'est-à-dire le
+ * cœur de son travail.
+ *
+ * Ces tests fixent les deux bords. Ce qui doit être là, et ce qui ne doit pas
+ * y être — la seconde liste comptant autant que la première.
+ */
+
+vi.mock('../context/useUser.js', () => ({ useUser: vi.fn() }));
+
+vi.mock('../context/SubscriptionContext.jsx', () => ({
+  useSubscription: () => ({ status: null }),
+  getTrialDisplayInfo: () => null,
+}));
+
+vi.mock('../service/notification/notificationService.js', () => ({
+  compterNonLues: vi.fn().mockResolvedValue(0),
+}));
+
+vi.mock('../service/auth/authService.js', () => ({ logout: vi.fn() }));
+
+vi.mock('../utils/swal.config.js', () => ({
+  default: { error: vi.fn(), success: vi.fn(), toast: vi.fn(), confirm: vi.fn() },
+}));
+
+const afficherPour = (role) => {
+  useUser.mockReturnValue({
+    user: { id: 'u1', nom: 'Admin', prenom: 'Suivi', role, email: 'a@b.fr' },
+    clearUser: vi.fn(),
+  });
+  return render(
+    <MemoryRouter>
+      <AdminLayout />
+    </MemoryRouter>
+  );
+};
+
+/** Une entrée de menu, désignée par son libellé exact. */
+const entree = (libelle) => screen.queryAllByText(libelle).length > 0;
+
+describe('menu du super-admin plateforme', () => {
+  // Les libellés attendus sont ceux du français, langue principale du produit.
+  beforeAll(() => i18n.changeLanguage('fr'));
+  beforeEach(() => vi.clearAllMocks());
+
+  it('donne accès aux demandes de chantier', async () => {
+    afficherPour('Admin');
+
+    // L'écran où il valide ou refuse les demandes : sans lui, il n'y accédait
+    // plus que par le raccourci du tableau de bord.
+    await waitFor(() => expect(entree('Demandes de chantier')).toBe(true));
+  });
+
+  it('donne accès aux écrans de supervision', async () => {
+    afficherPour('Admin');
+
+    // Ces trois écrans lui renvoient TOUTES les organisations : leurs
+    // contrôleurs traitent le cas du super-admin, ils ne sont donc ni vides
+    // ni sans objet pour lui.
+    await waitFor(() => expect(entree('Chantiers')).toBe(true));
+    expect(entree('Toutes les réserves')).toBe(true);
+    expect(entree('Tous les plans')).toBe(true);
+  });
+
+  it('garde ses écrans personnels et la section plateforme', async () => {
+    afficherPour('Admin');
+
+    await waitFor(() => expect(entree('Vue plateforme')).toBe(true));
+    expect(entree("Demandes d'inscription")).toBe(true);
+    expect(entree('Journal audit') || entree("Journal d'audit")).toBe(true);
+    expect(entree('Mon profil')).toBe(true);
+  });
+
+  it("n'affiche pas les écrans internes d'une entreprise cliente", async () => {
+    afficherPour('Admin');
+
+    // Ceux-ci relèvent de l'organisation, à laquelle ce compte n'appartient
+    // pas. Le client les a explicitement écartés.
+    await waitFor(() => expect(entree('Vue plateforme')).toBe(true));
+    expect(entree('Membres')).toBe(false);
+    expect(entree('Équipes')).toBe(false);
+    expect(entree('Partenaires')).toBe(false);
+    expect(entree('Mon organisation') || entree('Organisation')).toBe(false);
+  });
+});
+
+describe('menu des comptes métier', () => {
+  beforeAll(() => i18n.changeLanguage('fr'));
+  beforeEach(() => vi.clearAllMocks());
+
+  it("n'est pas touché par le filtre du super-admin", async () => {
+    afficherPour('ChefProjet');
+
+    // Le filtre ne s'applique qu'au rôle 'Admin' : un chef de projet garde
+    // l'intégralité de son portail.
+    await waitFor(() => expect(entree('Chantiers')).toBe(true));
+    expect(entree('Membres')).toBe(true);
+    expect(entree('Équipes')).toBe(true);
+  });
+
+  it("ne voit pas la section plateforme", async () => {
+    afficherPour('ChefProjet');
+
+    await waitFor(() => expect(entree('Chantiers')).toBe(true));
+    expect(entree('Vue plateforme')).toBe(false);
+    expect(entree("Demandes d'inscription")).toBe(false);
+  });
+});
+
+describe('menu du titulaire « Entreprise »', () => {
+  beforeAll(() => i18n.changeLanguage('fr'));
+  beforeEach(() => vi.clearAllMocks());
+
+  // C'est le compte créé par l'inscription publique : il ouvre
+  // l'organisation, la paie, y invite ses équipes. Chaque menu qui lui
+  // manquait venait d'un groupe de rôles écrit sans lui — trois fois de suite.
+
+  it('voit tout le portail métier', async () => {
+    afficherPour('Entreprise');
+
+    await waitFor(() => expect(entree('Chantiers')).toBe(true));
+    expect(entree('Demandes de chantier')).toBe(true);
+    expect(entree('Toutes les réserves')).toBe(true);
+    expect(entree('Tous les plans')).toBe(true);
+  });
+
+  it('voit la gestion de son organisation', async () => {
+    afficherPour('Entreprise');
+
+    // Ces entrées étaient gardées par ROLES_GESTION, qui l'excluait.
+    await waitFor(() => expect(entree('Membres')).toBe(true));
+    expect(entree('Équipes')).toBe(true);
+    expect(entree('Partenaires')).toBe(true);
+  });
+
+  it('voit les référentiels de son organisation', async () => {
+    afficherPour('Entreprise');
+
+    await waitFor(() => expect(entree('Corps d’état')).toBe(true));
+    expect(entree('Phases')).toBe(true);
+  });
+
+  it('ne voit pas la section plateforme', async () => {
+    // Valider les inscriptions ou tarifer les formules n'est pas son affaire.
+    afficherPour('Entreprise');
+
+    await waitFor(() => expect(entree('Chantiers')).toBe(true));
+    expect(entree('Vue plateforme')).toBe(false);
+    expect(entree("Demandes d'inscription")).toBe(false);
+    expect(entree('Organisations')).toBe(false);
+  });
+});
