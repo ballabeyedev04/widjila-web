@@ -51,8 +51,21 @@ function decomposer(action) {
   };
 }
 
-/** Jour d'un horodatage, pour les intertitres. */
-const jourDe = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
+/**
+ * Jour d'un horodatage, pour les intertitres — dans le fuseau du LECTEUR.
+ *
+ * `toISOString()` donnait le jour UTC, alors que l'heure et l'intertitre sont
+ * rendus par `Intl` dans le fuseau local. Les deux ne coïncident qu'à
+ * Greenwich : à l'est, une même journée locale se coupait en deux et son titre
+ * s'affichait deux fois ; à l'ouest, un changement de journée passait inaperçu.
+ * `getFullYear`/`getMonth`/`getDate` sont locaux, comme `Intl`.
+ */
+const jourDe = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
 
 export default function PlateformeAudit() {
   const { t, i18n } = useTranslation('plateforme');

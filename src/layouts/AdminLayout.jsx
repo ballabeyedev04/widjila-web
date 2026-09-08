@@ -35,6 +35,11 @@ import {
 import SwalCustom from '../utils/swal.config.js';
 import { logout as authLogout } from '../service/auth/authService.js';
 import { compterNonLues } from '../service/notification/notificationService.js';
+// Les deux files d'attente du super-admin — voir `refreshFilesAttente`.
+import {
+  compterDemandesEnAttente,
+  compterSuppressionsEnAttente,
+} from '../service/admin/adminService.js';
 import { useUser } from '../context/useUser.js';
 import { useSubscription, getTrialDisplayInfo } from '../context/SubscriptionContext.jsx';
 import { roleLabel, roleAllowed, ROLES_GESTION, ROLES_GESTION_MEMBRES, ROLES_PARTENAIRES } from '../utils/constants.js';
@@ -118,6 +123,10 @@ export default function AdminLayout() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nonLues, setNonLues] = useState(0);
+  // Les deux files d'attente du super-admin. `null` tant qu'on ne sait pas :
+  // afficher 0 avant la réponse annoncerait « rien à faire » à quelqu'un qui a
+  // peut-être dix demandes en attente.
+  const [aTraiter, setATraiter] = useState({ inscriptions: 0, suppressions: 0 });
 
   const activePath = location.pathname;
 
@@ -148,6 +157,29 @@ export default function AdminLayout() {
     }
   }, []);
   useEffect(() => { refreshNonLues(); }, [refreshNonLues]);
+
+  /* ---------- Files d'attente du super-admin ---------- */
+  //
+  // Deux compteurs, chargés ENSEMBLE et indépendamment l'un de l'autre : la
+  // panne de l'un ne doit pas masquer l'autre. Un échec laisse simplement la
+  // pastille à zéro — mieux vaut une pastille absente qu'un menu qui refuse de
+  // s'afficher parce qu'un compteur n'a pas répondu.
+  //
+  // Seulement pour le super-admin : ces deux endpoints lui sont réservés
+  // (`requireRole('Admin')`), et les appeler pour un autre rôle produirait un
+  // 403 à chaque ouverture de page.
+  const refreshFilesAttente = useCallback(async () => {
+    if (!admin) return;
+    const [inscriptions, suppressions] = await Promise.all([
+      compterDemandesEnAttente().catch(() => 0),
+      compterSuppressionsEnAttente().catch(() => 0),
+    ]);
+    setATraiter({
+      inscriptions: Number(inscriptions) || 0,
+      suppressions: Number(suppressions) || 0,
+    });
+  }, [admin]);
+  useEffect(() => { refreshFilesAttente(); }, [refreshFilesAttente]);
 
   /* ---------- Menu ---------- */
   // Chaque entrée liste les rôles autorisés ('all' = tous les utilisateurs).
@@ -290,7 +322,22 @@ export default function AdminLayout() {
             badges={{ '/notifications': nonLues }}
           />
           {admin && (
-            <NavSection title={t('sidebar.groupePlateforme')} items={plateformeMenu} activePath={activePath} onNavigate={onNavigate} collapsed={collapsed && !isMobile} />
+            <NavSection
+              title={t('sidebar.groupePlateforme')}
+              items={plateformeMenu}
+              activePath={activePath}
+              onNavigate={onNavigate}
+              collapsed={collapsed && !isMobile}
+              /* Les deux files d'attente du super-admin, annoncées dans le
+                 menu. Sans elles, il fallait ouvrir chaque page pour savoir
+                 s'il y avait du travail — or les demandes d'inscription
+                 bloquent des comptes, et les demandes de suppression ont un
+                 délai légal. */
+              badges={{
+                '/plateforme/demandes': aTraiter.inscriptions,
+                '/plateforme/suppressions': aTraiter.suppressions,
+              }}
+            />
           )}
         </nav>
 

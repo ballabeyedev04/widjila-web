@@ -6,7 +6,6 @@ import Login from '../pages/auth/Login.jsx';
 import Register from '../pages/auth/Register.jsx';
 import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
 import ResetPassword from '../pages/auth/ResetPassword.jsx';
-import VerifyEmail from '../pages/auth/VerifyEmail.jsx';
 // Écrans différés — voir le commentaire de `Suspense` plus bas.
 // `/abonnement` tire tout le SDK Stripe : le charger d'emblée le mettait
 // dans le premier octet servi à chaque visiteur, pour un écran que la
@@ -45,12 +44,19 @@ import ReferentielTypes from '../pages/referentiel/ReferentielTypes.jsx';
 import Chantiers from '../pages/chantier/Chantiers.jsx';
 import ChantierDetail from '../pages/chantier/ChantierDetail.jsx';
 import DemandesChantier from '../pages/chantier/DemandesChantier.jsx';
-import DemandeChantierDetail from '../pages/chantier/DemandeChantierDetail.jsx';
 import Notifications from '../pages/notification/Notifications.jsx';
 import NotFound from '../pages/error/NotFound.jsx';
 
 // Espace PLATEFORME — réservé au super-admin. Aucun autre rôle ne l'ouvre,
 // il n'a donc rien à faire dans le bundle de tout le monde.
+// Examen d'une demande de chantier — CHARGE A LA DEMANDE.
+//
+// Seul ecran du portail a monter `PlanCanvas`, donc pdf.js. Importe
+// normalement, il faisait entrer tout le moteur PDF dans le paquet
+// d'entree : 1,4 Mo telecharges par QUICONQUE ouvre le portail, y compris
+// sur la page de connexion, pour un ecran que seul le valideur visite.
+// Les autres ecrans a plan (`PlansTab`, `TousPlans`) le faisaient deja.
+const DemandeChantierDetail = lazy(() => import('../pages/chantier/DemandeChantierDetail.jsx'));
 const PlateformeDashboard = lazy(() => import('../pages/plateforme/PlateformeDashboard.jsx'));
 const PlateformeUtilisateurs = lazy(() => import('../pages/plateforme/PlateformeUtilisateurs.jsx'));
 const PlateformeOrganisations = lazy(() => import('../pages/plateforme/PlateformeOrganisations.jsx'));
@@ -77,7 +83,16 @@ export default function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
+      {/* `/verify-email` — parcours RETIRÉ côté serveur.
+          `auth.service.js#register` pose `email_verifie: true` et n'envoie
+          aucun mail : c'est le super-admin qui valide chaque demande, et il
+          joue le rôle d'acteur de confiance. L'endpoint `POST /auth/verify-email`
+          n'existe plus.
+          La route est conservée en REDIRECTION plutôt que supprimée : un
+          visiteur qui suit un ancien lien atterrissait sur « Lien invalide ou
+          expiré » — un message qui accuse son lien alors que c'est la route
+          serveur qui a disparu. Il veut se connecter ; on l'y emmène. */}
+      <Route path="/verify-email" element={<Navigate to="/login" replace />} />
       <Route path="/abonnement" element={<Abonnement />} />
       <Route path="/condition-utilisation" element={<ConditionsUtilisation />} />
       <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />

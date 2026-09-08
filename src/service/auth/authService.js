@@ -59,12 +59,6 @@ export const register = async (body) => {
   return unwrap(response);
 };
 
-/** Vérification de l'email (lien reçu par email). */
-export const verifyEmail = async (token) => {
-  const response = await api.post('/auth/verify-email', { token });
-  return unwrap(response);
-};
-
 /* ---------- Validation côté client ---------- */
 export const validateIdentifiant = (value) => {
   const cleaned = value.replace(/\s/g, '');

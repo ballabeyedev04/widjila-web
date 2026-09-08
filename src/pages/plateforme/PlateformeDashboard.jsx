@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 
 import PageHeader from '../../components/PageHeader.jsx';
 import StatCard from '../../components/StatCard.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
 import { statsPlateforme, croissanceInscriptions } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatNombre } from '../../utils/format.js';
@@ -51,14 +52,29 @@ export default function PlateformeDashboard() {
   const [stats, setStats] = useState(null);
   const [croissance, setCroissance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(null);
+  const [accesRefuse, setAccesRefuse] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setErreur(null);
+    setAccesRefuse(false);
     try {
-      const [s, c] = await Promise.all([statsPlateforme(), croissanceInscriptions(6)]);
+      // La courbe de croissance est un ornement ; les compteurs sont le
+      // travail. Son échec ne doit pas emporter la page — d'où le `catch`
+      // local plutôt qu'un `Promise.all` où le premier refus annule tout.
+      const [s, c] = await Promise.all([
+        statsPlateforme(),
+        croissanceInscriptions(6).catch(() => null),
+      ]);
       setStats(s);
       setCroissance(c?.croissance || []);
     } catch (err) {
+      // Le 403 n'est PAS une panne : c'est un compte qui n'a pas ce droit.
+      // Les deux méritent des mots différents, sans quoi on cherche une panne
+      // là où il n'y a qu'une question d'habilitation.
+      setAccesRefuse(err?.response?.status === 403);
+      setErreur(getErrorMessage(err));
       SwalCustom.error({ title: t('superAdmin.erreurStats'), text: getErrorMessage(err) });
     } finally {
       setLoading(false);
@@ -67,7 +83,15 @@ export default function PlateformeDashboard() {
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 50 }}>{t('etats.chargement')}</div></div>;
-  if (!stats) return null;
+  // L'écran d'accueil du super-admin ne peut pas se contenter de disparaître.
+  // Il rendait `null` : une alerte passait, puis plus rien — ni cause, ni
+  // moyen de réessayer.
+  if (accesRefuse) {
+    return <ErrorState variante="droits" titre={t('superAdmin.accesRefuse')} message={erreur} />;
+  }
+  if (erreur || !stats) {
+    return <ErrorState message={erreur || t('superAdmin.erreurStats')} onRetry={load} />;
+  }
 
   const maxAbonnement = Math.max(1, ...Object.values(stats.parAbonnement || {}));
   const maxCroissance = Math.max(1, ...croissance.map((c) => c.inscriptions));

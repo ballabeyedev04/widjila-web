@@ -12,6 +12,21 @@
 }
 
 .pcanvas-viewport {
+  /* Hauteur SOUS CONTRAINTE, jamais imposée.
+
+     `--pcanvas-h` est le plafond demandé par l'appelant (560 px par défaut).
+     La visionneuse prend cette hauteur quand la fenêtre le permet, se réduit
+     quand elle est plus courte — un téléphone en paysage, une fenêtre de
+     navigateur écrasée — et ne descend jamais sous 220 px, en dessous
+     desquels un plan n'est plus lisible.
+
+     La réserve de 210 px couvre la barre supérieure, l'en-tête de la modale ou
+     de la carte, et les commandes sous le plan.
+
+     Deux déclarations : `vh` d'abord, comme repli ; `dvh` ensuite, qui suit la
+     barre d'adresse mobile au lieu de mesurer l'écran barre rétractée. */
+  height: clamp(220px, calc(100vh - 210px), var(--pcanvas-h, 560px));
+  height: clamp(220px, calc(100dvh - 210px), var(--pcanvas-h, 560px));
   position: relative;
   overflow: hidden;
   background: #f0f2f5;

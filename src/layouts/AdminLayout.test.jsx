@@ -5,6 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n/index.js';
 import AdminLayout from './AdminLayout.jsx';
 import { useUser } from '../context/useUser.js';
+import {
+  compterDemandesEnAttente,
+  compterSuppressionsEnAttente,
+} from '../service/admin/adminService.js';
 
 /**
  * Le menu du super-admin plateforme.
@@ -32,6 +36,14 @@ vi.mock('../service/notification/notificationService.js', () => ({
 }));
 
 vi.mock('../service/auth/authService.js', () => ({ logout: vi.fn() }));
+
+// Les deux files d'attente du super-admin. Doublées ici pour deux raisons :
+// sans elles, le layout partirait en requête réseau à chaque montage de test,
+// et surtout on veut CHOISIR les compteurs pour vérifier les pastilles.
+vi.mock('../service/admin/adminService.js', () => ({
+  compterDemandesEnAttente: vi.fn().mockResolvedValue(0),
+  compterSuppressionsEnAttente: vi.fn().mockResolvedValue(0),
+}));
 
 vi.mock('../utils/swal.config.js', () => ({
   default: { error: vi.fn(), success: vi.fn(), toast: vi.fn(), confirm: vi.fn() },
@@ -162,5 +174,68 @@ describe('menu du titulaire « Entreprise »', () => {
     expect(entree('Vue plateforme')).toBe(false);
     expect(entree("Demandes d'inscription")).toBe(false);
     expect(entree('Organisations')).toBe(false);
+  });
+});
+
+describe('les files d’attente du super-admin sont annoncées', () => {
+  /**
+   * Les deux compteurs existaient dans le service, les endpoints existaient
+   * côté serveur — et personne ne les appelait. Le super-admin devait ouvrir
+   * chaque page pour découvrir s'il avait du travail.
+   *
+   * C'est un vrai manque pour quelqu'un dont le métier EST de valider : une
+   * demande d'inscription bloque un compte qui ne peut pas se connecter, et
+   * une demande de suppression a un délai légal.
+   */
+  beforeEach(() => {
+    // Les compteurs d'appels sont remis à zéro : sans cela, le test qui
+    // vérifie qu'un AUTRE rôle n'appelle pas ces endpoints hériterait des
+    // appels du test précédent.
+    compterDemandesEnAttente.mockClear().mockResolvedValue(0);
+    compterSuppressionsEnAttente.mockClear().mockResolvedValue(0);
+  });
+
+  it('affiche le nombre de demandes d’inscription en attente', async () => {
+    compterDemandesEnAttente.mockResolvedValue(7);
+
+    afficherPour('Admin');
+
+    await waitFor(() => expect(screen.getByText('7')).toBeTruthy());
+  });
+
+  it('affiche le nombre de demandes de suppression en attente', async () => {
+    compterSuppressionsEnAttente.mockResolvedValue(3);
+
+    afficherPour('Admin');
+
+    await waitFor(() => expect(screen.getByText('3')).toBeTruthy());
+  });
+
+  it('n’interroge PAS ces deux endpoints pour un autre rôle', async () => {
+    // Ils sont réservés au super-admin (`requireRole('Admin')`) : les appeler
+    // pour un chef de projet produirait un 403 à chaque ouverture de page.
+    afficherPour('ChefProjet');
+
+    await waitFor(() => expect(screen.getByText(/Tableau de bord|Dashboard/i)).toBeTruthy());
+    expect(compterDemandesEnAttente).not.toHaveBeenCalled();
+    expect(compterSuppressionsEnAttente).not.toHaveBeenCalled();
+  });
+
+  it('une file VIDE n’affiche aucune pastille', async () => {
+    // Une pastille « 0 » ferait chercher un travail qui n'existe pas.
+    afficherPour('Admin');
+
+    await waitFor(() => expect(entree('Vue plateforme')).toBe(true));
+    expect(screen.queryByText('0')).toBeNull();
+  });
+
+  it('un compteur en PANNE ne casse pas le menu', async () => {
+    // Le menu doit s'afficher même si l'un des deux endpoints ne répond pas :
+    // mieux vaut une pastille absente qu'un portail qui refuse de s'ouvrir.
+    compterDemandesEnAttente.mockRejectedValue(new Error('503'));
+
+    afficherPour('Admin');
+
+    await waitFor(() => expect(entree('Vue plateforme')).toBe(true));
   });
 });

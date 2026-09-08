@@ -23,6 +23,43 @@ import SwalCustom from '../../utils/swal.config.js';
  */
 const MOTIF_MIN = 10;
 
+/** Style du sur-titre d'une section de plans. */
+const SOUS_TITRE = {
+  fontSize: 11.5,
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  color: 'var(--text-secondary)',
+  marginBottom: 6,
+};
+
+/**
+ * Une seule ligne par plan : sa version COURANTE.
+ *
+ * `GET /chantiers/:id/plans` renvoie TOUTES les révisions, à plat, triées
+ * `nom ASC, version DESC` (plan.service.js#listPlans). Les afficher toutes
+ * donnerait au valideur le même plan trois fois sans qu'il sache lequel fait
+ * foi. On applique donc ici la règle que le serveur applique déjà ailleurs
+ * (`_derniereVersion`) : `is_current` quand il est renseigné, sinon la première
+ * occurrence de chaque nom — c'est-à-dire la version la plus haute, puisque le
+ * tri la place en tête.
+ *
+ * Dédoublonner sur le NOM est exact et non approximatif : l'index unique
+ * `plans_chantier_nom_version_unique` fait du couple (chantier, nom) l'identité
+ * d'une lignée de plan. Deux plans de même nom dans un chantier sont deux
+ * révisions du même document, jamais deux documents distincts.
+ */
+function derniereVersion(plans) {
+  const courants = plans.filter((p) => p.is_current === true);
+  const source = courants.length > 0 ? courants : plans;
+
+  const vus = new Set();
+  return source.filter((p) => {
+    if (vus.has(p.nom)) return false;
+    vus.add(p.nom);
+    return true;
+  });
+}
+
 /** Les trois sections, dans l'ordre PHYSIQUE : du sous-sol vers le ciel. */
 const SECTIONS = [
   { type: 'sous_sol', cle: 'sousSols' },
@@ -52,6 +89,7 @@ export default function DemandeChantierDetail() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState(null);
   const [planOuvert, setPlanOuvert] = useState(null);
+  const [aValider, setAValider] = useState(false);
   const [aRejeter, setARejeter] = useState(false);
   const [enCours, setEnCours] = useState(false);
 
@@ -72,17 +110,66 @@ export default function DemandeChantierDetail() {
 
   useEffect(() => { charger(); }, [charger]);
 
-  /** Le plan GLOBAL du chantier : celui qui n'est rattaché à rien. */
-  const planGlobal = useMemo(
-    () => plans.find((p) => !p.batimentId && !p.etageId && !p.zoneId),
-    [plans]
-  );
+  /**
+   * Le classement des plans déposés — et la garantie qu'AUCUN n'est perdu.
+   *
+   * L'écran ne retenait qu'UN plan par niveau (`plans.find`) et ignorait deux
+   * familles entières :
+   *
+   *   - les plans rattachés à un BÂTIMENT (`batimentId` seul), qui ne sont ni
+   *     globaux ni portés par un niveau ;
+   *   - les plans de ZONE et les plans de DÉTAIL (`parentId`), déposés sous un
+   *     autre plan.
+   *
+   * Le valideur lisait donc « Plan non fourni » sur un niveau qui en portait
+   * deux, et validait un chantier sans avoir vu une partie de ce que
+   * l'entreprise avait déposé.
+   *
+   * Le dernier seau — `autres` — existe pour que le défaut ne revienne pas :
+   * tout plan qu'aucune section ne réclame y tombe. Un rattachement d'un
+   * nouveau genre ajouté demain sera visible par défaut, au lieu de disparaître
+   * en silence.
+   */
+  const classement = useMemo(() => {
+    const courants = derniereVersion(plans);
+    const places = new Set();
 
-  const planDuNiveau = useCallback(
-    (etageId) => plans.find((p) => p.etageId === etageId),
-    [plans]
-  );
+    /** Retire du lot les plans qui satisfont le prédicat — chacun une fois. */
+    const prendre = (predicat) => {
+      const lot = courants.filter((p) => !places.has(p.id) && predicat(p));
+      lot.forEach((p) => places.add(p.id));
+      return lot;
+    };
 
+    const globaux = prendre((p) => !p.batimentId && !p.etageId && !p.zoneId && !p.parentId);
+
+    const parNiveau = new Map();
+    const parBatiment = new Map();
+    for (const batiment of chantier?.batiments || []) {
+      // Les niveaux D'ABORD : un plan d'étage porte souvent aussi le bâtiment,
+      // et sa place est sous son niveau, pas au-dessus.
+      for (const niveau of batiment.etages || []) {
+        parNiveau.set(niveau.id, prendre((p) => p.etageId === niveau.id));
+      }
+      parBatiment.set(
+        batiment.id,
+        prendre((p) => p.batimentId === batiment.id && !p.etageId && !p.zoneId)
+      );
+    }
+
+    return { globaux, parNiveau, parBatiment, autres: courants.filter((p) => !places.has(p.id)) };
+  }, [plans, chantier]);
+
+  /**
+   * Validation — après confirmation.
+   *
+   * Le bouton déclenchait l'appel au PREMIER clic. C'est le geste le plus lourd
+   * de l'écran : le chantier devient actif et son demandeur reçoit un courriel,
+   * sans retour en arrière. La liste des demandes, elle, confirmait déjà
+   * (`DemandesChantier.jsx#ModalValider`) — et les libellés de cette modale
+   * existaient ici aussi, dans les traductions, sans être utilisés. L'écran où
+   * l'on EXAMINE le dossier était donc le moins prudent des deux.
+   */
   const valider = async () => {
     setEnCours(true);
     try {
@@ -93,6 +180,7 @@ export default function DemandeChantierDetail() {
       SwalCustom.error(getErrorMessage(err));
     } finally {
       setEnCours(false);
+      setAValider(false);
     }
   };
 
@@ -139,7 +227,7 @@ export default function DemandeChantierDetail() {
 
           {enAttente && (
             <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
-              <button className="btn btn-primary" onClick={valider} disabled={enCours}>
+              <button className="btn btn-primary" onClick={() => setAValider(true)} disabled={enCours}>
                 <Check size={16} /> {t('demandes.valider')}
               </button>
               <button
@@ -162,8 +250,10 @@ export default function DemandeChantierDetail() {
 
       {/* ── Plan global ──────────────────────────────────────────────── */}
       <h3 style={{ fontSize: 15, margin: '0 0 10px' }}>{t('demandes.planGlobal')}</h3>
-      {planGlobal ? (
-        <LignePlan plan={planGlobal} onOuvrir={() => setPlanOuvert(planGlobal)} icone={FileText} />
+      {classement.globaux.length > 0 ? (
+        classement.globaux.map((plan) => (
+          <LignePlan key={plan.id} plan={plan} onOuvrir={() => setPlanOuvert(plan)} icone={FileText} />
+        ))
       ) : (
         <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>{t('demandes.aucunPlanGlobal')}</p>
       )}
@@ -184,6 +274,23 @@ export default function DemandeChantierDetail() {
                 <Building2 size={16} /> {batiment.nom}
               </h4>
 
+              {/* Les plans du BÂTIMENT lui-même — façade, coupe, plan de masse.
+                  Ils n'appartiennent à aucun niveau et n'apparaissaient nulle
+                  part avant cette section. */}
+              {(classement.parBatiment.get(batiment.id) || []).length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={SOUS_TITRE}>{t('demandes.plansBatiment')}</div>
+                  {classement.parBatiment.get(batiment.id).map((plan) => (
+                    <LignePlan
+                      key={plan.id}
+                      plan={plan}
+                      icone={FileText}
+                      onOuvrir={() => setPlanOuvert(plan)}
+                    />
+                  ))}
+                </div>
+              )}
+
               {SECTIONS.map(({ type, cle }) => {
                 // La nature du niveau vient du serveur. Les étages saisis
                 // avant ce champ valent tous « etage » — ils apparaissent donc
@@ -195,30 +302,37 @@ export default function DemandeChantierDetail() {
 
                 return (
                   <div key={type} style={{ marginBottom: 14 }}>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                        letterSpacing: '0.06em',
-                        color: 'var(--text-secondary)',
-                        marginBottom: 6,
-                      }}
-                    >
-                      {t(`demandes.sections.${cle}`)}
-                    </div>
+                    <div style={SOUS_TITRE}>{t(`demandes.sections.${cle}`)}</div>
                     {niveaux.map((niveau) => {
-                      const plan = planDuNiveau(niveau.id);
-                      return (
+                      const plansDuNiveau = classement.parNiveau.get(niveau.id) || [];
+
+                      // Aucun plan : le niveau reste annoncé, avec la mention
+                      // qui manque. Le valideur doit voir le TROU — une ligne
+                      // absente passerait pour un oubli d'affichage.
+                      if (plansDuNiveau.length === 0) {
+                        return (
+                          <LignePlan
+                            key={niveau.id}
+                            libelle={niveau.nom}
+                            description={niveau.description}
+                            icone={Layers}
+                            messageSansPlan={t('demandes.niveauSansPlan')}
+                          />
+                        );
+                      }
+
+                      // Un niveau peut en porter plusieurs — architecture,
+                      // électricité, plomberie. Une ligne chacun.
+                      return plansDuNiveau.map((plan) => (
                         <LignePlan
-                          key={niveau.id}
+                          key={plan.id}
                           plan={plan}
                           libelle={niveau.nom}
-                          description={niveau.description}
+                          description={[niveau.description, plan.nom].filter(Boolean).join(' · ')}
                           icone={Layers}
-                          onOuvrir={plan ? () => setPlanOuvert(plan) : undefined}
-                          messageSansPlan={t('demandes.niveauSansPlan')}
+                          onOuvrir={() => setPlanOuvert(plan)}
                         />
-                      );
+                      ));
                     })}
                   </div>
                 );
@@ -234,7 +348,29 @@ export default function DemandeChantierDetail() {
         ))
       )}
 
+      {/* Tout ce qu'aucune section n'a réclamé : plans de zone, plans de détail
+          rattachés à un autre plan, plans dont le niveau a été supprimé depuis.
+          Rien ne doit rester invisible à qui valide. */}
+      {classement.autres.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 15, margin: '24px 0 6px' }}>{t('demandes.autresPlans')}</h3>
+          <p className="text-muted" style={{ fontSize: 12.5, margin: '0 0 8px' }}>
+            {t('demandes.autresPlansAide')}
+          </p>
+          {classement.autres.map((plan) => (
+            <LignePlan key={plan.id} plan={plan} icone={FileText} onOuvrir={() => setPlanOuvert(plan)} />
+          ))}
+        </>
+      )}
+
       <ApercuPlan plan={planOuvert} onClose={() => setPlanOuvert(null)} />
+      <ModalValider
+        ouvert={aValider}
+        chantier={chantier}
+        enCours={enCours}
+        onClose={() => setAValider(false)}
+        onConfirmer={valider}
+      />
       <ModalRejeter
         ouvert={aRejeter}
         chantier={chantier}
@@ -341,6 +477,38 @@ function ApercuPlan({ plan, onClose }) {
           </p>
         </>
       )}
+    </Modal>
+  );
+}
+
+/**
+ * Confirmation avant validation.
+ *
+ * Même contrat que dans la liste des demandes : mêmes libellés, même
+ * enchaînement. Un valideur qui passe de la liste au détail retrouve le geste
+ * qu'il connaît, et ne peut plus activer un chantier d'un clic réflexe.
+ */
+function ModalValider({ ouvert, chantier, enCours, onClose, onConfirmer }) {
+  const { t } = useTranslation('chantier');
+  if (!ouvert) return null;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t('demandes.modalValider.titre')}
+      footer={
+        <>
+          <button className="btn btn-secondary" onClick={onClose} disabled={enCours}>
+            {t('actions.annuler')}
+          </button>
+          <button className="btn btn-primary" onClick={onConfirmer} disabled={enCours}>
+            <Check size={16} /> {t('demandes.modalValider.confirmer')}
+          </button>
+        </>
+      }
+    >
+      <p style={{ marginTop: 0 }}>{t('demandes.modalValider.intro', { nom: chantier.nom })}</p>
     </Modal>
   );
 }

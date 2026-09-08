@@ -162,6 +162,11 @@ export default function PlanCanvas({
   onMarqueurClique,
   onHotspotClique,
   onPagesConnues,
+  /**
+   * Hauteur MAXIMALE de la visionneuse, en pixels (ou toute longueur CSS).
+   * Ce n'est pas une hauteur imposée : la feuille de style la réduit quand la
+   * fenêtre est plus courte, et la maintient au-dessus d'un plancher lisible.
+   */
   hauteur = 560,
 }) {
   const { canvasRef, chargement, erreur, nbPages, ratio } = usePageRendue({ blob, format, page });
@@ -280,7 +285,11 @@ export default function PlanCanvas({
       <div
         ref={viewportRef}
         className={`pcanvas-viewport ${mode === 'pointage' ? 'pointage' : ''}`}
-        style={{ height: hauteur }}
+        /* La hauteur demandée est un PLAFOND, pas une consigne : la feuille de
+           style la borne par la hauteur réellement disponible (voir
+           `--pcanvas-h` dans plan-canvas.css). Une hauteur fixe en pixels
+           dépassait l'écran d'un téléphone tenu en paysage. */
+        style={{ '--pcanvas-h': typeof hauteur === 'number' ? `${hauteur}px` : hauteur }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={finGlissement}

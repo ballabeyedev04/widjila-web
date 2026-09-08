@@ -21,12 +21,16 @@ import { ROLES, STATUTS_UTILISATEUR, enumLabel, roleLabel } from '../../utils/co
 import SwalCustom from '../../utils/swal.config.js';
 import { validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
 import { useEnum } from '../../hooks/useEnums.js';
+import { useUser } from '../../context/useUser.js';
 
 export default function PlateformeUtilisateurs() {
   // Rôles et statuts servis par l'API — voir hooks/useEnums.js.
   const roles = useEnum('roles');
   const statutsUtilisateur = useEnum('statutsUtilisateur');
   const { t } = useTranslation('plateforme');
+  // Le compte connecté : le serveur refuse qu'un admin change son propre rôle
+  // ou supprime son propre compte. L'écran ne doit donc pas le proposer.
+  const { user } = useUser();
   const [filters, setFilters] = useState({ search: '', role: '', statut: '', organisationId: '' });
   const [organisations, setOrganisations] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -122,12 +126,26 @@ export default function PlateformeUtilisateurs() {
                         <td><Badge statusKey={u.statut} /></td>
                         <td className="text-muted" style={{ fontSize: 13 }}>{formatDate(u.createdAt)}</td>
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <select className="input" style={{ width: 150, padding: 5 }} value="" onChange={(e) => { changeRole(u, e.target.value); e.target.value = ''; }}>
-                            <option value="">{t('utilisateurs.changerRole')}</option>
-                            {roles.filter((v) => v !== u.role).map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
-                          </select>
+                          {/* Sa PROPRE ligne : ni changement de rôle, ni
+                              suppression. Le serveur refuse les deux
+                              (gestionUtilisateur.service.js) ; les proposer
+                              ouvrait une confirmation rouge pour un geste
+                              voué à l'échec. Modifier ses coordonnées reste
+                              possible — cela, le serveur l'accepte. */}
+                          {u.id === user?.id ? (
+                            <span className="text-muted" style={{ fontSize: 12, marginRight: 8 }}>
+                              {t('utilisateurs.votreCompte')}
+                            </span>
+                          ) : (
+                            <select className="input" style={{ width: 150, padding: 5 }} value="" onChange={(e) => { changeRole(u, e.target.value); e.target.value = ''; }}>
+                              <option value="">{t('utilisateurs.changerRole')}</option>
+                              {roles.filter((v) => v !== u.role).map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
+                            </select>
+                          )}
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(u)}><Pencil size={14} /></button>
-                          <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(u)}><Trash2 size={14} /></button>
+                          {u.id !== user?.id && (
+                            <button className="btn btn-ghost btn-sm btn-danger-hover" onClick={() => remove(u)}><Trash2 size={14} /></button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -186,7 +204,9 @@ function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }
     try {
       const payload = {
         nom: form.nom, prenom: form.prenom, email: form.email, fonction: form.fonction,
-        role: form.role, statut: form.statut,
+        // `role` seulement à la CRÉATION : `modifierUtilisateur` ne le lit pas.
+        ...(isEdit ? {} : { role: form.role }),
+        statut: form.statut,
         // Sélecteur laissé vide → `null`, pas `''` : le schéma Joi du backend
         // attend un UUID ou `null`, et une chaîne vide échouait sur « must be a
         // valid GUID » au lieu du message métier (« sélectionnez une organisation »).
@@ -223,9 +243,25 @@ function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }
           {organisations.map((o) => <option key={o.id} value={o.id}>{o.nom}</option>)}
         </Select>
         <div className="grid-2">
-          <Select label={t('champs.role')} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {roles.map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
-          </Select>
+          {/* En ÉDITION, le rôle n'est pas modifiable ici. Le serveur ne le
+              recopie pas (liste blanche de `modifierUtilisateur`) : le
+              sélecteur promettait un changement qui n'arrivait jamais, suivi
+              d'un « Utilisateur mis à jour » trompeur. Le changement de rôle
+              passe par sa propre route, qui l'inscrit à l'audit et refuse
+              qu'un admin se dégrade lui-même. */}
+          {isEdit ? (
+            <Input
+              label={t('champs.role')}
+              value={enumLabel(form.role, ROLES[form.role]?.label)}
+              hint={t('utilisateurs.modal.roleAilleurs')}
+              readOnly
+              disabled
+            />
+          ) : (
+            <Select label={t('champs.role')} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+              {roles.map((value) => <option key={value} value={value}>{enumLabel(value, ROLES[value]?.label)}</option>)}
+            </Select>
+          )}
           <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
             {statutsUtilisateur.map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_UTILISATEUR[value]?.label)}</option>)}
           </Select>
