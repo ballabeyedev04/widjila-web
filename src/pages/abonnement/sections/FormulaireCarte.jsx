@@ -8,8 +8,14 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield } from 'lucide-react';
+// `AlertCircle`, `Loader2` et `CreditCard` étaient utilisés sans être
+// importés : le formulaire levait une ReferenceError dès son premier rendu
+// (l'indicateur « Préparation… » s'affiche pendant la création du
+// PaymentIntent), et l'écran de paiement ne s'affichait jamais.
+import { AlertCircle, CreditCard, Loader2, Shield } from 'lucide-react';
 import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
+
+import { estPeriodeAnnuelle, formatPrix } from '../../../utils/format.js';
 
 /**
  * Formulaire de carte.
@@ -111,7 +117,9 @@ export default function PaymentForm({ plan, clientSecret, onSuccess, loading }) 
       <button
         type="submit"
         className="btn btn-primary w-full btn-lg"
-        disabled={processing || loading || !stripe}
+        // `!clientSecret` : sans intention de paiement, `confirmCardPayment`
+        // n'a rien à confirmer — le bouton ne doit pas le laisser croire.
+        disabled={processing || loading || !stripe || !clientSecret}
       >
         {processing ? (
           <>
@@ -123,7 +131,12 @@ export default function PaymentForm({ plan, clientSecret, onSuccess, loading }) 
           </>
         ) : (
           <>
-            {t('abonnement.confirmerPaiement', { prix: plan.prix })}
+            {/* Montant, devise et période de LA formule : ce bouton confirme
+                un débit, il doit annoncer exactement celui-là. */}
+            {t('abonnement.confirmerPaiement', {
+              prix: formatPrix(plan.prix, plan.devise),
+              periode: estPeriodeAnnuelle(plan.periode) ? t('abonnement.parAnCourt') : t('abonnement.parMoisCourt'),
+            })}
             <CreditCard size={16} />
           </>
         )}

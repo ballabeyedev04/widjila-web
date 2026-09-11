@@ -87,6 +87,8 @@ export default {
     titre: 'Something went wrong',
     inattendue: 'Unexpected error',
     reessayer: 'Try again',
+    recharger: 'Reload page',
+    reference: 'Reference',
   },
   formulaire: {
     selectionner: '— Select —',

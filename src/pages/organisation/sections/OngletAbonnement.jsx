@@ -10,26 +10,36 @@
  * même morceau que le formulaire de coordonnées, et toute modification de l'un
  * obligeait à faire défiler l'autre.
  */
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import {
-  AlertCircle, Check, CreditCard, Infinity as InfinityIcon, RotateCcw, Shield, Star, Users, Zap,
+  AlertCircle, Check, Infinity as InfinityIcon, RotateCcw, Shield, Star, Users, Zap,
 } from 'lucide-react';
 import { Elements } from '@stripe/react-stripe-js';
 
 import PaymentForm from '../../abonnement/sections/FormulaireCarte.jsx';
 
+// `EmptyState` et `Trans` étaient utilisés sans être importés : l'onglet
+// levait une ReferenceError dès qu'aucune formule n'était lue — c'est-à-dire
+// à chaque ouverture, tant qu'il lisait un format de réponse périmé (voir
+// `detailsAbonnement.js`).
+import EmptyState from '../../../components/EmptyState.jsx';
 import Spinner from '../../../components/Spinner.jsx';
-import { formatDate } from '../../../utils/format.js';
-import SwalCustom from '../../../utils/swal.config.js';
+import { estPeriodeAnnuelle, formatDate, formatPrix } from '../../../utils/format.js';
 import '../../../assets/css/abonnement.css';
 
-/** Icône illustrant un plan (starter / pro / business). */
-function PlanIcon({ planId, size = 28 }) {
-  if (planId === 'starter') return <Star size={size} />;
-  if (planId === 'pro') return <Zap size={size} />;
-  if (planId === 'business') return <InfinityIcon size={size} />;
-  return <CreditCard size={size} />;
+/**
+ * Icône d'une formule, choisie sur son CODE — même table que l'écran
+ * Abonnement. L'identifiant est un UUID depuis que le catalogue vit en base :
+ * les anciennes clés (`starter`, `business`) ne correspondaient plus à rien.
+ */
+function PlanIcon({ code, size = 28 }) {
+  if (code === 'pro') return <Zap size={size} />;
+  if (code === 'entreprise') return <InfinityIcon size={size} />;
+  return <Star size={size} />;
 }
+
+/** `null` = illimité ; `-1` est l'ancienne sentinelle, encore tolérée. */
+const estIllimite = (valeur) => valeur === null || valeur === undefined || valeur === -1;
 
 /**
  * Onglet « Abonnement » de la page Organisation.
@@ -37,9 +47,9 @@ function PlanIcon({ planId, size = 28 }) {
  * Composant purement présentationnel : l'état (plan sélectionné, clientSecret,
  * chargements) et les actions vivent dans Organisation() et sont reçus en props.
  *
- * `planDetails` est le payload de GET /abonnement/plan-details :
- * { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt, planActuel,
- *   planActuelDetails, allPlans[] }
+ * `planDetails` : réponse de GET /abonnement/plan-details passée par
+ * `versDetailsOnglet` — { isSubscribed, trialEnded, joursRestantsTrial,
+ * trialEndsAt, planActuel, planActuelDetails, allPlans[] }.
  */
 export default function AbonnementTab({
   planDetails, planLoading, selectedPlan, clientSecret, paymentLoading, paymentError,
@@ -54,6 +64,12 @@ export default function AbonnementTab({
   const { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt, planActuelDetails } = planDetails;
   const plans = planDetails.allPlans || [];
 
+  // Période et libellés du catalogue : partagés avec l'écran Abonnement, pour
+  // que les deux surfaces de paiement annoncent le même prix, à l'identique.
+  const periode = (p) => (
+    estPeriodeAnnuelle(p) ? t('plateforme:abonnement.parAnCourt') : t('plateforme:abonnement.parMoisCourt')
+  );
+
   // ── Écran de paiement (un plan est sélectionné) ────────────────────────────
   if (selectedPlan) {
     return (
@@ -61,10 +77,10 @@ export default function AbonnementTab({
         <div className="payment-header">
           <button className="btn btn-ghost" onClick={onCancelSelection}>← {t('abonnement.paiement.retourPlans')}</button>
           <div className="payment-plan-summary">
-            <div className="payment-plan-icon"><PlanIcon planId={selectedPlan.id} size={24} /></div>
+            <div className="payment-plan-icon"><PlanIcon code={selectedPlan.code} size={24} /></div>
             <div>
               <strong>{selectedPlan.nom}</strong>
-              <span>{selectedPlan.prix} {t('abonnement.paiement.parMois')}</span>
+              <span>{formatPrix(selectedPlan.prix, selectedPlan.devise)} {periode(selectedPlan.periode)}</span>
             </div>
           </div>
         </div>
@@ -125,48 +141,71 @@ export default function AbonnementTab({
       ) : (
         <div className="plans-grid">
           {plans.map((plan) => {
-            const estPlanActuel = isSubscribed && planActuelDetails?.id === plan.id;
+            const estPlanActuel = Boolean(isSubscribed && planActuelDetails?.id === plan.id);
             return (
-              <article key={plan.id} className={`plan-card ${plan.id === 'pro' ? 'popular' : ''}`} data-plan={plan.id}>
-                {plan.id === 'pro' && <div className="plan-popular-badge">{t('abonnement.plans.populaire')}</div>}
+              <article key={plan.id} className={`plan-card ${plan.code === 'pro' ? 'popular' : ''}`} data-plan={plan.code}>
+                {plan.code === 'pro' && <div className="plan-popular-badge">{t('abonnement.plans.populaire')}</div>}
 
                 <div className="plan-header">
-                  <div className="plan-icon-wrapper"><PlanIcon planId={plan.id} /></div>
+                  <div className="plan-icon-wrapper"><PlanIcon code={plan.code} /></div>
                   <h2 className="plan-name">{plan.nom}</h2>
                   <p className="plan-description">{plan.description}</p>
                 </div>
 
                 <div className="plan-price">
-                  <span className="plan-amount">{plan.prix}</span>
-                  <span className="plan-period">{t('abonnement.plans.parMois')}</span>
+                  {plan.surDevis ? (
+                    /* Pas de montant : afficher 0 ferait croire à une offre gratuite. */
+                    <span className="plan-amount plan-amount-devis">{t('plateforme:abonnement.surDevis')}</span>
+                  ) : (
+                    <>
+                      {/* Dans la devise de la formule, pas un « € » en dur. */}
+                      <span className="plan-amount">{formatPrix(plan.prix, plan.devise)}</span>
+                      <span className="plan-period">{periode(plan.periode)}</span>
+                    </>
+                  )}
                 </div>
 
                 <ul className="plan-features">
-                  {(plan.features || []).map((feature, i) => (
-                    <li key={i}><Check size={14} className="feature-check" /> {feature}</li>
+                  {/* Le serveur envoie des CODES (`fonctionnalites`), traduits
+                      ici ; l'ancien champ `features` n'existe plus. */}
+                  {(plan.fonctionnalites || []).map((code) => (
+                    <li key={code}>
+                      <Check size={14} className="feature-check" /> {t(`plateforme:abonnement.fonctionnalites.${code}`, { defaultValue: code })}
+                    </li>
                   ))}
                 </ul>
 
                 <div className="plan-limits">
                   {plan.limiteChantiers !== 0 && (
                     <div className="limit-item">
-                      <Users size={14} /> {plan.limiteChantiers === -1 ? t('abonnement.plans.chantiersIllimites') : t('abonnement.plans.chantiersMax', { n: plan.limiteChantiers })}
+                      <Users size={14} /> {estIllimite(plan.limiteChantiers) ? t('abonnement.plans.chantiersIllimites') : t('abonnement.plans.chantiersMax', { n: plan.limiteChantiers })}
                     </div>
                   )}
                   {plan.limiteUtilisateurs !== 0 && (
                     <div className="limit-item">
-                      <Users size={14} /> {plan.limiteUtilisateurs === -1 ? t('abonnement.plans.utilisateursIllimites') : t('abonnement.plans.utilisateursMax', { n: plan.limiteUtilisateurs })}
+                      <Users size={14} /> {estIllimite(plan.limiteUtilisateurs) ? t('abonnement.plans.utilisateursIllimites') : t('abonnement.plans.utilisateursMax', { n: plan.limiteUtilisateurs })}
                     </div>
                   )}
                 </div>
 
-                <button
-                  className={`btn ${plan.id === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
-                  onClick={() => onSelectPlan(plan)}
-                  disabled={estPlanActuel || paymentLoading}
-                >
-                  {estPlanActuel ? t('abonnement.plans.planActuel') : isSubscribed ? t('abonnement.plans.changer') : t('abonnement.plans.choisir')}
-                </button>
+                {plan.surDevis ? (
+                  /* « Sur devis » ne se paie pas en ligne : le serveur refuserait
+                     l'intention de paiement. On contacte, on ne choisit pas. */
+                  <a
+                    className={`btn ${plan.code === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
+                    href="mailto:contact@widjila.com"
+                  >
+                    {t('plateforme:abonnement.nousContacter')}
+                  </a>
+                ) : (
+                  <button
+                    className={`btn ${plan.code === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
+                    onClick={() => onSelectPlan(plan)}
+                    disabled={estPlanActuel || paymentLoading}
+                  >
+                    {estPlanActuel ? t('abonnement.plans.planActuel') : isSubscribed ? t('abonnement.plans.changer') : t('abonnement.plans.choisir')}
+                  </button>
+                )}
               </article>
             );
           })}

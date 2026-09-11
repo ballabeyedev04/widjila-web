@@ -551,6 +551,8 @@ export default {
     },
   },
   depot: {
+    referentielsIndisponiblesTitre: 'Level codes unavailable',
+    referentielsIndisponibles: 'The level and apartment code lists could not be loaded: the related fields will stay empty. Try again before uploading your plans.',
     titre: 'Upload plans',
     titreNouveau: 'New site — upload plans',
     sousTitre: 'Upload the overall plan, then the buildings, levels and their apartments.',

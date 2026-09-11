@@ -87,6 +87,8 @@ export default {
     titre: 'Une erreur est survenue',
     inattendue: 'Erreur inattendue',
     reessayer: 'Réessayer',
+    recharger: 'Recharger la page',
+    reference: 'Référence',
   },
   formulaire: {
     selectionner: '— Sélectionner —',

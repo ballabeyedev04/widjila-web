@@ -87,6 +87,8 @@ export default {
     titre: 'Se ha producido un error',
     inattendue: 'Error inesperado',
     reessayer: 'Reintentar',
+    recharger: 'Recargar la página',
+    reference: 'Referencia',
   },
   formulaire: {
     selectionner: '— Seleccionar —',

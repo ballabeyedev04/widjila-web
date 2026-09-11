@@ -223,6 +223,17 @@ export function nettoyerErreur(erreur) {
   propre.chemin = typeof e.config?.url === 'string' ? e.config.url.split('?')[0] : undefined;
   propre.statut = e.response?.status;
   propre.code = e.code;
+  // Identifiant de la requête (corps d'erreur du serveur, ou en-tête exposé
+  // par CORS) : c'est lui qui retrouve la ligne du journal serveur. Code
+  // d'erreur uniforme du serveur (`error.code`) : BASE_INDISPONIBLE, etc.
+  const corps = e.response?.data;
+  const entetes = e.response?.headers;
+  propre.requestId = e.requestId
+    ?? (corps && typeof corps === 'object' ? corps.requestId : undefined)
+    ?? (typeof entetes?.get === 'function' ? entetes.get('x-request-id') : entetes?.['x-request-id'])
+    ?? undefined;
+  propre.codeErreur = e.codeErreur
+    ?? (corps && typeof corps === 'object' ? (corps.error?.code ?? corps.code) : undefined);
   return propre;
 }
 

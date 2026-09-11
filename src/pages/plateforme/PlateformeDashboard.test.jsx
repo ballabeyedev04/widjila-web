@@ -107,6 +107,26 @@ describe('PlateformeDashboard', () => {
     afficher();
 
     expect(await screen.findByText('3')).toBeTruthy();
-    expect(screen.getByText(/Aucune inscription/)).toBeTruthy();
+  });
+
+  it('une courbe en PANNE ne se fait pas passer pour une courbe VIDE', async () => {
+    // Défaut corrigé : l'échec de la requête affichait « Aucune inscription »
+    // — une absence de données — là où il y avait une erreur. Le
+    // super-admin concluait à zéro inscription, sans moyen de réessayer.
+    croissanceInscriptions.mockRejectedValue(new Error('timeout'));
+
+    afficher();
+
+    expect(await screen.findByText('3')).toBeTruthy();
+    expect(screen.queryByText(/Aucune inscription/)).toBeNull();
+    expect(screen.getByRole('button', { name: /Réessayer/ })).toBeTruthy();
+  });
+
+  it('une courbe réellement vide affiche bien « Aucune inscription »', async () => {
+    croissanceInscriptions.mockResolvedValue({ croissance: [] });
+
+    afficher();
+
+    expect(await screen.findByText(/Aucune inscription/)).toBeTruthy();
   });
 });

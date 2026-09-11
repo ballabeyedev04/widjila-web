@@ -6,6 +6,7 @@ import {
   getStoredToken,
   tenterReconnexionSilencieuse,
   ecouterFinDeSession,
+  consommerTransfertWeb,
 } from '../service/api.js';
 import { UserContext } from './userContextInstance.js';
 import { identifierUtilisateur, effacerUtilisateur } from '../utils/monitoring.js';
@@ -25,11 +26,29 @@ import { identifierUtilisateur, effacerUtilisateur } from '../utils/monitoring.j
 export function UserProvider({ children }) {
   const [user, setUserState] = useState(() => getStoredUser());
   const [pretAuthentification, setPretAuthentification] = useState(false);
+  // Vrai si l'adresse portait un code de transfert du mobile que le serveur a
+  // refusé (expiré, déjà servi). L'écran d'abonnement l'explique au lieu de
+  // laisser croire que l'utilisateur n'a jamais été connecté.
+  const [transfertEchoue, setTransfertEchoue] = useState(false);
 
   useEffect(() => {
     let annule = false;
 
     async function hydrater() {
+      // Arrivée depuis l'application mobile (« Choisir cette formule ») :
+      // l'adresse porte un code de transfert, échangé contre une session. Il
+      // passe AVANT une session déjà ouverte dans ce navigateur — la personne
+      // vient de demander, depuis SON compte, à payer pour son organisation.
+      const transfert = await consommerTransfertWeb();
+      if (annule) return;
+      if (transfert?.utilisateur) {
+        setUserState(transfert.utilisateur);
+        identifierUtilisateur(transfert.utilisateur);
+        setPretAuthentification(true);
+        return;
+      }
+      if (transfert?.echec) setTransfertEchoue(true);
+
       // Session déjà présente en mémoire (même onglet, pas de coupure) :
       // rien à récupérer.
       const utilisateurEnMemoire = getStoredUser();
@@ -78,7 +97,7 @@ export function UserProvider({ children }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, setUser, clearUser, pretAuthentification }}>
+    <UserContext.Provider value={{ user, setUser, clearUser, pretAuthentification, transfertEchoue }}>
       {children}
     </UserContext.Provider>
   );

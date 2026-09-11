@@ -8,7 +8,7 @@
 import { useTranslation } from 'react-i18next';
 import { HardHat, ReceiptText, Users } from 'lucide-react';
 
-import { formatDate } from '../../../utils/format.js';
+import { estPeriodeAnnuelle, formatDate } from '../../../utils/format.js';
 
 /**
  * Montant formaté avec le symbole de sa devise.
@@ -147,7 +147,10 @@ export function SectionHistorique({ lignes }) {
                 {l.prixPaye === null ? '\u2014' : montant(l.prixPaye, l.devise)}
                 {l.periode && (
                   <span className="abonnement-historique-periode">
-                    {l.periode === 'annuel' ? t('abonnement.parAnCourt') : t('abonnement.parMoisCourt')}
+                    {/* Le serveur stocke 'an' (jamais 'annuel') : le test
+                        d'origine affichait « / mois » pour toute formule
+                        annuelle. */}
+                    {estPeriodeAnnuelle(l.periode) ? t('abonnement.parAnCourt') : t('abonnement.parMoisCourt')}
                   </span>
                 )}
               </span>

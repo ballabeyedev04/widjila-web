@@ -17,7 +17,7 @@ import {
   getOrganisation, modifierOrganisation, listerFiliales, creerFiliale, creerAgence, getOrganigramme,
 } from '../../service/organisation/organisationService.js';
 import {
-  getPlanDetails, creerPaymentIntent, changerPlan, annulerAbonnement,
+  getPlanDetails, creerPaymentIntent, annulerAbonnement,
 } from '../../service/subscription/subscriptionService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, initials } from '../../utils/format.js';
@@ -31,6 +31,7 @@ import { loadStripe } from '@stripe/stripe-js';
 // que rien ne distingue d'une liste en panne.
 import { reporter } from '../../utils/monitoring.js';
 import AbonnementTab from './sections/OngletAbonnement.jsx';
+import { versDetailsOnglet } from './sections/detailsAbonnement.js';
 import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
 
 /**
@@ -96,9 +97,10 @@ export default function Organisation() {
     setPlanLoading(true);
     try {
       // unwrap() a déjà déballé l'enveloppe { success, message, data } :
-      // `res` EST le payload { isSubscribed, allPlans, planActuelDetails… }.
+      // `res` est `{ droits, usage, souscription, plans }`, adapté ici au
+      // format de l'onglet — voir `detailsAbonnement.js`.
       const res = await getPlanDetails();
-      if (res) setPlanDetails(res);
+      if (res) setPlanDetails(versDetailsOnglet(res));
     } catch (err) {
       reporter(err, { source: 'Organisation/planDetails' });
     } finally {
@@ -118,8 +120,12 @@ export default function Organisation() {
     let cancelled = false;
     setPaymentLoading(true);
     setPaymentError(null);
-    const createIntent = planDetails?.isSubscribed ? changerPlan : creerPaymentIntent;
-    createIntent(selectedPlan.id)
+    // `creerPaymentIntent` aussi pour un CHANGEMENT de formule, comme l'écran
+    // Abonnement : côté serveur, `changerPlan` fait exactement la même chose
+    // mais sans transmettre qui paie — le reçu partait alors à l'adresse de
+    // l'organisation au lieu de celle du payeur. C'est le webhook qui remplace
+    // la souscription en cours, quelle que soit la route.
+    creerPaymentIntent(selectedPlan.id)
       .then((res) => {
         if (!cancelled && res.clientSecret) {
           setClientSecret(res.clientSecret);
@@ -135,7 +141,7 @@ export default function Organisation() {
         if (!cancelled) setPaymentLoading(false);
       });
     return () => { cancelled = true; };
-  }, [selectedPlan, planDetails?.isSubscribed]);
+  }, [selectedPlan]);
 
   // Pas d'écoute de `?payment=success`.
   //
@@ -203,7 +209,7 @@ export default function Organisation() {
     setConfirmationEnCours(true);
 
     const confirme = await attendreConfirmation(async () => {
-      const details = await getPlanDetails();
+      const details = versDetailsOnglet(await getPlanDetails());
       if (details) setPlanDetails(details);
       return correspondAuPlan(details, planPaye);
     });

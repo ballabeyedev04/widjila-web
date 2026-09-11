@@ -261,6 +261,23 @@ describe('fin d’essai proche', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/abonnement', { replace: true }));
   });
 
+  it('« Voir les formules » n’est pas aussitôt écrasé par le portail', async () => {
+    // La navigation vers `/abonnement` était suivie, dans la même
+    // milliseconde, de celle vers le portail : le bouton ne menait nulle part.
+    login.mockResolvedValue({ mfaRequise: false, utilisateur: ENTREPRISE });
+    getStatus.mockResolvedValue({
+      isSubscribed: false, trialEnded: false, joursRestantsTrial: 1, trialEndsAt: '2026-09-11',
+    });
+    swal.confirm.mockResolvedValue(true);
+
+    afficher();
+    remplir();
+    soumettre();
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/abonnement', { replace: true }));
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
   it('un échec de la vérification d’abonnement ne bloque pas la connexion', async () => {
     login.mockResolvedValue({ mfaRequise: false, utilisateur: ENTREPRISE });
     getStatus.mockRejectedValue(new Error('réseau'));
@@ -271,4 +288,40 @@ describe('fin d’essai proche', () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/chantiers', { replace: true }));
   });
+});
+
+// ── 5. Le retour à la page qui a demandé la connexion ──────────────────────
+
+describe('retour après connexion', () => {
+  const afficherAvecRetour = (retour) => render(
+    <MemoryRouter initialEntries={[{ pathname: '/login', state: { retour } }]}>
+      <Login />
+    </MemoryRouter>,
+  );
+
+  it('ramène à l’abonnement, formule choisie comprise', async () => {
+    // Le visiteur a cliqué « Se connecter pour choisir » sur une formule : le
+    // renvoyer sur son portail lui ferait tout recommencer.
+    login.mockResolvedValue({ mfaRequise: false, utilisateur: ENTREPRISE });
+
+    afficherAvecRetour('/abonnement?plan=pro');
+    remplir();
+    soumettre();
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/abonnement?plan=pro', { replace: true }));
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['//site-tiers.example', '/\\site-tiers.example', 'https://site-tiers.example'])(
+    'ignore un retour hors de l’application (%s)',
+    async (retour) => {
+      login.mockResolvedValue({ mfaRequise: false, utilisateur: ENTREPRISE });
+
+      afficherAvecRetour(retour);
+      remplir();
+      soumettre();
+
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith('/chantiers', { replace: true }));
+    },
+  );
 });

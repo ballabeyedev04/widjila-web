@@ -551,6 +551,8 @@ export default {
     },
   },
   depot: {
+    referentielsIndisponiblesTitre: 'Ebenencodes nicht verfügbar',
+    referentielsIndisponibles: 'Die Listen der Ebenen- und Wohnungscodes konnten nicht geladen werden: die zugehörigen Felder bleiben leer. Versuchen Sie es erneut, bevor Sie Ihre Pläne hochladen.',
     titre: 'Pläne hochladen',
     titreNouveau: 'Neue Baustelle — Pläne hochladen',
     sousTitre: 'Laden Sie den Gesamtplan hoch, dann die Gebäude, Ebenen und ihre Wohnungen.',

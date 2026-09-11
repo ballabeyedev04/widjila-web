@@ -42,26 +42,52 @@ export function initMonitoring() {
   });
   actif = true;
 
-  // Erreurs hors du rendu React (gestionnaires d'événements, promesses non
-  // gérées) : ErrorBoundary ne les voit jamais, mais elles cassent tout
-  // autant l'expérience d'un utilisateur sur le terrain.
-  window.addEventListener('unhandledrejection', (event) => {
-    reporter(event.reason, { source: 'unhandledrejection' });
-  });
+  // Les promesses non gérées et les erreurs globales sont capturées par
+  // l'intégration par défaut de Sentry (GlobalHandlers). L'écouteur
+  // `unhandledrejection` posé ici en plus les envoyait une SECONDE fois :
+  // chaque incident comptait double, et les alertes sur le volume d'erreurs
+  // sonnaient à tort.
 }
 
 /**
  * Signale une erreur — toujours au minimum dans la console (comportement
  * historique d'ErrorBoundary, conservé), et à Sentry si configuré.
+ * @param {unknown} error
+ * @param {Record<string, any>} [contexte]
  */
 export function reporter(error, contexte = {}) {
   // Une erreur axios porte `config.headers.Authorization` : on n'en garde que
-  // la méthode, le chemin, le statut et le message. Voir securite.js.
-  const propre = nettoyerErreur(error);
-  const contextePropre = masquerSecrets(contexte);
+  // la méthode, le chemin, le statut, le message et l'identifiant de requête.
+  // Voir securite.js.
+  const propre = /** @type {Record<string, any>} */ (nettoyerErreur(error));
+  const contextePropre = /** @type {Record<string, any>} */ (masquerSecrets(contexte));
   console.error('[monitoring]', propre, contextePropre);
   if (!actif) return;
-  Sentry.captureException(propre, { extra: contextePropre });
+  // `requestId` en ÉTIQUETTE : c'est la clé qui retrouve la requête dans les
+  // journaux serveur, elle doit être filtrable dans Sentry.
+  const requestId = propre?.requestId || contextePropre?.requestId;
+  Sentry.captureException(propre, { extra: contextePropre, tags: requestId ? { requestId } : undefined });
+}
+
+/**
+ * Faut-il signaler cet échec de requête ?
+ *
+ * Oui pour ce qui trahit une PANNE : réponse 5xx, aucune réponse (réseau,
+ * délai dépassé). Non pour les refus métier (4xx) : un 404 ou un 422 est une
+ * réponse normale de l'API, déjà affichée à l'utilisateur — les envoyer
+ * noierait les vraies pannes.
+ */
+export function estPanneRequete(error) {
+  if (!error || error.code === 'ERR_CANCELED' || error.code === 'CHEMIN_REFUSE') return false;
+  const statut = error.response?.status;
+  if (statut === undefined) return Boolean(error.isAxiosError || error.config);
+  return statut >= 500;
+}
+
+/** Signale un échec de requête s'il trahit une panne (voir `estPanneRequete`). */
+export function reporterErreurRequete(error) {
+  if (!estPanneRequete(error)) return;
+  reporter(error, { source: 'api' });
 }
 
 /** Associe les erreurs suivantes à l'utilisateur connecté (aide au diagnostic, pas de PII superflue). */

@@ -54,6 +54,37 @@ export const formatBudget = (value) => {
   }).format(value);
 };
 
+/**
+ * Prix d'une formule d'abonnement, dans SA devise.
+ *
+ * Les écrans d'abonnement accolaient un « € » en dur au montant : une formule
+ * en francs CFA s'affichait en euros — sur le bouton même qui confirme le
+ * débit. La devise vient désormais de la formule, et Intl place le symbole
+ * selon la langue.
+ *
+ * Deux décimales seulement quand elles portent une information : « 49 € »,
+ * mais « 49,90 € ».
+ */
+export const formatPrix = (valeur, devise = 'EUR') => {
+  if (valeur === null || valeur === undefined || valeur === '') return '—';
+  const nombre = Number(valeur);
+  if (Number.isNaN(nombre)) return String(valeur);
+  const code = String(devise || 'EUR').toUpperCase();
+  const decimales = Number.isInteger(nombre) ? 0 : 2;
+  try {
+    return new Intl.NumberFormat(locale(), {
+      style: 'currency', currency: code,
+      minimumFractionDigits: decimales, maximumFractionDigits: decimales,
+    }).format(nombre);
+  } catch {
+    // Code devise inconnu d'Intl : le montant reste lisible, avec son code.
+    return `${nombre} ${code}`;
+  }
+};
+
+/** Vrai pour une formule facturée à l'année (`an` au catalogue, `annuel` à l'historique). */
+export const estPeriodeAnnuelle = (periode) => periode === 'an' || periode === 'annuel';
+
 export const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 
 export const initials = (nom, prenom) =>

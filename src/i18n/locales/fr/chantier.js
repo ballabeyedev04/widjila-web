@@ -555,6 +555,8 @@ export default {
     },
   },
   depot: {
+    referentielsIndisponiblesTitre: 'Codes de niveau indisponibles',
+    referentielsIndisponibles: 'Les listes de codes de niveau et d’appartement n’ont pas pu être chargées : les champs correspondants resteront vides. Réessayez avant de déposer vos plans.',
     titre: 'Envoi de plans',
     titreNouveau: 'Nouveau chantier — envoi de plans',
     sousTitre: 'Déposez le plan global, puis les bâtiments, les niveaux et leurs appartements.',

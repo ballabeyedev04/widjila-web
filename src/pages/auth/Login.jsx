@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, Lock, Mail, KeyRound, ArrowRight, ShieldCheck } from 'lucide-react';
 
@@ -13,8 +13,22 @@ import SwalCustom from '../../utils/swal.config.js';
 
 const CODE_LENGTH = 6;
 
+/**
+ * Page où revenir après la connexion, transmise par l'écran qui l'a demandée
+ * (`navigate('/login', { state: { retour } })`) — l'abonnement, typiquement,
+ * avec la formule déjà choisie.
+ *
+ * Chemin INTERNE uniquement : une valeur venue de l'état de navigation ne doit
+ * jamais pouvoir emmener hors de l'application (`//site.tiers`, `/\site`).
+ */
+const cheminRetour = (valeur) => (
+  typeof valeur === 'string' && /^\/(?![/\\])/.test(valeur) ? valeur : null
+);
+
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const retour = cheminRetour(location.state?.retour);
   const { t } = useTranslation('auth');
   const { setUser } = useUser();
 
@@ -66,12 +80,33 @@ export default function Login() {
         });
         if (result) {
           navigate('/abonnement', { replace: true });
-          return;
+          return true;
         }
       }
     } catch {
       // Silencieux : ne pas bloquer la connexion si l'appel échoue
     }
+    return false;
+  };
+
+  /**
+   * Après une connexion réussie : retour à la page qui l'a demandée, sinon
+   * portail du rôle.
+   *
+   * `checkTrialAndWarn` peut lui-même emmener sur `/abonnement` : il le
+   * signale, et on ne l'écrase plus aussitôt par le portail. Sans cela,
+   * « Voir les formules » dans l'avertissement de fin d'essai ne menait nulle
+   * part — la navigation suivante l'annulait dans la même milliseconde.
+   */
+  const terminerConnexion = async (utilisateur) => {
+    setUser(utilisateur);
+    SwalCustom.success(t('login.succes'));
+    if (retour) {
+      navigate(retour, { replace: true });
+      return;
+    }
+    if (await checkTrialAndWarn()) return;
+    navigate(homeForRole(utilisateur?.role), { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -88,10 +123,7 @@ export default function Login() {
         setMfaUtilisateur(result.utilisateur);
         SwalCustom.info(t('login.mfa.info'));
       } else {
-        setUser(result.utilisateur);
-        SwalCustom.success(t('login.succes'));
-        await checkTrialAndWarn();
-        navigate(homeForRole(result.utilisateur?.role), { replace: true });
+        await terminerConnexion(result.utilisateur);
       }
     } catch (err) {
       SwalCustom.error({ title: t('login.erreurTitre'), text: getErrorMessage(err) });
@@ -126,10 +158,7 @@ export default function Login() {
     setMfaLoading(true);
     try {
       const result = await verifierMfa({ code });
-      setUser(result.utilisateur);
-      SwalCustom.success(t('login.succes'));
-      await checkTrialAndWarn();
-      navigate(homeForRole(result.utilisateur?.role), { replace: true });
+      await terminerConnexion(result.utilisateur);
     } catch (err) {
       SwalCustom.error({ title: t('login.mfa.codeInvalideTitre'), text: getErrorMessage(err) });
       setMfaCode(['', '', '', '', '', '']);

@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 
 import { installerDeduplication } from './dedupe.js';
 import { estRequeteVersApi, cheminSuspect } from './securite.js';
+import { reporterErreurRequete } from '../utils/monitoring.js';
 
 /**
  * Client HTTP central de l'admin.
@@ -203,15 +204,43 @@ const processQueue = (error) => {
   failedQueue = [];
 };
 
+/**
+ * Porte sur l'erreur elle-même son identifiant de requête et le code
+ * uniforme du serveur.
+ *
+ * Le serveur les renvoie dans tout corps d'erreur (`requestId`,
+ * `error.code`) et dans l'en-tête `X-Request-Id` ; ils n'étaient lus nulle
+ * part. Une erreur remontée au monitoring ne désignait donc aucune ligne des
+ * journaux serveur. Aucun en-tête n'est ENVOYÉ par le web : l'identifiant
+ * est créé par le serveur.
+ */
+export const enrichirErreur = (error) => {
+  const reponse = error?.response;
+  if (!reponse) return error;
+  const corps = reponse.data && typeof reponse.data === 'object' ? reponse.data : null;
+  const entetes = reponse.headers;
+  error.requestId = corps?.requestId
+    ?? (typeof entetes?.get === 'function' ? entetes.get('x-request-id') : entetes?.['x-request-id'])
+    ?? undefined;
+  error.codeErreur = corps?.error?.code ?? corps?.code;
+  return error;
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Diagnostic d'abord : identifiant de requête et code serveur sur
+    // l'erreur, puis signalement des PANNES (5xx, réseau, délai) — les refus
+    // métier 4xx restent affichés à l'utilisateur et ne sont pas envoyés.
+    enrichirErreur(error);
+    reporterErreurRequete(error);
     const original = error.config;
 
     const isAuthRoute =
       original?.url?.includes('/auth/refresh') ||
       original?.url?.includes('/auth/login') ||
-      original?.url?.includes('/auth/mfa-verify');
+      original?.url?.includes('/auth/mfa-verify') ||
+      original?.url?.includes('/auth/transfert-web');
 
     if (error?.response?.status === 401 && original && !original._retry && !isAuthRoute) {
       if (isRefreshing) {
@@ -326,6 +355,77 @@ export const tenterReconnexionSilencieuse = async () => {
     clearUser();
     return null;
   }
+};
+
+/* ---------- Transfert de session depuis l'application mobile ---------- */
+//
+// Le mobile n'encaisse rien : « Choisir cette formule » ouvre `/abonnement`
+// dans le navigateur du téléphone, qui n'a jamais vu l'utilisateur se
+// connecter. Sans session, la page tombait sur des 401 puis sur un refresh
+// sans cookie, et renvoyait vers la connexion.
+//
+// Le mobile ajoute donc à l'adresse un code de transfert — deux minutes, usage
+// unique, voir `auth.service.js#_generateTransfertWeb` côté backend — que la
+// page échange ici contre une session ordinaire.
+//
+// Le code voyage dans le FRAGMENT (`#transfert=…`) et non dans la requête : un
+// fragment n'est jamais envoyé au serveur qui sert la page, ni recopié dans
+// l'en-tête `Referer` vers Stripe. Il est effacé de l'adresse AVANT l'échange,
+// pour ne survivre ni dans l'historique ni dans un lien partagé.
+
+const CLE_TRANSFERT = 'transfert';
+
+/** Lit le code de transfert du fragment, et l'efface aussitôt de l'adresse. */
+const extraireCodeTransfert = () => {
+  const fragment = window.location.hash.replace(/^#/, '');
+  if (!fragment) return null;
+  const params = new URLSearchParams(fragment);
+  const code = params.get(CLE_TRANSFERT);
+  if (!code) return null;
+
+  params.delete(CLE_TRANSFERT);
+  const reste = params.toString();
+  // `history.state` conservé : React Router y range sa propre clé de navigation.
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${window.location.pathname}${window.location.search}${reste ? `#${reste}` : ''}`,
+  );
+  return code;
+};
+
+/** Échange en cours ou terminé — un seul par chargement de page. */
+let transfert = null;
+
+/**
+ * Échange le code de transfert présent dans l'adresse contre une session.
+ *
+ * Mémorisé : le code est à usage unique, et le mode strict de React exécute
+ * deux fois les effets en développement. Un second échange échouerait et
+ * masquerait le premier ; tous les appelants partagent donc la même promesse.
+ *
+ * @returns {Promise<null | { utilisateur: object } | { echec: true }>}
+ *   `null` sans code dans l'adresse ; `{ echec: true }` si le serveur l'a
+ *   refusé (expiré, déjà servi) — la page invite alors à se connecter.
+ */
+export const consommerTransfertWeb = () => {
+  if (!transfert) {
+    transfert = (async () => {
+      const code = extraireCodeTransfert();
+      if (!code) return null;
+      try {
+        const res = await api.post('/auth/transfert-web/echange', { code });
+        const { token, utilisateur } = res.data?.data || {};
+        if (!token || !utilisateur) return { echec: true };
+        setStoredToken(token);
+        setUser(utilisateur);
+        return { utilisateur };
+      } catch {
+        return { echec: true };
+      }
+    })();
+  }
+  return transfert;
 };
 
 export default api;

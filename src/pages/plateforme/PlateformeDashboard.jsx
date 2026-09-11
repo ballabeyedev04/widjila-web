@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader.jsx';
 import StatCard from '../../components/StatCard.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
+import { reporter } from '../../utils/monitoring.js';
 import { statsPlateforme, croissanceInscriptions } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatNombre } from '../../utils/format.js';
@@ -51,6 +52,7 @@ export default function PlateformeDashboard() {
   const { t } = useTranslation('plateforme');
   const [stats, setStats] = useState(null);
   const [croissance, setCroissance] = useState([]);
+  const [croissanceEnErreur, setCroissanceEnErreur] = useState(false);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
   const [accesRefuse, setAccesRefuse] = useState(false);
@@ -65,9 +67,16 @@ export default function PlateformeDashboard() {
       // local plutôt qu'un `Promise.all` où le premier refus annule tout.
       const [s, c] = await Promise.all([
         statsPlateforme(),
-        croissanceInscriptions(6).catch(() => null),
+        // Échec de la courbe : la page reste, mais la panne est SIGNALÉE et
+        // montrée comme telle — elle s'affichait « aucune inscription », une
+        // absence de données là où il y avait une erreur.
+        croissanceInscriptions(6).catch((err) => {
+          reporter(err, { source: 'PlateformeDashboard.croissance' });
+          return undefined;
+        }),
       ]);
       setStats(s);
+      setCroissanceEnErreur(c === undefined);
       setCroissance(c?.croissance || []);
     } catch (err) {
       // Le 403 n'est PAS une panne : c'est un compte qui n'a pas ce droit.
@@ -193,7 +202,8 @@ export default function PlateformeDashboard() {
         <div className="card">
           <div className="card-header"><h2><TrendingUp size={17} style={{ verticalAlign: -3 }} /> {t('superAdmin.croissance')}</h2></div>
           <div className="card-body">
-            {croissance.length === 0 ? <p className="text-muted">{t('superAdmin.aucuneInscription')}</p> : (
+            {croissanceEnErreur ? <ErrorState message={t('superAdmin.erreurStats')} onRetry={load} />
+              : croissance.length === 0 ? <p className="text-muted">{t('superAdmin.aucuneInscription')}</p> : (
               <div className="bar-chart">
                 {croissance.map((c) => (
                   <div key={c.mois} className="bar-col">

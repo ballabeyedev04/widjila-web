@@ -11,6 +11,7 @@ import Modal from '../../components/Modal.jsx';
 import Badge from '../../components/Badge.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
+import { reporter } from '../../utils/monitoring.js';
 import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Input, Select, Textarea, Field } from '../../components/FormControls.jsx';
 import { getChantier, creerChantier, creerBatiment, creerEtage, creerZone, modifierZone, supprimerZone } from '../../service/chantier/chantierService.js';
@@ -87,6 +88,7 @@ export default function DepotPlans() {
   const [codesAppartement, setCodesAppartement] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
+  const [referentielsIndisponibles, setReferentielsIndisponibles] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [demande, setDemande] = useState(false);
 
@@ -106,12 +108,23 @@ export default function DepotPlans() {
     setLoading(true);
     setErreur(null);
     try {
+      // Les codes de niveau et d'appartement NOURRISSENT les listes de
+      // sélection. Leur échec reste non bloquant — on peut déposer sans eux —
+      // mais il n'est plus MUET : les listes vides passaient pour « aucun
+      // code défini », et personne n'était prévenu de la panne.
+      let referentielsEnEchec = false;
+      const repli = (err) => {
+        referentielsEnEchec = true;
+        reporter(err, { source: 'DepotPlans.referentiels' });
+        return [];
+      };
       const [niveaux, appartements] = await Promise.all([
-        listerCodesNiveau().catch(() => []),
-        listerCodesAppartement().catch(() => []),
+        listerCodesNiveau().catch(repli),
+        listerCodesAppartement().catch(repli),
       ]);
       setCodesNiveau(niveaux);
       setCodesAppartement(appartements);
+      setReferentielsIndisponibles(referentielsEnEchec);
 
       if (!brouillon) {
         const [c, p] = await Promise.all([getChantier(chantierId), listerPlans(chantierId)]);
@@ -453,6 +466,15 @@ export default function DepotPlans() {
         <p className="text-muted" style={{ fontSize: 13, marginTop: -8 }}>
           {t('depot.aideBrouillon')}
         </p>
+      )}
+
+      {referentielsIndisponibles && (
+        <ErrorState
+          variante="reseau"
+          titre={t('depot.referentielsIndisponiblesTitre')}
+          message={t('depot.referentielsIndisponibles')}
+          onRetry={charger}
+        />
       )}
 
       <BlocPlanGlobal

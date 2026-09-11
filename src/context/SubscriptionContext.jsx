@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getStatus } from '../service/subscription/subscriptionService.js';
+import { useUser } from './useUser.js';
 
 const SubscriptionContext = createContext(null);
 
@@ -8,6 +9,8 @@ const SubscriptionContext = createContext(null);
  * Expose : status, refreshStatus, isLoading
  */
 export function SubscriptionProvider({ children }) {
+  const { user, pretAuthentification } = useUser();
+  const utilisateurId = user?.id;
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,9 +25,24 @@ export function SubscriptionProvider({ children }) {
     }
   }, []);
 
+  // Statut demandé seulement pour une session ÉTABLIE.
+  //
+  // Il partait au montage de l'application, pour tout visiteur. Sur une page
+  // publique — `/abonnement` ouverte depuis le mobile, les pages légales —
+  // l'appel sans jeton recevait un 401, l'intercepteur tentait un refresh sans
+  // cookie (400), puis renvoyait vers `/login` : la page d'abonnement se
+  // fermait d'elle-même sous les yeux de celui qui venait payer. Attendre
+  // `pretAuthentification` laisse aussi le temps à la reconnexion silencieuse
+  // et au transfert de session du mobile d'aboutir.
   useEffect(() => {
+    if (!pretAuthentification) return;
+    if (!utilisateurId) {
+      setStatus(null);
+      setIsLoading(false);
+      return;
+    }
     refreshStatus();
-  }, [refreshStatus]);
+  }, [pretAuthentification, utilisateurId, refreshStatus]);
 
   // Pas d'écoute de l'événement `storage` : il écoutait `sc_user` et `sc_at`,
   // deux clés de SESSIONstorage — propre à chaque onglet. L'événement ne se

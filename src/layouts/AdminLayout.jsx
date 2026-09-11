@@ -39,6 +39,7 @@ import {
 
 import SwalCustom from '../utils/swal.config.js';
 import SelecteurChantierModal from '../components/SelecteurChantierModal.jsx';
+import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import { logout as authLogout } from '../service/auth/authService.js';
 import { compterNonLues } from '../service/notification/notificationService.js';
 // Les deux files d'attente du super-admin — voir `refreshFilesAttente`.
@@ -551,7 +552,11 @@ export default function AdminLayout() {
             vocale — la navigation dans une application à page unique ne
             recharge pas le document. */}
         <main className="content" id="contenu-principal" tabIndex={-1} aria-live="polite">
-          <Outlet />
+          {/* Une page qui plante ne fait plus tomber le menu : l'erreur reste
+              dans la zone de contenu, et changer de page l'efface. */}
+          <ErrorBoundary compact resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
