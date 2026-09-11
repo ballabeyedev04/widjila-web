@@ -16,6 +16,8 @@ import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate } from '../../utils/format.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { chargerToutesLesPages } from '../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../utils/monitoring.js';
 
 /**
  * Tous les plans de l'organisation, TOUS CHANTIERS CONFONDUS.
@@ -52,7 +54,12 @@ export default function TousPlans() {
   useEffect(() => { charger(); }, [charger]);
 
   useEffect(() => {
-    listerChantiers({ limit: 100 }).then((d) => setChantiers(d.items)).catch(() => {});
+    chargerToutesLesPages(listerChantiers)
+      .then(setChantiers)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/plan/TousPlans.jsx' }));
   }, []);
 
   const motif = recherche.trim().toLowerCase();
@@ -67,19 +74,18 @@ export default function TousPlans() {
       <PageHeader title={t('plans.tousTitre')} subtitle={t('plans.tousSousTitre', { total: plans.length })} />
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-body" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-            <Search size={15} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+        <div className="card-body barre-filtres">
+          <div className="champ-recherche">
+            <Search size={15} />
             <input
               className="input"
-              style={{ paddingLeft: 34, width: '100%' }}
               placeholder={t('plans.recherchePlaceholder')}
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
             />
           </div>
 
-          <select className="input" style={{ minWidth: 200 }} value={chantierId} onChange={(e) => setChantierId(e.target.value)}>
+          <select className="input" value={chantierId} onChange={(e) => setChantierId(e.target.value)}>
             <option value="">{t('reserves.tousChantiers')}</option>
             {chantiers.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
@@ -102,7 +108,18 @@ export default function TousPlans() {
       ) : (
         <div className="grid-3">
           {visibles.map((p) => (
-            <Link key={p.id} to={`/chantiers/${p.chantierId}?tab=plans`} className="card plan-carte">
+            /* Le clic ouvre l'EXPLORATEUR sur ce plan précis, et non l'onglet
+               Plans du chantier : on a cliqué un plan, on doit arriver dessus
+               — pas au sommet d'une arborescence qu'il faudrait redescendre.
+               C'est le parcours du mobile, où la bande « Derniers plans » de
+               l'accueil mène exactement là. */
+            <Link
+              key={p.id}
+              to={`/chantiers/${p.chantierId}/plans/explorer`
+                + `?planId=${p.id}`
+                + `&nom=${encodeURIComponent(p.chantier?.nom || '')}`}
+              className="card plan-carte"
+            >
               <div className="card-body">
                 {/* Aperçu de la première page — reconnaître le plan sans
                     ouvrir le chantier. */}

@@ -29,6 +29,35 @@ export const getPlanDetails = async () => {
 };
 
 /**
+ * Droits et usage courants de l'organisation connectée.
+ *
+ * Renvoie `{ droits, usage: { utilisateurs, chantiers } }` — la formule en
+ * cours, ses limites, et ce qui en est réellement consommé. C'est cette route,
+ * et non `status`, qui explique un refus de créer un chantier : « 5 sur 5 »
+ * répond à la question que pose un 403, là où « abonnement actif » ne dit rien.
+ *
+ * Ouverte à TOUS les rôles côté serveur (`subscription.route.js`), à la
+ * différence de l'historique : chacun a un intérêt légitime à savoir ce qu'il
+ * reste de quota avant de commencer une saisie.
+ */
+export const getDroits = async () => {
+  const response = await api.get('/abonnement/droits');
+  return unwrap(response);
+};
+
+/**
+ * Historique des souscriptions — ce que l'organisation a réellement réglé.
+ *
+ * Réservé au groupe FACTURATION côté serveur (`requireRole(...FACTURATION)`) :
+ * l'appeler pour un autre rôle produit un 403. Les écrans ne l'appellent donc
+ * que lorsque le rôle connecté en fait partie.
+ */
+export const getHistorique = async () => {
+  const response = await api.get('/abonnement/historique');
+  return unwrap(response)?.souscriptions || [];
+};
+
+/**
  * Crée une PaymentIntent Stripe pour le plan choisi.
  * Nécessite authentification.
  * @param {string} planId - ID du plan (starter, pro, business)

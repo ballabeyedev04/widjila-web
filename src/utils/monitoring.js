@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/react';
 
+import { masquerSecrets, nettoyerErreur } from '../service/securite.js';
+
 /**
  * Monitoring d'erreurs client (audit — Admin §4).
  *
@@ -29,6 +31,14 @@ export function initMonitoring() {
     // Échantillonnage des traces de performance — 10% suffit à repérer les
     // écrans lents sans alourdir le volume envoyé.
     tracesSampleRate: 0.1,
+    // Aucune donnée personnelle collectée d'office (adresse IP, cookies).
+    sendDefaultPii: false,
+    // Dernière barrière avant l'envoi : une erreur de requête transporte sa
+    // configuration, donc `Authorization: Bearer …`. Le fil d'Ariane capture
+    // aussi les appels à la console. Sans ce filtre, la session d'un
+    // utilisateur partait en clair dans l'outil de monitoring.
+    beforeSend: (evenement) => masquerSecrets(evenement),
+    beforeBreadcrumb: (miette) => masquerSecrets(miette),
   });
   actif = true;
 
@@ -45,9 +55,13 @@ export function initMonitoring() {
  * historique d'ErrorBoundary, conservé), et à Sentry si configuré.
  */
 export function reporter(error, contexte = {}) {
-  console.error('[monitoring]', error, contexte);
+  // Une erreur axios porte `config.headers.Authorization` : on n'en garde que
+  // la méthode, le chemin, le statut et le message. Voir securite.js.
+  const propre = nettoyerErreur(error);
+  const contextePropre = masquerSecrets(contexte);
+  console.error('[monitoring]', propre, contextePropre);
   if (!actif) return;
-  Sentry.captureException(error, { extra: contexte });
+  Sentry.captureException(propre, { extra: contextePropre });
 }
 
 /** Associe les erreurs suivantes à l'utilisateur connecté (aide au diagnostic, pas de PII superflue). */

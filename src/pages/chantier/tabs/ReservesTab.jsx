@@ -33,6 +33,8 @@ import { useCorpsEtatActifs } from '../../../hooks/useCorpsEtatActifs.js';
 import { usePhasesActives } from '../../../hooks/usePhasesActives.js';
 import SwalCustom from '../../../utils/swal.config.js';
 import { useEnum } from '../../../hooks/useEnums.js';
+import { chargerToutesLesPages } from '../../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../../utils/monitoring.js';
 
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -83,7 +85,7 @@ export default function ReservesTab({ chantierId }) {
   }, [chantierId, page, filters, t]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [filters.search, filters.statut, filters.severite, filters.lotId]);
-  useEffect(() => { listerLots(chantierId).then((d) => setLots(d.items)).catch(() => {}); }, [chantierId]);
+  useEffect(() => { listerLots(chantierId).then((d) => setLots(d.items)).catch((err) => reporter(err, { source: 'ReservesTab' })); }, [chantierId]);
 
   const remove = async (r) => {
     const res = await SwalCustom.confirm({ title: t('reserves.supprimerTitre', { numero: r.numero }), icon: 'warning', danger: true });
@@ -204,21 +206,38 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
   const [form, setForm] = useState({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', phaseId: '', corpsEtatId: '', lotId: '', batimentId: '', etageId: '', assigneA: '', partenaireId: '', date_limite: '' });
   const [membres, setMembres] = useState([]);
   const [partenaires, setPartenaires] = useState([]);
+  // Champs obligatoires encore vides — signalés tous ensemble, sous leur champ.
+  const [manques, setManques] = useState({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setForm({ titre: '', nombre: 5, description: '', severite: 'moyenne', priorite: 'moyenne', phaseId: '', corpsEtatId: '', lotId: '', batimentId: '', etageId: '', assigneA: '', partenaireId: '', date_limite: '' });
-    listerMembresChantier(chantierId).then((d) => setMembres(d.items)).catch(() => {});
-    listerPartenaires({ limit: 100 }).then((d) => setPartenaires(d.items)).catch(() => {});
+    setManques({});
+    listerMembresChantier(chantierId).then((d) => setMembres(d.items)).catch((err) => reporter(err, { source: 'ReservesTab' }));
+    chargerToutesLesPages(listerPartenaires)
+      .then(setPartenaires)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/chantier/tabs/ReservesTab.jsx' }));
   }, [open, chantierId]);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.titre.trim()) return SwalCustom.error(t('reserves.titreRequis'));
-    // La phase est obligatoire. Le serveur l'impose aussi (creerReserveSchema) :
-    // ce contrôle n'est qu'un raccourci pour éviter un aller-retour inutile.
-    if (!form.phaseId) return SwalCustom.error(tPhase('selecteur.requise'));
+    // Les quatre champs obligatoires du cahier technique § 9 — mêmes règles que
+    // le formulaire ouvert depuis un plan et que le mobile. L'entreprise dit à
+    // QUI la réserve est adressée, l'échéance dit QUAND elle sera en retard :
+    // sans elles, la réserve existe sans jamais entrer dans le suivi.
+    const vides = {
+      titre: !form.titre.trim() && t('reserves.titreRequis'),
+      phaseId: !form.phaseId && tPhase('selecteur.requise'),
+      partenaireId: !form.partenaireId && t('reserves.entrepriseRequise'),
+      date_limite: !form.date_limite && t('reserves.delaiRequis'),
+    };
+    setManques(vides);
+    if (Object.values(vides).some(Boolean)) return;
+
     setSaving(true);
     try {
       const base = {
@@ -254,7 +273,7 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
           <button type="button" className={`tab-btn ${mode === 'serie' ? 'active' : ''}`} onClick={() => setMode('serie')}>{t('reserves.modeSerie')}</button>
         </div>
         <div className="grid-2">
-          <Input label={mode === 'serie' ? t('reserves.titreBase') : t('champs.titre')} value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} required />
+          <Input label={mode === 'serie' ? t('reserves.titreBase') : t('champs.titre')} value={form.titre} onChange={(e) => setForm({ ...form, titre: e.target.value })} error={manques.titre || undefined} required />
           {mode === 'serie' && <Input label={t('reserves.nombre')} type="number" min="1" max="100" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />}
         </div>
         <Textarea label={t('champs.description')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
@@ -269,6 +288,7 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
             label={tPhase('selecteur.label')}
             value={form.phaseId}
             onChange={(e) => setForm({ ...form, phaseId: e.target.value })}
+            error={manques.phaseId || undefined}
             required
           >
             <option value="">{phasesChargement ? tPhase('selecteur.chargement') : tPhase('selecteur.choisir')}</option>
@@ -288,12 +308,12 @@ function ReserveCreateModal({ open, onClose, chantierId, lots, onSaved }) {
             <option value="">{t('reserves.nonAssignee')}</option>
             {membres.map((m) => <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>)}
           </Select>
-          <Select label={t('commun.entreprise')} value={form.partenaireId} onChange={(e) => setForm({ ...form, partenaireId: e.target.value })} emptyOption>
-            <option value="">{t('reserves.aucuneF')}</option>
+          <Select label={t('commun.entreprise')} value={form.partenaireId} onChange={(e) => setForm({ ...form, partenaireId: e.target.value })} error={manques.partenaireId || undefined} required emptyOption>
+            <option value="">{t('reserves.choisirEntreprise')}</option>
             {partenaires.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
           </Select>
         </div>
-        <Input label={t('champs.dateLimite')} type="date" value={form.date_limite} onChange={(e) => setForm({ ...form, date_limite: e.target.value })} />
+        <Input label={t('champs.dateLimite')} type="date" value={form.date_limite} onChange={(e) => setForm({ ...form, date_limite: e.target.value })} error={manques.date_limite || undefined} required />
       </form>
     </Modal>
   );

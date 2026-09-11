@@ -16,6 +16,8 @@ import { getErrorMessage } from '../../service/helpers.js';
 import { formatDateTime } from '../../utils/format.js';
 import { ROLES_GESTION, roleAllowed, enumLabel } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { chargerToutesLesPages } from '../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../utils/monitoring.js';
 
 export default function Notifications() {
   const { t } = useTranslation('plateforme');
@@ -128,7 +130,12 @@ function BroadcastModal({ open, onClose, onSent }) {
   useEffect(() => {
     if (!open) return;
     setScope('organisation'); setChantierId(''); setTitre(''); setMessage(''); setType('info'); setLien('');
-    listerChantiers({ limit: 100 }).then((d) => setChantiers(d.items)).catch(() => {});
+    chargerToutesLesPages(listerChantiers)
+      .then(setChantiers)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/notification/Notifications.jsx' }));
   }, [open]);
 
   const submit = async () => {

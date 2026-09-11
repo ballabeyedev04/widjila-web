@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Upload, Trash2, Eye, FileText, MapPin, Clock, Layers, GitCompare, Compass, List } from 'lucide-react';
+import { Plus, Upload, Trash2, Eye, FileText, MapPin, Clock, Layers, GitCompare, Compass, List, Network } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import Modal from '../../../components/Modal.jsx';
 
@@ -29,11 +30,14 @@ import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate } from '../../../utils/format.js';
 import { enumLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
+import { motifRefusFichier, TYPES_DOCUMENT, TAILLE_MAX_DOCUMENT } from '../../../service/securite.js';
+import { messageRefusFichier } from '../../../service/helpers.js';
 
 const TYPES_ANNOTATION = ['marqueur', 'dessin', 'mesure', 'texte', 'lien', 'cercle', 'rectangle', 'fleche'];
 
 export default function PlansTab({ chantierId, chantier, canManage, canCreerReserve }) {
   const { t } = useTranslation('chantier');
+  const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
@@ -76,6 +80,20 @@ export default function PlansTab({ chantierId, chantier, canManage, canCreerRese
         </button>
         <button className={`tab ${vue === 'liste' ? 'active' : ''}`} onClick={() => setVue('liste')}>
           <List size={15} /> {t('plans.tousLesPlans')}
+        </button>
+        {/* L'EXPLORATEUR est un écran plein, pas une vue de cet onglet : il
+            descend l'arborescence des plans (`plans.parent_id`) et occupe la
+            largeur pour que le plan reste lisible sous les repères. « Parcourir »
+            répond à « dans quel appartement ? », celui-ci à « sur quel plan ? » —
+            ce sont deux questions, d'où deux entrées. */}
+        <button
+          className="tab"
+          onClick={() => navigate(
+            `/chantiers/${chantierId}/plans/explorer`
+            + `?nom=${encodeURIComponent(chantier?.nom || '')}`,
+          )}
+        >
+          <Network size={15} /> {t('explorateur.titre')}
         </button>
       </div>
 
@@ -197,7 +215,19 @@ function UploadModal({ open, onClose, chantierId, chantier, onSaved }) {
     }>
       <form onSubmit={submit}>
         <div className="upload-drop">
-          <input type="file" onChange={(e) => { setFichier(e.target.files[0] || null); if (e.target.files[0] && !nom) setNom(e.target.files[0].name.replace(/\.[^.]+$/, '')); }} />
+          <input
+            type="file"
+            accept={TYPES_DOCUMENT.join(',')}
+            onChange={(e) => {
+              const choisi = e.target.files[0] || null;
+              // Refusé avant l'envoi s'il ne passera pas le contrôle du
+              // serveur : type hors liste blanche, ou plus de 5 Mo.
+              const refus = motifRefusFichier(choisi, { types: TYPES_DOCUMENT, tailleMax: TAILLE_MAX_DOCUMENT });
+              if (refus) { SwalCustom.error(messageRefusFichier(refus)); e.target.value = ''; setFichier(null); return; }
+              setFichier(choisi);
+              if (choisi && !nom) setNom(choisi.name.replace(/\.[^.]+$/, ''));
+            }}
+          />
           <Upload size={22} />
           <span>{fichier ? fichier.name : t('plans.deposer')}</span>
         </div>

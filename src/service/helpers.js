@@ -42,6 +42,9 @@ export const unwrap = (response) => {
  * mais retourne bien la traduction de la langue active à l'instant de l'appel.
  */
 export const getErrorMessage = (error, fallback = i18n.t('common:messages.erreurGenerique')) => {
+  // Refus décidés PAR LE CLIENT, avant ou après l'envoi — voir securite.js.
+  if (error?.code === 'TYPE_NON_AFFICHABLE') return i18n.t('common:messages.typeNonAffichable');
+  if (error?.code === 'CHEMIN_REFUSE') return i18n.t('common:messages.ressourceIntrouvable');
   const data = error?.response?.data;
   if (typeof data === 'string' && data) return data;
   if (data?.message) return data.message;
@@ -84,12 +87,28 @@ export const toFormData = (data) => {
  * L'ordre de préférence va du plus précis au plus approximatif ; `?? 0` n'est
  * pas utilisé pour `total` car un total de 0 légitime doit rester 0.
  */
+/**
+ * @param {Record<string, any>} payload
+ * @param {any[]} items
+ * @returns {number}
+ */
 const lireTotal = (payload, items) => {
   if (typeof payload.total === 'number') return payload.total;
   if (typeof payload.pagination?.total === 'number') return payload.pagination.total;
   return items.length;
 };
 
+/**
+ * Ramène une réponse de liste à la forme `{ items, total }`.
+ *
+ * Le backend nomme son tableau différemment selon le module (`plans`,
+ * `reserves`, `membres`…). `listKey` désigne ce nom quand on le connaît ; à
+ * défaut, on essaie les noms rencontrés dans l'API.
+ *
+ * @param {Record<string, any> | null | undefined} payload  Corps déballé de la réponse.
+ * @param {string|null} [listKey]  Nom du tableau, si on le connaît.
+ * @returns {{ items: any[], total: number }}
+ */
 export const normalizeList = (payload, listKey = null) => {
   if (!payload) return { items: [], total: 0 };
   if (listKey && Array.isArray(payload[listKey])) {
@@ -104,3 +123,13 @@ export const normalizeList = (payload, listKey = null) => {
   }
   return { items: [], total: 0 };
 };
+
+/**
+ * Message traduit pour un fichier refusé avant envoi.
+ * @param {{ motif: 'type' | 'taille', tailleMaxMo: number } | null} refus
+ *   Résultat de `securite.js#motifRefusFichier`.
+ * @returns {string}
+ */
+export const messageRefusFichier = (refus) => (refus?.motif === 'taille'
+  ? i18n.t('common:messages.fichierTropVolumineux', { max: refus.tailleMaxMo })
+  : i18n.t('common:messages.typeFichierRefuse'));

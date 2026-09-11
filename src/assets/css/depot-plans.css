@@ -1,0 +1,220 @@
+/* NOTE — variables de thème.
+ *
+ * Cette feuille visait `--surface`, `--surface-2` et `--hover`, qui ne sont
+ * définies nulle part : une variable inconnue rend la déclaration invalide, et
+ * les fonds de cette page ne s'appliquaient donc pas du tout. Le thème du
+ * portail expose `--card` (fond d'une carte), `--bg` (fond de page) et
+ * `--primary-100` (survol) — voir index.css.
+ */
+/* ══════════════════════════════════════════════════════════════════════════
+ * Dépôt guidé des plans — bâtiment › niveau › appartement › plans.
+ *
+ * L'écran empile trois niveaux de repli. Sans une hiérarchie VISUELLE nette,
+ * un chantier de six bâtiments et quarante appartements devient un mur de
+ * lignes où l'on ne sait plus ce qui contient quoi. D'où : une bordure et un
+ * fond par niveau, et un décalage à gauche qui matérialise l'imbrication.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Bâtiment ──────────────────────────────────────────────────────────── */
+
+.depot-batiment {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.depot-batiment-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.depot-batiment-entete:hover { background: var(--primary-100); }
+
+/* `min-width: 0` : sans lui, un nom long refuse de se réduire et pousse le
+   compteur de niveaux hors de la carte — le conteneur flex donne sa largeur
+   intrinsèque à l'enfant tant qu'on ne l'autorise pas à rétrécir. */
+.depot-batiment-nom {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.depot-batiment-corps { padding: 10px 14px 14px; }
+
+/* ── Section : sous-sols · étages · toiture ────────────────────────────── */
+
+.depot-section { margin-top: 12px; }
+
+.depot-section-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.depot-section-titre {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Niveau ────────────────────────────────────────────────────────────── */
+
+.depot-niveau {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.depot-niveau-entete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.depot-niveau-entete:hover { background: var(--primary-100); }
+
+.depot-niveau-nom {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.depot-niveau-corps {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Appartement ───────────────────────────────────────────────────────── */
+
+.depot-appartement {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.depot-appartement-entete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.depot-appartement-nom {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.depot-appartement-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.depot-appartement-saisie {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+/* ── Une ligne de plan ─────────────────────────────────────────────────── */
+
+.depot-plan {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.depot-plan-vignette,
+.depot-plan-vignette-vide {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.depot-plan-vignette canvas,
+.depot-plan-vignette img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.depot-plan-nom {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.depot-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Le sélecteur de fichier est un `<label>` habillé en bouton : il doit se
+   comporter comme les boutons voisins, y compris quand il est désactivé. */
+.depot-plan-actions label.btn,
+.depot-appartement-actions label.btn { cursor: pointer; }
+
+label.btn.disabled { opacity: 0.55; pointer-events: none; }
+
+/* ── Étroit : les actions passent sous le nom plutôt que de le comprimer ── */
+
+@media (max-width: 560px) {
+  .depot-appartement-entete { flex-wrap: wrap; }
+  .depot-appartement-actions { width: 100%; justify-content: flex-end; }
+  .depot-plan { flex-wrap: wrap; }
+  .depot-plan-actions { margin-left: auto; }
+}

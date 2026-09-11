@@ -36,6 +36,39 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 1000,
+
+    // Le seuil d'alerte revient à sa valeur par défaut (500 Ko).
+    //
+    // Il avait été relevé à 1000 pour faire taire l'avertissement — ce qui
+    // règle le message, pas le paquet. Le vrai problème était double : vingt
+    // écrans importés statiquement, et les quatre langues de traduction dans
+    // le même module. Les deux sont corrigés (chargement différé des écrans,
+    // un fichier de traduction par langue), et l'avertissement peut redevenir
+    // ce qu'il doit être : un signal qu'on écoute.
+    rollupOptions: {
+      output: {
+        /**
+         * Sépare les dépendances qui ne changent JAMAIS entre deux versions du
+         * produit.
+         *
+         * React, le routeur et le client HTTP représentent l'essentiel du
+         * paquet restant, et leur contenu est identique d'un déploiement à
+         * l'autre. Groupés avec le code applicatif, la moindre correction
+         * invalidait le cache du navigateur pour l'ensemble : chaque
+         * utilisateur retéléchargeait React pour un libellé changé.
+         *
+         * Séparés, ils gardent leur empreinte entre les versions — un
+         * déploiement ne coûte plus que le code réellement modifié.
+         *
+         * On ne découpe QUE ces trois-là : découper plus finement multiplierait
+         * les requêtes sans rien gagner, chaque écran ayant déjà son propre
+         * morceau.
+         */
+        manualChunks: {
+          'socle-react': ['react', 'react-dom', 'react-router-dom'],
+          'socle-reseau': ['axios', 'jwt-decode'],
+        },
+      },
+    },
   },
 });

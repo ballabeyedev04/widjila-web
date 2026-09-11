@@ -46,16 +46,23 @@ export default function Login() {
           : t('login.essai.bientot');
         const result = await SwalCustom.confirm({
           title: t('login.essai.titre'),
+          // `html` est injecté TEL QUEL par SweetAlert, hors de React qui
+          // échappe tout le reste. L'application désactive l'échappement
+          // d'i18next (`escapeValue: false`, sûr pour React) : on le rétablit
+          // pour CE gabarit, faute de quoi toute valeur interpolée un jour — un
+          // nom, une formule — deviendrait du HTML exécuté.
           html: t('login.essai.html', {
             jours: joursRestantsTrial,
             unite: joursRestantsTrial > 1 ? t('login.essai.jours') : t('login.essai.jour'),
             date: dateFin,
+            interpolation: { escapeValue: true },
           }),
           icon: 'warning',
           confirmButtonText: t('login.essai.voirPlans'),
           cancelButtonText: t('login.essai.plusTard'),
-          showCancelButton: true,
-          reverseButtons: true,
+          // `showCancelButton` et `reverseButtons` sont déjà posés par
+          // `SwalCustom.confirm` et par le mixin : les repasser ici laissait
+          // croire qu'ils étaient nécessaires.
         });
         if (result) {
           navigate('/abonnement', { replace: true });
@@ -152,10 +159,13 @@ export default function Login() {
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="field">
-                  <label>{t('login.identifiantLabel')}</label>
+                  <label htmlFor="login-identifiant">{t('login.identifiantLabel')}</label>
                   <div style={{ position: 'relative' }}>
                     <Mail size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                     <input
+                      id="login-identifiant"
+                      aria-invalid={errors.identifiant ? true : undefined}
+                      aria-describedby={errors.identifiant ? 'login-identifiant-erreur' : undefined}
                       className={`input ${errors.identifiant ? 'invalid' : ''}`}
                       style={{ paddingLeft: 38 }}
                       value={identifiant}
@@ -164,14 +174,19 @@ export default function Login() {
                       autoComplete="username"
                     />
                   </div>
-                  {errors.identifiant && <div className="error">{errors.identifiant}</div>}
+                  {errors.identifiant && (
+                    <div className="error" id="login-identifiant-erreur" role="alert">{errors.identifiant}</div>
+                  )}
                 </div>
 
                 <div className="field">
-                  <label>{t('champs.motDePasse')}</label>
+                  <label htmlFor="login-mot-de-passe">{t('champs.motDePasse')}</label>
                   <div style={{ position: 'relative' }}>
                     <Lock size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                     <input
+                      id="login-mot-de-passe"
+                      aria-invalid={errors.motDePasse ? true : undefined}
+                      aria-describedby={errors.motDePasse ? 'login-mot-de-passe-erreur' : undefined}
                       className={`input ${errors.motDePasse ? 'invalid' : ''}`}
                       style={{ paddingLeft: 38, paddingRight: 40 }}
                       type={showPassword ? 'text' : 'password'}
@@ -189,7 +204,9 @@ export default function Login() {
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
-                  {errors.motDePasse && <div className="error">{errors.motDePasse}</div>}
+                  {errors.motDePasse && (
+                    <div className="error" id="login-mot-de-passe-erreur" role="alert">{errors.motDePasse}</div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}>

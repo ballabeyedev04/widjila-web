@@ -15,6 +15,8 @@ import {
 } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { useEnum } from '../../hooks/useEnums.js';
+import { ApercuProtege, LienFichierProtege } from '../FichierProtege.jsx';
+import { EXTENSIONS_GED, TYPES_GED } from '../../service/securite.js';
 
 
 /**
@@ -129,6 +131,7 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
               <input
                 type="file"
                 style={{ display: 'none' }}
+                accept={[...EXTENSIONS_GED, ...TYPES_GED].join(',')}
                 onChange={(e) => { etat.ajouterFichier(e.target.files?.[0]); e.target.value = ''; }}
               />
             </label>
@@ -137,9 +140,11 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
             <ul style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {pieces.map((p) => (
                 <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Téléchargement AVEC la session : un lien nu vers /uploads
+                      partait sans jeton, vers le domaine de l'admin — il
+                      ouvrait l'application au lieu du fichier. */}
                   <span style={{ fontSize: 13 }}>
-                    <Paperclip size={13} style={{ verticalAlign: -2 }} />{' '}
-                    <a href={p.fichier_url} target="_blank" rel="noopener noreferrer">{p.nom_fichier}</a>
+                    <LienFichierProtege url={p.fichier_url} nom={p.nom_fichier} />
                   </span>
                   {canDelete && (
                     <button
@@ -248,7 +253,7 @@ export default function ReserveDetailCorps({ etat, canAct, canDelete, onChanged 
             {medias.length === 0 && <p className="text-muted">{t('reserves.aucunMedia')}</p>}
             {medias.map((m) => (
               <div key={m.id} className="media-thumb">
-                {m.url && <img src={m.url} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+                {m.url && <ApercuProtege url={m.url} />}
                 {canDelete && (
                   <button
                     className="btn btn-ghost btn-sm"

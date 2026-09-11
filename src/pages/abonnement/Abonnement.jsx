@@ -1,19 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Check, Loader2, AlertCircle, Shield, Zap, Users, Infinity as InfinityIcon, Star, Smartphone, ArrowRight } from 'lucide-react';
+import {
+  CreditCard, Check, Loader2, AlertCircle, Shield, Zap,
+  Infinity as InfinityIcon, Star,
+} from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 
-import { getPlans, getStatus, creerPaymentIntent } from '../../service/subscription/subscriptionService.js';
-import { createPayTechPayment, verifyPayTechPayment } from '../../service/paytech/paytechService.js';
+import { getPlans, getStatus, getDroits, getHistorique, creerPaymentIntent } from '../../service/subscription/subscriptionService.js';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { useUser } from '../../context/useUser.js';
+import { roleAllowed, ROLES_GESTION } from '../../utils/constants.js';
 import SwalCustom from '../../utils/swal.config.js';
 import '../../assets/css/abonnement.css';
+import PaymentForm from './sections/FormulaireCarte.jsx';
+import { CarteUsage, SectionHistorique } from './sections/EtatAbonnement.jsx';
+import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
 
 const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const USE_PAYTECH = import.meta.env.VITE_USE_PAYTECH === 'true';
 
 const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
@@ -28,131 +33,6 @@ function IconePlan({ code, size = 28 }) {
   if (code === 'pro') return <Zap size={size} />;
   if (code === 'entreprise') return <InfinityIcon size={size} />;
   return <Star size={size} />;
-}
-
-/**
- * Formulaire de carte.
- *
- * Il tient son propre état d'erreur et l'affiche sous le champ : l'erreur doit
- * être à côté de ce qui l'a provoquée. Il n'expose donc PAS de `onError` au
- * parent — un tel rappel afficherait le même message une seconde fois, en
- * haut de page.
- */
-function PaymentForm({ plan, clientSecret, onSuccess, loading }) {
-  const { t } = useTranslation('plateforme');
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) {
-      setError(t('abonnement.stripeNonCharge'));
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setError(t('abonnement.carteIntrouvable'));
-      setProcessing(false);
-      return;
-    }
-
-    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-      clientSecret,
-      { payment_method: { card: cardElement } }
-    );
-
-    if (stripeError) {
-      // Carte refusee, fonds insuffisants, 3-D Secure echoue : le message de
-      // Stripe est deja precis et traduit, mieux vaut le relayer tel quel.
-      setError(stripeError.message || t('abonnement.erreurPaiement'));
-      setProcessing(false);
-      return;
-    }
-
-    // Le statut decide, et rien d'autre. Cet ecran ne fait qu'AUTORISER le
-    // debit ; c'est le webhook, cote serveur, qui activera l'abonnement.
-    switch (paymentIntent?.status) {
-      case 'succeeded':
-      case 'processing':
-        // `processing` n'est PAS un echec. Certains paiements se denouent en
-        // differe : les afficher en rouge alarmait pour un debit qui aboutit.
-        // On laisse le serveur trancher.
-        onSuccess(paymentIntent.status);
-        break;
-
-      case 'requires_payment_method':
-        // Stripe a rendu le PaymentIntent reutilisable : la carte a ete
-        // refusee, une autre peut etre saisie sans tout recommencer.
-        setError(t('abonnement.paiementRefuse'));
-        setProcessing(false);
-        break;
-
-      default:
-        // `requires_action`, `requires_confirmation`... Rien n'est perdu, mais
-        // rien n'est acquis non plus : on ne promet pas.
-        setError(t('abonnement.paiementNonConfirme'));
-        setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="payment-form">
-      <div className="payment-form-header">
-        <Shield size={20} className="secure-icon" />
-        <span>{t('abonnement.paiementSecurise')}</span>
-      </div>
-
-      <div className="payment-field">
-        <label>{t('abonnement.carteBancaire')}</label>
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '15px',
-                color: '#1e293b',
-                '::placeholder': { color: '#94a3b8' },
-                padding: '12px',
-              },
-              invalid: { color: '#ef4444', iconColor: '#ef4444' },
-            },
-          }}
-        />
-      </div>
-
-      {error && <div className="payment-error"><AlertCircle size={14} /> {error}</div>}
-
-      <button
-        type="submit"
-        className="btn btn-primary w-full btn-lg"
-        disabled={processing || loading || !stripe}
-      >
-        {processing ? (
-          <>
-            <Loader2 size={16} className="spin" /> {t('abonnement.traitement')}
-          </>
-        ) : loading ? (
-          <>
-            <Loader2 size={16} className="spin" /> {t('abonnement.preparation')}
-          </>
-        ) : (
-          <>
-            {t('abonnement.confirmerPaiement', { prix: plan.prix })}
-            <CreditCard size={16} />
-          </>
-        )}
-      </button>
-
-      <p className="payment-hint">
-        <Shield size={12} /> {t('abonnement.donneesCarteHint')}
-      </p>
-    </form>
-  );
 }
 
 /* ── Page principale ── */
@@ -170,6 +50,17 @@ export default function Abonnement() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Droits et usage réels (`/abonnement/droits`) : la formule en cours, ses
+  // limites, et ce qui en est consommé. Ouverts à tous les rôles connectés.
+  const [droits, setDroits] = useState(null);
+  const [usage, setUsage] = useState(null);
+  // Historique des règlements. `null` tant qu'on ne sait pas — un tableau vide
+  // signifierait « aucun paiement », ce qui n'est pas la même chose.
+  const [historique, setHistorique] = useState(null);
+
+  // Le serveur réserve l'historique au groupe FACTURATION : l'appeler pour un
+  // autre rôle produit un 403 à chaque ouverture de l'écran.
+  const voitLaFacturation = roleAllowed(user?.role, ROLES_GESTION);
 
   // Charger les plans (public) et le statut (auth)
   useEffect(() => {
@@ -190,6 +81,35 @@ export default function Abonnement() {
     };
     fetchData();
   }, []);
+
+  /* ---------- Droits, usage et règlements ---------- */
+  //
+  // Chargés à part de la grille des plans, et jamais bloquants : cet écran doit
+  // rester consultable par un visiteur non connecté, pour qui ces trois appels
+  // n'ont pas de réponse. Un échec laisse simplement la section absente.
+  useEffect(() => {
+    if (!user) return undefined;
+    let vivant = true;
+
+    getDroits()
+      .then((d) => {
+        if (!vivant || !d) return;
+        setDroits(d.droits || null);
+        setUsage(d.usage || null);
+      })
+      .catch(() => { /* section « Votre formule » non affichée */ });
+
+    // Le second appel n'est PAS conditionné par un `return` anticipé : celui-ci
+    // sauterait le nettoyage ci-dessous, et une réponse de `getDroits` arrivée
+    // après le démontage écrirait dans un composant disparu.
+    if (voitLaFacturation) {
+      getHistorique()
+        .then((lignes) => { if (vivant) setHistorique(lignes); })
+        .catch(() => { /* section « Historique » non affichée */ });
+    }
+
+    return () => { vivant = false; };
+  }, [user, voitLaFacturation]);
 
   // Si un plan est sélectionné, créer la PaymentIntent
   useEffect(() => {
@@ -234,56 +154,11 @@ export default function Abonnement() {
    * lendemains difficiles. Une quinzaine de secondes au total, puis on renonce
    * -- sans jamais affirmer que le paiement a echoue, ce que nous ignorons.
    */
-  const attendreConfirmationServeur = useCallback(async () => {
-    const attentes = [0, 900, 1600, 2600, 3800, 5000];
-    for (const attente of attentes) {
-      if (attente) await new Promise((r) => setTimeout(r, attente));
-      try {
-        const res = await getStatus();
-        if (res) {
-          setStatus(res);
-          if (res.isSubscribed) return true;
-        }
-      } catch {
-        // Reseau instable : on retente. Ce n'est pas une reponse du serveur.
-      }
-    }
-    return false;
-  }, []);
-
-  // Retour depuis une page de paiement externe (`?payment=...`).
-  //
-  // Le parametre d'URL n'est PAS une preuve : n'importe qui peut l'ajouter a
-  // la main, et il survit dans l'historique du navigateur. Cet ecran affichait
-  // pourtant « Paiement reussi ! Votre abonnement est actif. » sur sa seule
-  // presence. On interroge desormais le serveur, et lui seul decide du
-  // message.
-  //
-  // Un seul ecouteur : il y en avait DEUX, sur la meme condition, chacun
-  // annoncant le succes de son cote.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const retour = params.get('payment');
-    if (!retour) return;
-
-    const reference = params.get('ref');
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    if (retour === 'cancel') {
-      SwalCustom.info(t('abonnement.paiementAnnule'));
-      return;
-    }
-    if (retour !== 'success') return;
-
-    (async () => {
-      if (reference) await verifyPayTechPayment(null, reference).catch(() => {});
-      setConfirmation(true);
-      const actif = await attendreConfirmationServeur();
-      setConfirmation(false);
-      if (actif) SwalCustom.success(t('abonnement.paiementReussi'));
-      else SwalCustom.info(t('abonnement.paiementNonConfirme'));
-    })();
-  }, [t, attendreConfirmationServeur]);
+  const attendreConfirmationServeur = useCallback(() => attendreConfirmation(async () => {
+    const res = await getStatus();
+    if (res) setStatus(res);
+    return Boolean(res?.isSubscribed);
+  }), []);
 
   const handleSelectPlan = (plan) => {
     setSelectedPlan(plan);
@@ -310,28 +185,6 @@ export default function Abonnement() {
     setSelectedPlan(null);
     setClientSecret(null);
   };
-
-  // Handler pour PayTech
-  const handlePayTechPayment = useCallback(async () => {
-    if (!selectedPlan) return;
-    setPaymentLoading(true);
-    setError(null);
-    try {
-      const result = await createPayTechPayment(selectedPlan.id);
-      if (result.redirectUrl) {
-        // Rediriger vers PayTech (nouvel onglet recommandé)
-        window.open(result.redirectUrl, '_blank', 'noopener,noreferrer');
-        // Poller le statut après un délai
-        setTimeout(() => {
-          getStatus().then((res) => res && setStatus(res));
-        }, 3000);
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setPaymentLoading(false);
-    }
-  }, [selectedPlan]);
 
   const getTrialInfo = () => {
     if (!status) return null;
@@ -412,6 +265,15 @@ export default function Abonnement() {
           <AlertCircle size={18} /> {error}
         </div>
       )}
+
+      {/* ── Votre formule : ce qu'elle permet, et ce qu'il en reste ──
+          Placée AVANT la grille des offres : la première question de quelqu'un
+          qui ouvre cet écran n'est pas « que proposez-vous ? » mais « où en
+          suis-je ? ». */}
+      <CarteUsage droits={droits} usage={usage} />
+
+      {/* ── Historique des règlements ── */}
+      {voitLaFacturation && historique && <SectionHistorique lignes={historique} />}
 
       {/* ── Grille des plans ── */}
       {!selectedPlan ? (
@@ -520,42 +382,23 @@ export default function Abonnement() {
             </div>
           </div>
 
-          {/* ── Options de paiement ── */}
+          {/* ── Paiement par carte bancaire ──
+              Un SEUL moyen de paiement : la carte, via Stripe. C'est aussi la
+              surface de paiement du MOBILE, qui n'encaisse rien lui-même et
+              ouvre cette page dans le navigateur (voir `Env.abonnementUrl`
+              côté Flutter). Les deux plateformes passent donc exactement par
+              le même parcours. */}
           <div className="payment-methods">
-            {/* PayTech - Priorité si configuré */}
-            {USE_PAYTECH && (
-              <button
-                type="button"
-                className="btn btn-accent w-full btn-lg payment-method-btn"
-                onClick={handlePayTechPayment}
-                disabled={paymentLoading}
-              >
-                {paymentLoading ? (
-                  <>
-                    <Loader2 size={16} className="spin" /> {t('abonnement.redirectionPaytech')}
-                  </>
-                ) : (
-                  <>
-                    <Smartphone size={18} /> {t('abonnement.payerPaytech')}
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-            )}
-
             {/* Stripe - Carte bancaire */}
             {stripePromise ? (
-              <>
-                <div className="payment-divider">{t('abonnement.ou')}</div>
-                <Elements stripe={stripePromise}>
-                  <PaymentForm
-                    plan={selectedPlan}
-                    clientSecret={clientSecret}
-                    onSuccess={handlePaymentSuccess}
-                    loading={paymentLoading}
-                  />
-                </Elements>
-              </>
+              <Elements stripe={stripePromise}>
+                <PaymentForm
+                  plan={selectedPlan}
+                  clientSecret={clientSecret}
+                  onSuccess={handlePaymentSuccess}
+                  loading={paymentLoading}
+                />
+              </Elements>
             ) : (
               <div className="stripe-unavailable">
                 <AlertCircle size={32} />

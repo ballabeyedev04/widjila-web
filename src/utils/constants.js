@@ -112,6 +112,21 @@ export const ROLES_PARTENAIRES = ['Admin', 'ChefProjet', 'ConducteurTravaux', 'M
 export const ROLES_RESERVE_INTERVENANTS = ['ChefProjet', 'ConducteurTravaux', 'BureauControle', 'MaitreOuvrage', 'MaitreOeuvre', ROLE_TITULAIRE, 'Pilote'];
 
 /**
+ * DÉPOSANT — miroir du groupe backend qui garde `POST /chantiers` ET
+ * `POST /chantiers/:id/plans`.
+ *
+ * Le serveur n'en fait qu'un seul groupe parce que c'est le même parcours :
+ * une entreprise demande un chantier et y joint ses plans. Proposer l'écran de
+ * dépôt à un client ou à un sous-traitant le mènerait jusqu'au sélecteur de
+ * chantier pour finir sur un 403.
+ *
+ * Filtre GROSSIER, comme côté serveur : la garde fine vit dans
+ * `plan.service.js#upload` — un rôle hors OPERATIONNEL_CONTROLE ne dépose que
+ * sur SA PROPRE demande encore en attente.
+ */
+export const ROLES_DEPOSANT = [...ROLES_OPERATIONNELS_CONTROLE, 'MaitreOuvrage'];
+
+/**
  * Page d'accueil après connexion, par rôle (le « portail » de l'utilisateur).
  * Tous arrivent sur le tableau de bord : le menu affiché dépend du rôle.
  */

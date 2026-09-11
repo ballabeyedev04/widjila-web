@@ -3,9 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Spinner from '../components/Spinner.jsx';
 
 import Login from '../pages/auth/Login.jsx';
-import Register from '../pages/auth/Register.jsx';
-import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
-import ResetPassword from '../pages/auth/ResetPassword.jsx';
+const Register = lazy(() => import('../pages/auth/Register.jsx'));
+const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('../pages/auth/ResetPassword.jsx'));
 // Écrans différés — voir le commentaire de `Suspense` plus bas.
 // `/abonnement` tire tout le SDK Stripe : le charger d'emblée le mettait
 // dans le premier octet servi à chaque visiteur, pour un écran que la
@@ -14,6 +14,23 @@ const Abonnement = lazy(() => import('../pages/abonnement/Abonnement.jsx'));
 const ConditionsUtilisation = lazy(() => import('../pages/legal/ConditionsUtilisation.jsx'));
 const PolitiqueConfidentialite = lazy(() => import('../pages/legal/PolitiqueConfidentialite.jsx'));
 
+// ── CHARGEMENT DIFFÉRÉ DES ÉCRANS ────────────────────────────────────────
+//
+// Vingt écrans étaient importés statiquement ici : 223 Ko de source partaient
+// dans le paquet d'entrée, servis à quiconque ouvre l'application — page de
+// connexion comprise — pour des pages que la plupart des rôles n'ouvrent
+// jamais. Un chef de projet téléchargeait l'espace plateforme du super-admin,
+// une entreprise téléchargeait les référentiels qu'elle ne voit pas.
+//
+// Trois écrans restent immédiats, et seulement eux :
+//   - `Login` : la première chose que voit un visiteur non connecté ;
+//   - `Dashboard` : le portail de la majorité des rôles après connexion ;
+//   - `NotFound` : minuscule, et atteignable depuis n'importe quelle URL.
+//
+// Tous les autres sont différés. La table entière est enveloppée d'un
+// `<Suspense>` unique (voir plus bas) dont le repli est le même spinner que
+// celui des gardes d'accès : l'attente ressemble à ce que l'utilisateur voit
+// déjà, elle ne se remarque pas comme un défaut.
 import AdminLayout from '../layouts/AdminLayout.jsx';
 // Rappel (voir ProtectedRoute.jsx) : ces gardes ne font que masquer l'UI. Les
 // endpoints appelés par les pages ci-dessous doivent vérifier eux-mêmes les
@@ -29,22 +46,22 @@ function HomeRedirect() {
 }
 
 import Dashboard from '../pages/dashboard/Dashboard.jsx';
-import Profile from '../pages/account/Profile.jsx';
+const Profile = lazy(() => import('../pages/account/Profile.jsx'));
 // Différé pour la même raison qu'`Abonnement` : cet écran de réglages
 // embarque lui aussi le SDK Stripe, qui restait donc dans le bundle de
 // démarrage de tout le monde. C'est une page de configuration, ouverte
 // ponctuellement — pas un écran du travail quotidien.
 const Organisation = lazy(() => import('../pages/organisation/Organisation.jsx'));
-import Membres from '../pages/organisation/Membres.jsx';
-import Equipes from '../pages/organisation/Equipes.jsx';
-import Partenaires from '../pages/organisation/Partenaires.jsx';
-import CorpsEtat from '../pages/corpsEtat/CorpsEtat.jsx';
-import Phases from '../pages/phase/Phases.jsx';
-import ReferentielTypes from '../pages/referentiel/ReferentielTypes.jsx';
-import Chantiers from '../pages/chantier/Chantiers.jsx';
-import ChantierDetail from '../pages/chantier/ChantierDetail.jsx';
-import DemandesChantier from '../pages/chantier/DemandesChantier.jsx';
-import Notifications from '../pages/notification/Notifications.jsx';
+const Membres = lazy(() => import('../pages/organisation/Membres.jsx'));
+const Equipes = lazy(() => import('../pages/organisation/Equipes.jsx'));
+const Partenaires = lazy(() => import('../pages/organisation/Partenaires.jsx'));
+const CorpsEtat = lazy(() => import('../pages/corpsEtat/CorpsEtat.jsx'));
+const Phases = lazy(() => import('../pages/phase/Phases.jsx'));
+const ReferentielTypes = lazy(() => import('../pages/referentiel/ReferentielTypes.jsx'));
+const Chantiers = lazy(() => import('../pages/chantier/Chantiers.jsx'));
+const ChantierDetail = lazy(() => import('../pages/chantier/ChantierDetail.jsx'));
+const DemandesChantier = lazy(() => import('../pages/chantier/DemandesChantier.jsx'));
+const Notifications = lazy(() => import('../pages/notification/Notifications.jsx'));
 import NotFound from '../pages/error/NotFound.jsx';
 
 // Espace PLATEFORME — réservé au super-admin. Aucun autre rôle ne l'ouvre,
@@ -57,6 +74,15 @@ import NotFound from '../pages/error/NotFound.jsx';
 // sur la page de connexion, pour un ecran que seul le valideur visite.
 // Les autres ecrans a plan (`PlansTab`, `TousPlans`) le faisaient deja.
 const DemandeChantierDetail = lazy(() => import('../pages/chantier/DemandeChantierDetail.jsx'));
+
+// Dépôt guidé des plans — monte `PlanVignette`, donc pdf.js. Chargé à la
+// demande pour la même raison que l'écran ci-dessus.
+const DepotPlans = lazy(() => import('../pages/chantier/DepotPlans.jsx'));
+
+// Explorateur de plans — descend l'arborescence `plans.parent_id` d'un chantier
+// jusqu'au plan où l'on pose la réserve. Monte `PlanCanvas`, donc pdf.js :
+// chargé à la demande pour la même raison que les deux écrans ci-dessus.
+const PlanExplorer = lazy(() => import('../pages/plan/PlanExplorer.jsx'));
 const PlateformeDashboard = lazy(() => import('../pages/plateforme/PlateformeDashboard.jsx'));
 const PlateformeUtilisateurs = lazy(() => import('../pages/plateforme/PlateformeUtilisateurs.jsx'));
 const PlateformeOrganisations = lazy(() => import('../pages/plateforme/PlateformeOrganisations.jsx'));
@@ -65,9 +91,9 @@ const PlateformeAudit = lazy(() => import('../pages/plateforme/PlateformeAudit.j
 const PlateformePrixAbonnements = lazy(() => import('../pages/plateforme/PlateformePrixAbonnements.jsx'));
 const PlateformeSuppressions = lazy(() => import('../pages/plateforme/PlateformeSuppressions.jsx'));
 const SuppressionCompte = lazy(() => import('../pages/legal/SuppressionCompte.jsx'));
-import ToutesReserves from '../pages/reserve/ToutesReserves.jsx';
-import ReserveDetail from '../pages/reserve/ReserveDetail.jsx';
-import TousPlans from '../pages/plan/TousPlans.jsx';
+const ToutesReserves = lazy(() => import('../pages/reserve/ToutesReserves.jsx'));
+const ReserveDetail = lazy(() => import('../pages/reserve/ReserveDetail.jsx'));
+const TousPlans = lazy(() => import('../pages/plan/TousPlans.jsx'));
 
 export default function AppRoutes() {
   return (
@@ -148,7 +174,25 @@ export default function AppRoutes() {
             lecture. */}
         <Route path="chantiers/demandes/:id" element={<DemandeChantierDetail />} />
         <Route path="chantiers" element={<Chantiers />} />
+        {/* Explorateur de plans — le parcours de relevé du mobile, porté au
+            web : plans globaux → sous-plans → plan → clic → nouvelle réserve.
+            Déclarée AVANT `chantiers/:id` par souci de lecture ; React Router
+            classe de toute façon le segment statique `plans` avant le
+            paramètre, les deux ne peuvent donc pas entrer en collision.
+            `?nom=` porte le nom du chantier (le fil d'Ariane commence par
+            lui), `?planId=` ouvre directement SUR un plan au lieu de partir
+            des plans globaux. */}
+        <Route path="chantiers/:chantierId/plans/explorer" element={<PlanExplorer />} />
         <Route path="chantiers/:id" element={<ChantierDetail />} />
+        {/* Dépôt guidé des plans, comme sur mobile.
+            SANS chantier : le parcours de l'entreprise commence par les plans
+            et finit par le formulaire de demande — les valideurs reçoivent
+            ainsi une demande complète, pas un chantier vide.
+            AVEC chantier : chaque ajout part au serveur sur-le-champ.
+            Deux chemins distincts plutôt qu'un paramètre facultatif, que
+            React Router résoudrait mais qui rendrait l'intention illisible. */}
+        <Route path="depot-plans" element={<DepotPlans />} />
+        <Route path="depot-plans/:chantierId" element={<DepotPlans />} />
         <Route path="notifications" element={<Notifications />} />
 
         {/* ---------- Super-admin (plateforme) ---------- */}

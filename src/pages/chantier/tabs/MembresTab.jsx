@@ -11,6 +11,8 @@ import { initials } from '../../../utils/format.js';
 import { ROLES, roleLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
 import { useEnum } from '../../../hooks/useEnums.js';
+import { chargerToutesLesPages } from '../../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../../utils/monitoring.js';
 
 export default function MembresTab({ chantierId, canManage }) {
   // Rôles servis par l'API — voir hooks/useEnums.js.
@@ -40,7 +42,12 @@ export default function MembresTab({ chantierId, canManage }) {
   }, [chantierId, t]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    listerMembres({ limit: 100 }).then((d) => setOrgMembres(d.items)).catch(() => {});
+    chargerToutesLesPages(listerMembres)
+      .then(setOrgMembres)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/chantier/tabs/MembresTab.jsx' }));
   }, []);
 
   const add = async () => {

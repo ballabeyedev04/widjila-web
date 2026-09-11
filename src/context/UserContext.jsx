@@ -5,6 +5,7 @@ import {
   clearUser as clearPersistedUser,
   getStoredToken,
   tenterReconnexionSilencieuse,
+  ecouterFinDeSession,
 } from '../service/api.js';
 import { UserContext } from './userContextInstance.js';
 import { identifierUtilisateur, effacerUtilisateur } from '../utils/monitoring.js';
@@ -53,6 +54,16 @@ export function UserProvider({ children }) {
     hydrater();
     return () => { annule = true; };
   }, []);
+
+  // Déconnexion dans un AUTRE onglet (ou session refusée par le serveur) :
+  // cet onglet partage le même cookie, sa session est donc morte aussi. On la
+  // ferme ici plutôt que de laisser un jeton d'accès valide encore une heure.
+  useEffect(() => ecouterFinDeSession(() => {
+    clearPersistedUser();
+    setUserState(null);
+    effacerUtilisateur();
+    if (!window.location.pathname.startsWith('/login')) window.location.replace('/login');
+  }), []);
 
   const setUser = useCallback((newUser) => {
     persistUser(newUser);

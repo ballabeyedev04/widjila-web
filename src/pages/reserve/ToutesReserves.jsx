@@ -15,6 +15,8 @@ import { listerChantiers } from '../../service/chantier/chantierService.js';
 import { formatDate } from '../../utils/format.js';
 import { STATUTS_RESERVE, SEVERITES, PRIORITES, enumLabel } from '../../utils/constants.js';
 import { useEnum } from '../../hooks/useEnums.js';
+import { chargerToutesLesPages } from '../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../utils/monitoring.js';
 
 const FILTRES_VIDES = { search: '', statut: '', severite: '', priorite: '', chantierId: '' };
 
@@ -59,7 +61,12 @@ export default function ToutesReserves() {
   // Alimente le sélecteur de chantier. Échec silencieux : le filtre reste
   // vide, la liste fonctionne quand même.
   useEffect(() => {
-    listerChantiers({ limit: 100 }).then((d) => setChantiers(d.items)).catch(() => {});
+    chargerToutesLesPages(listerChantiers)
+      .then(setChantiers)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/reserve/ToutesReserves.jsx' }));
   }, []);
 
   const filtresActifs = Object.entries(filters).some(([, v]) => v);
@@ -70,38 +77,37 @@ export default function ToutesReserves() {
       <PageHeader title={t('reserves.toutesTitre')} subtitle={t('reserves.toutesSousTitre', { total })} />
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-body" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-            <Search size={15} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+        <div className="card-body barre-filtres">
+          <div className="champ-recherche">
+            <Search size={15} />
             <input
               className="input"
-              style={{ paddingLeft: 34, width: '100%' }}
               placeholder={t('reserves.rechercheGlobalePlaceholder')}
               value={filters.search}
               onChange={(e) => maj('search', e.target.value)}
             />
           </div>
 
-          <select className="input" style={{ minWidth: 190 }} value={filters.chantierId} onChange={(e) => maj('chantierId', e.target.value)}>
+          <select className="input" value={filters.chantierId} onChange={(e) => maj('chantierId', e.target.value)}>
             <option value="">{t('reserves.tousChantiers')}</option>
             {chantiers.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
 
-          <select className="input" style={{ minWidth: 150 }} value={filters.statut} onChange={(e) => maj('statut', e.target.value)}>
+          <select className="input" value={filters.statut} onChange={(e) => maj('statut', e.target.value)}>
             <option value="">{t('reserves.tousStatuts')}</option>
             {statutsReserve.map((cle) => (
               <option key={cle} value={cle}>{enumLabel(cle, STATUTS_RESERVE[cle]?.label)}</option>
             ))}
           </select>
 
-          <select className="input" style={{ minWidth: 140 }} value={filters.severite} onChange={(e) => maj('severite', e.target.value)}>
+          <select className="input" value={filters.severite} onChange={(e) => maj('severite', e.target.value)}>
             <option value="">{t('reserves.toutesSeverites')}</option>
             {severites.map((cle) => (
               <option key={cle} value={cle}>{enumLabel(cle, SEVERITES[cle]?.label)}</option>
             ))}
           </select>
 
-          <select className="input" style={{ minWidth: 140 }} value={filters.priorite} onChange={(e) => maj('priorite', e.target.value)}>
+          <select className="input" value={filters.priorite} onChange={(e) => maj('priorite', e.target.value)}>
             <option value="">{t('reserves.toutesPriorites')}</option>
             {priorites.map((cle) => (
               <option key={cle} value={cle}>{enumLabel(cle, PRIORITES[cle]?.label)}</option>

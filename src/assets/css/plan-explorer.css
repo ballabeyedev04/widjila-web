@@ -1,0 +1,348 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Explorateur de plans (PlanExplorer) — descente de l'arborescence des plans,
+   jumeau web de l'écran du même nom sur mobile.
+
+   Aucune couleur nouvelle : tout passe par les variables de thème déjà
+   définies dans index.css (--primary, --border, --text…). La visionneuse
+   elle-même a sa propre feuille (plan-canvas.css) ; celle-ci n'habille que ce
+   qui l'entoure — bandeau, tuiles, panneau du bas, fiche de réserve.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.pexp {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Bandeau de navigation ─────────────────────────────────────────────── */
+
+.pexp-bandeau {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pexp-bandeau-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--primary-100);
+  color: var(--primary);
+}
+
+.pexp-bandeau-textes {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;      /* sans quoi l'ellipse ne s'applique pas dans un flex */
+  flex: 1;
+}
+.pexp-bandeau-textes strong {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pexp-bandeau-textes span {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Titres de section ─────────────────────────────────────────────────── */
+
+.pexp-section-titre {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ── Grille de tuiles ──────────────────────────────────────────────────── */
+
+.pexp-grille {
+  display: grid;
+  /* `auto-fill` plutôt qu'un nombre de colonnes figé : la grille suit la
+     largeur réellement disponible — trois colonnes sur un écran de bureau,
+     une seule dans le panneau étroit d'une tablette — sans point de rupture à
+     tenir à jour. */
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.pexp-tuile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.pexp-tuile:hover {
+  border-color: var(--primary-200);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.pexp-tuile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pexp-tuile-apercu {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--primary);
+}
+.pexp-tuile-apercu img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pexp-tuile-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.pexp-tuile-nom {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pexp-tuile-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.pexp-tuile-attente {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warning-text);
+}
+.pexp-tuile-chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+/* ── Plan ouvert ───────────────────────────────────────────────────────── */
+
+.pexp-ouvert {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Le bandeau d'aide dit CE QUE FAIT UN CLIC. Sans lui, un plan cliquable et un
+   plan en lecture seule se ressemblent exactement — et l'on découvre la
+   différence en cliquant. */
+.pexp-aide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.pexp-aide.active {
+  color: var(--primary-darker);
+  background: var(--primary-100);
+  border-color: var(--primary-200);
+}
+.pexp-aide-outils {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.pexp-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pexp-panneau {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ── Liste des réserves du plan ────────────────────────────────────────── */
+
+.pexp-reserves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pexp-reserves button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pexp-reserves button:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+.pexp-reserve-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pexp-puce {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+/* ── Fiche d'une réserve ───────────────────────────────────────────────── */
+
+.pexp-fiche-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.pexp-fiche-photo {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+.pexp-fiche-observation {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;   /* les retours à la ligne de la saisie comptent */
+}
+.pexp-fiche-infos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.pexp-fiche-infos > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pexp-fiche-infos dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pexp-fiche-infos dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Tablette et téléphone
+
+   L'explorateur est l'écran de travail du relevé : c'est celui qui sera le
+   plus souvent ouvert sur une tablette de chantier, parfois sur un téléphone.
+   Trois choses cèdent, dans cet ordre : la largeur des tuiles, la place du
+   panneau du bas, puis les libellés des outils.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Tablette — deux colonnes deviennent une dès que la tuile passerait sous sa
+   largeur lisible. `auto-fill` s'en charge seul ; on ne reprend la main que
+   pour resserrer les marges. */
+@media (max-width: 900px) {
+  .pexp { gap: 12px; }
+  .pexp-bandeau { padding: 9px 12px; }
+  .pexp-panneau { padding: 14px; gap: 14px; }
+}
+
+@media (max-width: 600px) {
+  /* Une seule colonne : à 320-420 px, deux tuiles côte à côte ne laissent au
+     nom du plan que six ou sept caractères — « Apparte… » ne distingue pas
+     A201 de A202. */
+  .pexp-grille { grid-template-columns: 1fr; gap: 10px; }
+
+  .pexp-bandeau { padding: 8px 10px; gap: 8px; }
+  .pexp-bandeau-icone { width: 32px; height: 32px; }
+  .pexp-bandeau-textes strong { font-size: 14.5px; }
+  .pexp-bandeau-textes span { font-size: 11.5px; }
+
+  .pexp-tuile { padding: 10px; gap: 10px; }
+  .pexp-tuile-apercu { width: 52px; height: 52px; flex-basis: 52px; }
+  .pexp-tuile-nom { font-size: 13.5px; }
+
+  /* Le bandeau d'aide passe sur deux lignes : la phrase d'abord, les outils
+     ensuite, alignés à droite. Les garder sur la même ligne réduisait la
+     pagination à deux flèches sans le numéro de page. */
+  .pexp-aide { font-size: 12px; padding: 8px 10px; }
+  .pexp-aide-outils { margin-left: 0; width: 100%; justify-content: flex-end; }
+
+  .pexp-panneau { padding: 12px; }
+  .pexp-reserves button { padding: 8px; font-size: 12.5px; }
+
+  .pexp-fiche-infos > div {
+    /* Libellé au-dessus de la valeur : côte à côte, « Relevée par » et un nom
+       complet se chevauchaient sur un écran étroit. */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+  .pexp-fiche-infos dd { text-align: left; }
+}

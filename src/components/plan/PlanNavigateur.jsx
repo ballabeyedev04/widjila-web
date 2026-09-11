@@ -12,6 +12,7 @@ import { listerPlans, getPlan, fetchFichierBlob } from '../../service/plan/planS
 import { listerPartenairesChantier } from '../../service/organisation/organisationService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { STATUTS_RESERVE, enumLabel } from '../../utils/constants.js';
+import { COULEUR_SEVERITE } from './severiteCouleurs.js';
 import SwalCustom from '../../utils/swal.config.js';
 
 /**
@@ -30,14 +31,6 @@ import SwalCustom from '../../utils/swal.config.js';
  * Le parcours ne dépend donc jamais d'une mise en place qui n'aurait pas été
  * faite : un chantier sans hotspot reste entièrement navigable.
  */
-
-/** Couleur du repère d'une réserve — reprend la palette de gravité du thème. */
-const COULEUR_SEVERITE = {
-  faible: 'var(--info)',
-  moyenne: 'var(--warning)',
-  haute: 'var(--danger)',
-  critique: 'var(--danger)',
-};
 
 /**
  * Regroupe les étages comme la maquette : sous-sols, étages, toiture.
@@ -544,4 +537,3 @@ function VuePlan({
   );
 }
 
-export { COULEUR_SEVERITE };

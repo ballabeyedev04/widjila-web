@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, X, Upload, Trash2, FileText, Archive, RotateCcw, PenTool, Download, Clock } from 'lucide-react';
+import { Plus, Search, X, Upload, Trash2, FileText, Archive, RotateCcw, PenTool, Download, Clock, Eye } from 'lucide-react';
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
@@ -10,12 +10,22 @@ import {
   uploaderDocument, listerDocuments, archiverDocument, restaurerDocument,
   signerDocument, listerSignaturesDocument, supprimerDocument,
 } from '../../../service/document/documentService.js';
-import { fetchFichierBlob } from '../../../service/plan/planService.js';
+import { fetchFichierBlob, telechargerFichierProtege } from '../../../service/plan/planService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate } from '../../../utils/format.js';
 import { TYPES_DOCUMENT, STATUTS_DOCUMENT, enumLabel } from '../../../utils/constants.js';
 import SwalCustom from '../../../utils/swal.config.js';
 import { useEnum } from '../../../hooks/useEnums.js';
+import {
+  motifRefusFichierGed, EXTENSIONS_GED, TYPES_GED, ErreurTypeFichier,
+} from '../../../service/securite.js';
+import { messageRefusFichier } from '../../../service/helpers.js';
+
+/**
+ * Nom d'un document. Le serveur le renvoie sous `nom_fichier` : l'écran lisait
+ * `nom`, qui n'existe pas, et la colonne « Document » restait vide.
+ */
+const nomDocument = (d) => d?.nom_fichier || d?.nom || '—';
 
 export default function DocumentsTab({ chantierId, canManage }) {
   // Types et statuts servis par l'API — voir hooks/useEnums.js.
@@ -58,13 +68,22 @@ export default function DocumentsTab({ chantierId, canManage }) {
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
   const remove = async (d) => {
-    const res = await SwalCustom.confirm({ title: t('documents.supprimerTitre', { nom: d.nom }), icon: 'warning', danger: true });
+    const res = await SwalCustom.confirm({ title: t('documents.supprimerTitre', { nom: nomDocument(d) }), icon: 'warning', danger: true });
     if (!res) return;
     try {
       await supprimerDocument(d.id);
       SwalCustom.success(t('documents.supprime'));
       load();
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
+  };
+  // Le bouton « télécharger » ouvrait l'aperçu : un Word ou un DWG, que
+  // l'aperçu refuse, ne pouvait donc pas être récupéré du tout.
+  const telecharger = async (d) => {
+    try {
+      await telechargerFichierProtege(d.fichier_url, nomDocument(d));
+    } catch (err) {
+      SwalCustom.error({ title: t('documents.telechargementImpossible'), text: getErrorMessage(err) });
+    }
   };
 
   const colonnes = [
@@ -80,15 +99,8 @@ export default function DocumentsTab({ chantierId, canManage }) {
       cle: 'nom',
       titre: t('documents.colDocument'),
       filtre: 'texte',
-      // La description entre dans la recherche : c'est souvent là que se
-      // trouve le mot qu'on cherche, pas dans le nom de fichier.
-      valeur: (d) => `${d.nom ?? ''} ${d.description ?? ''}`.trim(),
-      rendu: (d) => (
-        <>
-          <button className="link" onClick={() => setViewing(d)}>{d.nom}</button>
-          {d.description && <div className="text-muted" style={{ fontSize: 12 }}>{d.description}</div>}
-        </>
-      ),
+      valeur: (d) => nomDocument(d),
+      rendu: (d) => <button className="link" onClick={() => setViewing(d)}>{nomDocument(d)}</button>,
     },
     {
       cle: 'type',
@@ -128,7 +140,8 @@ export default function DocumentsTab({ chantierId, canManage }) {
       alignement: 'droite',
       rendu: (d) => (
         <span style={{ whiteSpace: 'nowrap' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(d)} title={t('actions.voir')}><Download size={14} /></button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setViewing(d)} title={t('actions.voir')}><Eye size={14} /></button>
+          <button className="btn btn-ghost btn-sm" onClick={() => telecharger(d)} title={t('documents.telecharger')}><Download size={14} /></button>
           {canManage && (
             <>
               {d.statut === 'archive'
@@ -180,7 +193,13 @@ export default function DocumentsTab({ chantierId, canManage }) {
       </div>
 
       <UploadModal open={showUpload} onClose={() => setShowUpload(false)} chantierId={chantierId} onSaved={load} />
-      <DocumentViewerModal document={viewing} onClose={() => setViewing(null)} canManage={canManage} onChanged={load} />
+      <DocumentViewerModal
+        document={viewing}
+        onClose={() => setViewing(null)}
+        canManage={canManage}
+        onChanged={load}
+        onTelecharger={telecharger}
+      />
     </>
   );
 }
@@ -191,10 +210,9 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
   const [fichier, setFichier] = useState(null);
   const [nom, setNom] = useState('');
   const [type, setType] = useState('autre');
-  const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (open) { setFichier(null); setNom(''); setType('autre'); setDescription(''); } }, [open]);
+  useEffect(() => { if (open) { setFichier(null); setNom(''); setType('autre'); } }, [open]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -202,7 +220,9 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
     if (!nom.trim()) return SwalCustom.error(t('commun.nomRequisPoint'));
     setSaving(true);
     try {
-      await uploaderDocument(chantierId, { fichier, nom, type, description: description || undefined });
+      // Le nom saisi devient le nom du fichier : c'est lui que le serveur
+      // enregistre (voir `documentService.js#nomDeDepot`).
+      await uploaderDocument(chantierId, { fichier, nom, type });
       SwalCustom.success(t('documents.importe'));
       onClose();
       onSaved();
@@ -219,46 +239,78 @@ function UploadModal({ open, onClose, chantierId, onSaved }) {
     }>
       <form onSubmit={submit}>
         <div className="upload-drop">
-          <input type="file" onChange={(e) => { setFichier(e.target.files[0] || null); if (e.target.files[0] && !nom) setNom(e.target.files[0].name.replace(/\.[^.]+$/, '')); }} />
+          <input
+            type="file"
+            // Extensions ET types : sans les extensions, le sélecteur grisait
+            // les DWG, auxquels la plupart des navigateurs ne donnent aucun type.
+            accept={[...EXTENSIONS_GED, ...TYPES_GED].join(',')}
+            onChange={(e) => {
+              const choisi = e.target.files[0] || null;
+              // Refusé avant l'envoi s'il ne passera pas le contrôle du
+              // serveur : format hors GED, ou plafond de son format dépassé.
+              const refus = motifRefusFichierGed(choisi);
+              if (refus) { SwalCustom.error(messageRefusFichier(refus)); e.target.value = ''; setFichier(null); return; }
+              setFichier(choisi);
+              if (choisi && !nom) setNom(choisi.name.replace(/\.[^.]+$/, ''));
+            }}
+          />
           <Upload size={22} />
           <span>{fichier ? fichier.name : t('documents.deposer')}</span>
         </div>
-        <Input label={t('commun.nom')} value={nom} onChange={(e) => setNom(e.target.value)} required />
+        <p className="text-muted" style={{ fontSize: 12, margin: '6px 0 12px' }}>{t('documents.formats')}</p>
         <div className="grid-2">
+          <Input label={t('commun.nom')} value={nom} onChange={(e) => setNom(e.target.value)} required />
           <Select label={t('champs.type')} value={type} onChange={(e) => setType(e.target.value)}>
             {typesDocument.map((value) => <option key={value} value={value}>{enumLabel(value, TYPES_DOCUMENT[value])}</option>)}
           </Select>
-          <Input label={t('champs.description')} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
       </form>
     </Modal>
   );
 }
 
-function DocumentViewerModal({ document, onClose, canManage, onChanged }) {
+function DocumentViewerModal({ document, onClose, canManage, onChanged, onTelecharger }) {
   const { t } = useTranslation('chantier');
-  const [src, setSrc] = useState(null);
+  const [apercu, setApercu] = useState(null); // { src, type }
+  const [apercuImpossible, setApercuImpossible] = useState(false);
   const [signatures, setSignatures] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!document) return;
-    setSrc(null);
-    setLoading(true);
+    if (!document) return undefined;
+    let vivant = true;
     let url = null;
+    setApercu(null);
+    setApercuImpossible(false);
+    setSignatures([]);
+    setLoading(true);
+
     (async () => {
-      try {
-        const [blob, sig] = await Promise.all([fetchFichierBlob(document.fichier_url), listerSignaturesDocument(document.id)]);
-        url = URL.createObjectURL(blob);
-        setSrc(url);
-        setSignatures(sig.items);
-      } catch (err) {
-        SwalCustom.error({ title: t('documents.erreurAffichage'), text: getErrorMessage(err) });
-      } finally {
-        setLoading(false);
+      const [fichier, sig] = await Promise.allSettled([
+        fetchFichierBlob(document.fichier_url),
+        listerSignaturesDocument(document.id),
+      ]);
+      if (!vivant) return;
+
+      if (sig.status === 'fulfilled') setSignatures(sig.value.items);
+
+      if (fichier.status === 'fulfilled') {
+        url = URL.createObjectURL(fichier.value);
+        setApercu({ src: url, type: fichier.value.type || '' });
+      } else if (fichier.reason instanceof ErreurTypeFichier) {
+        // Word, Excel, DWG… : pas une panne, un format que le navigateur
+        // n'affiche pas. On propose le téléchargement au lieu d'une erreur.
+        setApercuImpossible(true);
+      } else {
+        SwalCustom.error({ title: t('documents.erreurAffichage'), text: getErrorMessage(fichier.reason) });
       }
+      setLoading(false);
     })();
-    return () => { if (url) URL.revokeObjectURL(url); };
+
+    return () => {
+      vivant = false;
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [document, t]);
 
   const sign = async () => {
@@ -271,23 +323,43 @@ function DocumentViewerModal({ document, onClose, canManage, onChanged }) {
     } catch (err) { SwalCustom.error(getErrorMessage(err)); }
   };
 
-  const preview = document?.fichier_url?.match(/\.(png|jpe?g|webp|gif)$/i);
+  const styleApercu = { width: '100%', maxHeight: 480, border: '1px solid var(--border)', borderRadius: 10 };
+
+  const rendreApercu = () => {
+    if (!apercu) return null;
+    if (apercu.type.startsWith('image/')) {
+      return <img src={apercu.src} alt={nomDocument(document)} style={{ maxWidth: '100%', maxHeight: 480, borderRadius: 10 }} />;
+    }
+    if (apercu.type.startsWith('video/')) return <video src={apercu.src} controls preload="metadata" style={styleApercu} />;
+    if (apercu.type.startsWith('audio/')) return <audio src={apercu.src} controls preload="metadata" style={{ width: '100%' }} />;
+    return <iframe title={nomDocument(document)} src={apercu.src} style={{ ...styleApercu, height: 480 }} />;
+  };
 
   return (
-    <Modal open={!!document} onClose={onClose} title={document?.nom} size="lg" footer={
-      canManage && document ? <button className="btn btn-primary btn-sm" onClick={sign}><PenTool size={14} /> {t('documents.signerDocument')}</button> : null
+    <Modal open={!!document} onClose={onClose} title={nomDocument(document)} size="lg" footer={
+      document ? (
+        <>
+          <button className="btn btn-secondary btn-sm" onClick={() => onTelecharger(document)}><Download size={14} /> {t('documents.telecharger')}</button>
+          {canManage && <button className="btn btn-primary btn-sm" onClick={sign}><PenTool size={14} /> {t('documents.signerDocument')}</button>}
+        </>
+      ) : null
     }>
       {loading ? <p className="text-muted">{t('etats.chargement')}</p> : (
         <>
-          {src && (preview
-            ? <img src={src} alt={document.nom} style={{ maxWidth: '100%', maxHeight: 480, borderRadius: 10 }} />
-            : <iframe title={document.nom} src={src} style={{ width: '100%', height: 480, border: '1px solid var(--border)', borderRadius: 10 }} />)}
+          {rendreApercu()}
+          {apercuImpossible && (
+            <div style={{ padding: 20, textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 10 }}>
+              <FileText size={28} style={{ color: 'var(--text-muted)' }} />
+              <p className="text-muted" style={{ margin: '8px 0 12px' }}>{t('documents.apercuIndisponible')}</p>
+              <button className="btn btn-primary btn-sm" onClick={() => onTelecharger(document)}><Download size={14} /> {t('documents.telecharger')}</button>
+            </div>
+          )}
           <h4 style={{ margin: '16px 0 8px' }}>{t('documents.signatures', { n: signatures.length })}</h4>
           {signatures.length === 0 ? <p className="text-muted" style={{ fontSize: 13 }}>{t('documents.nonSigne')}</p> : (
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {signatures.map((s) => (
                 <li key={s.id} style={{ fontSize: 13 }}>
-                  <PenTool size={13} style={{ verticalAlign: -2 }} /> {s.signataire ? `${s.signataire.prenom} ${s.signataire.nom}` : '—'} · <Clock size={12} style={{ verticalAlign: -2 }} /> {formatDate(s.createdAt)}
+                  <PenTool size={13} style={{ verticalAlign: -2 }} /> {s.signataire ? `${s.signataire.prenom} ${s.signataire.nom}` : '—'} · <Clock size={12} style={{ verticalAlign: -2 }} /> {formatDate(s.signe_le || s.createdAt)}
                 </li>
               ))}
             </ul>

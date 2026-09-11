@@ -9,6 +9,10 @@ import {
 } from '../service/reserve/reserveService.js';
 import { getErrorMessage } from '../service/helpers.js';
 import SwalCustom from '../utils/swal.config.js';
+import {
+  motifRefusFichier, motifRefusFichierGed, TYPES_MEDIA, TAILLE_MAX_MEDIA,
+} from '../service/securite.js';
+import { messageRefusFichier } from '../service/helpers.js';
 
 /**
  * Charge une réserve et tout ce qui l'accompagne, et expose les actions
@@ -110,6 +114,12 @@ export function useReserveDetail(reserveId, { onChanged } = {}) {
 
   const ajouterFichier = async (fichier) => {
     if (!fichier) return;
+    // Refusé ici plutôt qu'après deux minutes d'envoi en 3G et un refus du
+    // serveur — qui refait tout le contrôle de toute façon.
+    // Mêmes formats que la GED : le serveur contrôle les pièces jointes avec
+    // la même instance (Word, Excel, DWG compris).
+    const refus = motifRefusFichierGed(fichier);
+    if (refus) { SwalCustom.error(messageRefusFichier(refus)); return; }
     try {
       await ajouterPieceJointe(reserveId, fichier);
       SwalCustom.success(t('reserves.pieceAjoutee'));
@@ -126,6 +136,8 @@ export function useReserveDetail(reserveId, { onChanged } = {}) {
 
   const ajouterPhoto = async (fichier) => {
     if (!fichier) return;
+    const refus = motifRefusFichier(fichier, { types: TYPES_MEDIA, tailleMax: TAILLE_MAX_MEDIA });
+    if (refus) { SwalCustom.error(messageRefusFichier(refus)); return; }
     try {
       await ajouterMedia(reserveId, fichier);
       SwalCustom.success(t('reserves.mediaAjoute'));

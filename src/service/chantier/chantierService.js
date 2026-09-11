@@ -4,12 +4,19 @@ import { unwrap, normalizeList, LIMITE_MAX_PAGE } from '../helpers.js';
 /** Module Chantier : CRUD, structure (bâtiments/étages/zones/lots), phases, affectations. */
 
 /**
+ * Liste paginée des chantiers de l'organisation.
+ *
  * @param {object} [params]
- * @param {'mes'|'a_valider'} [params.demandes]  Ouvre la liste aux chantiers
+ * @param {number} [params.page]
+ * @param {number} [params.limit]
+ * @param {string} [params.search]
+ * @param {string} [params.statut]
+ * @param {''|'mes'|'a_valider'} [params.demandes]  Ouvre la liste aux chantiers
  *   EN DEMANDE, que le serveur écarte par défaut : un chantier en attente ou
  *   refusé n'est pas un chantier en activité.
  *     - 'mes'       → les demandes déposées par le compte connecté ;
  *     - 'a_valider' → la file d'attente de ceux qui tranchent.
+ * @returns {Promise<{ items: any[], total: number }>}
  */
 export const listerChantiers = async ({ page = 1, limit = 20, search = '', statut = '', demandes = '' } = {}) => {
   const response = await api.get('/chantiers', {
@@ -67,6 +74,13 @@ export const supprimerChantier = async (id) => {
   return unwrap(response);
 };
 
+/**
+ * Duplique un chantier — structure et référentiels, sans les réserves.
+ *
+ * @param {string} id
+ * @param {{ nom?: string }} [options]  Nom du nouveau chantier ; le serveur en
+ *   dérive un par défaut quand il est absent.
+ */
 export const dupliquerChantier = async (id, { nom } = {}) => {
   const response = await api.post(`/chantiers/${id}/dupliquer`, { nom });
   return unwrap(response)?.chantier;

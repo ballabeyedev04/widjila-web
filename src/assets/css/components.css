@@ -484,6 +484,23 @@
   width: 100%;
   max-width: 560px;
   animation: modal-in 0.2s ease;
+
+  /* HAUTEUR BORNÉE, corps défilant.
+
+     Sans cela, une modale plus haute que la fenêtre faisait défiler le FOND :
+     l'en-tête et les boutons partaient hors du champ de vision, et il fallait
+     remonter tout le formulaire pour retrouver « Enregistrer ». Le cas est
+     courant — ajouter un membre, poser une réserve, choisir un chantier parmi
+     cinquante — et il empire sur une tablette en paysage, où la fenêtre est
+     basse.
+
+     La boîte se cale donc sur la hauteur disponible, en-tête et pied restent
+     en place, et seul le contenu défile. `dvh` en second : il suit la barre
+     d'adresse mobile au lieu de mesurer l'écran barre rétractée. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
 }
 .modal.lg { max-width: 760px; }
 .modal.sm { max-width: 420px; }
@@ -508,7 +525,14 @@
   display: flex;
 }
 .modal-close:hover { background: var(--bg); color: var(--text); }
-.modal-body { padding: 22px; }
+.modal-body {
+  padding: 22px;
+  /* Le seul élément qui défile : voir le commentaire de `.modal`. */
+  overflow-y: auto;
+  /* Sans `min-height: 0`, un enfant flex refuse de rétrécir sous sa hauteur de
+     contenu et le débordement repart sur le fond. */
+  min-height: 0;
+}
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -519,7 +543,16 @@
 
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; align-items: stretch; }
-  .modal { max-width: 100%; min-height: 100%; border-radius: 0; }
+  /* Feuille pleine page, comme sur mobile : la boîte occupe exactement la
+     fenêtre, l'en-tête et les boutons restent visibles, le formulaire défile
+     entre les deux. */
+  .modal {
+    max-width: 100%;
+    height: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
   .modal-header, .modal-body, .modal-footer { padding: 16px; }
   .modal-footer { flex-wrap: wrap; }
   .modal-footer .btn { flex: 1; }
@@ -2166,3 +2199,288 @@
   color: var(--text-muted);
   font-weight: 500;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Sélecteur de chantier (SelecteurChantierModal)
+
+   Les actions qui n'appartiennent à aucun écran de chantier — relever une
+   réserve, déposer des plans — passent toutes par cette liste, comme sur
+   mobile. Aucune couleur nouvelle : variables de thème uniquement.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.selecteur-chantier-recherche {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.selecteur-chantier-recherche svg {
+  position: absolute;
+  left: 11px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.selecteur-chantier-recherche .input {
+  width: 100%;
+  padding-left: 34px;
+}
+
+.selecteur-chantier-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Plafonnée plutôt que libre : au-delà, la modale dépassait l'écran et le
+     bouton de fermeture sortait du champ de vision. */
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.selecteur-chantier-liste button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.selecteur-chantier-liste button:hover {
+  background: var(--bg);
+  border-color: var(--primary-200);
+}
+.selecteur-chantier-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--primary-100);
+  color: var(--primary);
+}
+.selecteur-chantier-textes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.selecteur-chantier-textes strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selecteur-chantier-textes span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ---------- Sélecteur de chantier : tablette et téléphone ----------
+   La modale devient plein écran sous 600 px (voir `.modal`), la liste peut
+   donc prendre toute la hauteur restante au lieu du plafond de 52 vh calculé
+   pour une boîte flottante. */
+@media (max-width: 600px) {
+  .selecteur-chantier-liste { max-height: none; }
+  .selecteur-chantier-liste button { padding: 12px 10px; }
+}
+
+/* ---------- Bascule d'un formulaire (case à cocher explicative) ----------
+   Une case à cocher accompagnée de ce qu'elle fait, et de sa conséquence.
+   Une case nue nommée « Générer le mot de passe » n'aurait pas dit qui le
+   reçoit ni quand il change — ce que le sous-titre porte. */
+.champ-bascule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.champ-bascule input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.champ-bascule > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.champ-bascule strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.champ-bascule em {
+  font-style: normal;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* ---------- Barre de filtres dans une carte ----------
+   Les vues transversales (toutes les réserves, tous les plans) alignent une
+   recherche et plusieurs listes déroulantes. Elles le faisaient avec des
+   `minWidth` EN LIGNE — or un style en ligne l'emporte sur la feuille, et la
+   règle mobile qui rend ces champs pleine largeur était donc sans effet : sur
+   un téléphone, cinq contrôles de 140 à 240 px se répartissaient en lignes
+   ragées, chacun refusant de se réduire.
+
+   Ici les largeurs sont des BASES flexibles, pas des planchers : les champs se
+   partagent la place sur un écran large, se resserrent sur une tablette, et
+   passent à une par ligne sur un téléphone. */
+.barre-filtres {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.barre-filtres .champ-recherche {
+  position: relative;
+  /* Base plus large que les listes : c'est le champ où l'on écrit. */
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.barre-filtres .champ-recherche > svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.barre-filtres .champ-recherche .input {
+  width: 100%;
+  padding-left: 34px;
+}
+
+.barre-filtres > .input,
+.barre-filtres > .select {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  /* Un contrôle par ligne : en dessous, une liste déroulante n'affiche plus
+     assez de son libellé pour qu'on sache ce qu'elle filtre. */
+  .barre-filtres > * { flex-basis: 100%; }
+  .barre-filtres .btn { width: 100%; justify-content: center; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CIBLES TACTILES — appareils à pointeur GROSSIER uniquement
+
+   Les commandes mesurent 28 à 34 px de haut : au-dessus du minimum de WCAG 2.2
+   (24 px, critère 2.5.8), mais loin des 44 px recommandés pour le tactile. Sur
+   le terrain, ce produit est utilisé debout, dehors, souvent avec des gants —
+   un bouton de 28 px s'y rate une fois sur trois, et rater « Supprimer » d'un
+   demi-doigt vise le bouton d'à côté.
+
+   `pointer: coarse` cible exactement les appareils concernés : téléphones,
+   tablettes, écrans tactiles de chantier. Une souris garde la densité prévue,
+   et le design de bureau n'est pas touché — c'est ce qui rend cette règle sûre
+   à poser globalement.
+
+   `min-height` et non `height` : les boutons qui passent à la ligne (libellés
+   longs, traductions allemandes) continuent de grandir normalement.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .btn-sm {
+    /* 40 px : les boutons « petits » vivent dans des lignes de tableau et des
+       barres d'outils denses. Les porter à 44 disloquerait ces rangées ; 40
+       reste confortable au doigt. */
+    min-height: 40px;
+    padding: 9px 13px;
+  }
+
+  .btn-icon,
+  .btn-icon-only {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Commandes sans classe `.btn` : fermeture d'une modale, cloche, effacement
+     d'un champ de recherche. Ce sont les plus petites de l'interface, et la
+     fermeture d'une modale est l'une des plus utilisées. */
+  .modal-close,
+  .bell-btn,
+  .icon-clear {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Les lignes cliquables des listes : une tuile de plan, un chantier, une
+     réserve. Elles sont déjà hautes, mais leurs boutons internes ne le sont
+     pas toujours. */
+  .pexp-reserves button,
+  .selecteur-chantier-liste button {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Fichiers privés (FichierProtege.jsx) ----------
+   Un aperçu qui échoue se VOIT : l'ancien `onError` masquait l'image, et
+   personne ne savait qu'une réserve avait des photos. */
+.fichier-indisponible,
+.fichier-chargement {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 90px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+.fichier-chargement { animation: pulsation 1.2s ease-in-out infinite; }
+@keyframes pulsation { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .fichier-chargement { animation: none; } }
+
+.media-thumb video,
+.media-thumb audio { width: 100%; border-radius: var(--radius-sm); }
+
+.lien-fichier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.lien-fichier:disabled { opacity: 0.6; cursor: progress; }

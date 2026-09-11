@@ -216,7 +216,11 @@ describe('les files d’attente du super-admin sont annoncées', () => {
     // pour un chef de projet produirait un 403 à chaque ouverture de page.
     afficherPour('ChefProjet');
 
-    await waitFor(() => expect(screen.getByText(/Tableau de bord|Dashboard/i)).toBeTruthy());
+    // `entree` et non `getByText` : depuis que le menu porte aussi « Tableau de
+    // bord chantier », un motif partiel trouve deux entrées et `getByText` lève
+    // « found multiple elements ». Ce test ne veut savoir qu'une chose — que le
+    // menu métier est bien monté avant de vérifier les appels.
+    await waitFor(() => expect(entree('Tableau de bord')).toBe(true));
     expect(compterDemandesEnAttente).not.toHaveBeenCalled();
     expect(compterSuppressionsEnAttente).not.toHaveBeenCalled();
   });

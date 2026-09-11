@@ -50,8 +50,9 @@ export default function ForgotPassword() {
               <p className="auth-subtitle">{t('forgotPassword.intro')}</p>
               <form onSubmit={handleSubmit} noValidate>
                 <div className="field">
-                  <label>{t('forgotPassword.emailLabel')}</label>
+                  <label htmlFor="oubli-email">{t('forgotPassword.emailLabel')}</label>
                   <input
+                    id="oubli-email"
                     className="input"
                     type="email"
                     value={email}

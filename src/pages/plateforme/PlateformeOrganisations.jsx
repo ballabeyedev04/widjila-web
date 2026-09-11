@@ -17,6 +17,10 @@ import { formatDate, initials } from '../../utils/format.js';
 import { enumLabel } from '../../utils/constants.js';
 import { listerPlansAbonnement } from '../../service/abonnement/planAbonnementService.js';
 import SwalCustom from '../../utils/swal.config.js';
+// Les chargements secondaires de cet écran n'interrompent rien en cas
+// d'échec — mais ils le SIGNALENT, au lieu de laisser une liste vide
+// que rien ne distingue d'une liste en panne.
+import { reporter } from '../../utils/monitoring.js';
 
 const STATUTS_ORG = {
   active: { label: 'Active', tone: 'success' },
@@ -63,7 +67,7 @@ export default function PlateformeOrganisations() {
       // Échec silencieux : la liste reste vide, l'écran continue de
       // fonctionner. Une erreur bloquante pour un menu déroulant secondaire
       // empêcherait de consulter les organisations.
-      .catch(() => {});
+      .catch((err) => reporter(err, { source: 'PlateformeOrganisations' }));
     return () => { vivant = false; };
   }, []);
 

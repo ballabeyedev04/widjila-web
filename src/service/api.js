@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
+import { installerDeduplication } from './dedupe.js';
+import { estRequeteVersApi, cheminSuspect } from './securite.js';
+
 /**
  * Client HTTP central de l'admin.
  *
@@ -20,6 +23,12 @@ const api = axios.create({
   timeout: 60000,
   withCredentials: true,
 });
+
+// Un même écrit ne part jamais deux fois : voir `dedupe.js`. Posé AVANT les
+// intercepteurs pour envelopper `api.post`/`put`/`patch`/`delete` — le rejeu
+// après renouvellement de session passe, lui, par `api(config)` et n'est donc
+// pas concerné.
+installerDeduplication(api);
 
 /* ---------- Token + utilisateur en sessionStorage ---------- */
 const TOKEN_KEY = 'sc_at';
@@ -67,11 +76,26 @@ export const clearUser = () => {
   clearStoredToken();
 };
 
-/* ---------- Intercepteur requête : Bearer token ---------- */
+/* ---------- Intercepteur requête : chemin, puis jeton ---------- */
 api.interceptors.request.use(
   (config) => {
+    // 1. Aucune traversée de chemin (`..`, même encodée) : un paramètre de
+    //    route piégé ne doit pas faire appeler une autre ressource que celle
+    //    que l'écran croit viser. Voir `securite.js#cheminSuspect`.
+    const url = config.url ?? '';
+    if (cheminSuspect(url)) {
+      return Promise.reject(Object.assign(
+        new Error('Chemin de requête refusé'),
+        { code: 'CHEMIN_REFUSE', config },
+      ));
+    }
+
+    // 2. Le jeton ne part QUE vers l'API. Il était joint à toute requête, y
+    //    compris vers une URL absolue d'un autre domaine — une adresse de
+    //    stockage signée, un CDN — qui aurait reçu la session de l'utilisateur.
+    //    Voir `securite.js#estRequeteVersApi`.
     const token = getStoredToken();
-    if (token) {
+    if (token && estRequeteVersApi(url, config.baseURL ?? API_BASE_URL, window.location.origin)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -102,6 +126,73 @@ export const doitDeconnecter = (statut, jetonLocalExpire) => {
   // session à la première requête ratée.
   return jetonLocalExpire;
 };
+
+/* ---------- Coordination entre onglets ---------- */
+//
+// La session vit dans deux mondes : le jeton d'accès, propre à CHAQUE onglet
+// (sessionStorage), et le jeton de rafraîchissement, PARTAGÉ par tous les
+// onglets (cookie). Deux défauts en découlaient.
+//
+// DÉCONNEXION INCOMPLÈTE. « Se déconnecter » dans un onglet révoquait le cookie
+// mais laissait les autres onglets ouverts avec un jeton d'accès valide —
+// jusqu'à une heure (`JWT_EXPIRES_IN`). Sur un poste partagé de chantier, la
+// personne suivante trouvait une session ouverte dans l'onglet d'à côté.
+// Désormais, la fin de session est ANNONCÉE à tous les onglets.
+//
+// RENOUVELLEMENTS CONCURRENTS. Le jeton de rafraîchissement est à usage unique
+// (rotation, `auth.service.js#refresh`). Deux onglets qui le présentaient au
+// même instant — typiquement à la restauration d'une session de navigateur —
+// voyaient l'un réussir et l'autre essuyer « jeton révoqué », ce qui le
+// déconnectait à tort. Le renouvellement est maintenant sérialisé entre
+// onglets : le second attend, puis part avec le cookie déjà renouvelé.
+
+/** Canal partagé par les onglets de l'application — créé à la première utilisation. */
+let canal = null;
+const canalSession = () => {
+  if (canal || typeof BroadcastChannel === 'undefined') return canal;
+  canal = new BroadcastChannel('sc-session');
+  // Hors navigateur (tests), un canal ouvert retiendrait le processus.
+  /** @type {any} */ (canal).unref?.();
+  return canal;
+};
+
+/** Prévient les autres onglets que la session est terminée. */
+export const annoncerFinDeSession = () => {
+  try {
+    canalSession()?.postMessage({ type: 'fin-session' });
+  } catch {
+    /* navigateur sans canal : chaque onglet se déconnectera à l'expiration */
+  }
+};
+
+/**
+ * Appelle `rappel` quand un AUTRE onglet annonce la fin de la session.
+ * @param {() => void} rappel
+ * @returns {() => void} désabonnement
+ */
+export const ecouterFinDeSession = (rappel) => {
+  const c = canalSession();
+  if (!c) return () => {};
+  /** @param {MessageEvent} e */
+  const surMessage = (e) => { if (e?.data?.type === 'fin-session') rappel(); };
+  c.addEventListener('message', surMessage);
+  return () => c.removeEventListener('message', surMessage);
+};
+
+/**
+ * Exécute un renouvellement de session sous un verrou partagé par les onglets.
+ * Sans l'API Web Locks (navigateur ancien), l'appel part tel quel.
+ * @template T
+ * @param {() => Promise<T>} tache
+ * @returns {Promise<T>}
+ */
+export const avecVerrouRefresh = (tache) => (
+  typeof navigator !== 'undefined' && navigator.locks?.request
+    // `request` rend la promesse de la tâche elle-même : les types de la
+    // bibliothèque DOM l'emballent une fois de trop.
+    ? /** @type {Promise<T>} */ (/** @type {unknown} */ (navigator.locks.request('sc-refresh', tache)))
+    : tache()
+);
 
 /* ---------- Refresh silencieux ---------- */
 let isRefreshing = false;
@@ -139,13 +230,16 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshRes = await api.post('/auth/refresh');
+        const refreshRes = await avecVerrouRefresh(() => api.post('/auth/refresh'));
         const refreshPayload = refreshRes.data?.data || refreshRes.data;
         const newToken = refreshPayload?.token;
         if (newToken) setStoredToken(newToken);
         processQueue(null);
         return api(original);
-      } catch (refreshError) {
+      } catch (erreurBrute) {
+        // Une valeur attrapée est de type inconnu : `throw` accepte n'importe
+        // quoi. On dit ce qu'on en attend plutôt que de le supposer.
+        const refreshError = /** @type {{ response?: { status?: number } }} */ (erreurBrute);
         processQueue(refreshError);
 
         // ── Quand faut-il DÉCONNECTER ? ──────────────────────────────────
@@ -173,6 +267,9 @@ api.interceptors.response.use(
         // passer exactement la situation qu'on cherche à rattraper.
         if (doitDeconnecter(refreshError?.response?.status, isTokenExpired())) {
           clearUser();
+          // Le serveur a refusé la session : elle est morte pour TOUS les
+          // onglets, qui partagent le même cookie.
+          annoncerFinDeSession();
           // Garde anti-boucle : sur la page de connexion elle-même, une
           // redirection relancerait un chargement complet en continu.
           if (!window.location.pathname.startsWith('/login')) {
@@ -214,7 +311,7 @@ api.interceptors.response.use(
  */
 export const tenterReconnexionSilencieuse = async () => {
   try {
-    const refreshRes = await api.post('/auth/refresh');
+    const refreshRes = await avecVerrouRefresh(() => api.post('/auth/refresh'));
     const newToken = refreshRes.data?.data?.token;
     if (!newToken) return null;
     setStoredToken(newToken);

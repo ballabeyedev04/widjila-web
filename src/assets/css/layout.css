@@ -339,10 +339,44 @@
   .content { padding: 16px; }
 }
 
+/* ---------- Barre du haut resserrée sur tablette ----------
+   Entre 480 et 900 px, la barre porte le titre de l'écran, le badge
+   d'abonnement, « Nouvelle réserve », la cloche et « Déconnexion ». Cinq
+   éléments : le titre se faisait écraser à trois caractères, et les boutons
+   finissaient collés. Les libellés cèdent la place avant le titre — une icône
+   de déconnexion reste comprise, un titre coupé ne l'est pas. */
+@media (max-width: 760px) {
+  .btn-label-responsive { display: none; }
+}
+
+/* Le badge d'abonnement est une INFORMATION, pas une commande : c'est lui qui
+   part en premier quand la place manque. L'écran Abonnement, lui, reste
+   atteignable par le menu. */
+@media (max-width: 620px) {
+  .topbar-subscription { display: none; }
+}
+
 @media (max-width: 480px) {
   .topbar { padding: 0 12px 0 58px; }
   .content { padding: 12px; }
-  /* En dessous de 480px, plus assez de place pour l'icône ET le texte du
-     bouton de déconnexion à côté de la cloche et du badge d'abonnement. */
-  .btn-label-responsive { display: none; }
 }
+
+/* ---------- Bandeau « hors ligne » ----------
+   Posé sous la barre du haut, au-dessus du contenu : il concerne TOUT ce qu'on
+   pourrait tenter, pas l'écran en cours. Il pousse le contenu vers le bas
+   plutôt que de le recouvrir — un bandeau flottant masquerait la première
+   ligne, c'est-à-dire souvent le titre de ce qu'on est en train de faire. */
+.bandeau-hors-ligne {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 24px;
+  font-size: 13px;
+  color: var(--warning-text);
+  background: var(--warning-bg);
+  border-bottom: 1px solid var(--warning);
+}
+.bandeau-hors-ligne strong { font-weight: 700; }
+
+@media (max-width: 900px) { .bandeau-hors-ligne { padding: 9px 16px; } }
+@media (max-width: 480px) { .bandeau-hors-ligne { padding: 8px 12px; font-size: 12.5px; } }

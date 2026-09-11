@@ -26,16 +26,10 @@ export function SubscriptionProvider({ children }) {
     refreshStatus();
   }, [refreshStatus]);
 
-  // Écouter les changements de storage (ex: après paiement)
-  useEffect(() => {
-    const handleStorage = (e) => {
-      if (e.key === 'sc_user' || e.key === 'sc_at') {
-        refreshStatus();
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, [refreshStatus]);
+  // Pas d'écoute de l'événement `storage` : il écoutait `sc_user` et `sc_at`,
+  // deux clés de SESSIONstorage — propre à chaque onglet. L'événement ne se
+  // déclenche jamais entre onglets pour ce stockage : l'écouteur ne faisait
+  // rien, et laissait croire que le statut se synchronisait.
 
   return (
     <SubscriptionContext.Provider value={{ status, refreshStatus, isLoading }}>

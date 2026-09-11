@@ -18,7 +18,7 @@ import { formatDate, initials } from '../../utils/format.js';
 import { ROLES, STATUTS_UTILISATEUR, roleLabel, enumLabel, rolesAttribuables } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
-import { validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
+import { validatePassword } from '../../service/auth/authService.js';
 import { useEnum } from '../../hooks/useEnums.js';
 
 export default function Membres() {
@@ -158,6 +158,7 @@ function MemberModal({ open, onClose, member, onSaved }) {
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [motDePasseAuto, setMotDePasseAuto] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -166,13 +167,48 @@ function MemberModal({ open, onClose, member, onSaved }) {
         nom: member.nom || '', prenom: member.prenom || '', email: member.email || '',
         telephone: member.telephone || '', fonction: member.fonction || '',
         role: member.role || 'ConducteurTravaux', statut: member.statut || 'actif',
-        motDePasse: '', identifiant: member.identifiant || '',
+        motDePasse: '',
       });
     } else {
-      setForm({ nom: '', prenom: '', email: '', telephone: '', fonction: '', role: 'ConducteurTravaux', statut: 'actif', motDePasse: '', identifiant: '' });
+      setForm({ nom: '', prenom: '', email: '', telephone: '', fonction: '', role: 'ConducteurTravaux', statut: 'actif', motDePasse: '' });
     }
+    // Comme sur mobile : par défaut, c'est le SERVEUR qui produit le mot de
+    // passe et l'envoie au membre par courriel. Celui qui crée le compte n'a
+    // aucune raison de choisir — ni de connaître — le mot de passe de
+    // quelqu'un d'autre.
+    setMotDePasseAuto(true);
     setErrors({});
   }, [open, member]);
+
+  /**
+   * Annonce la création — et dit au créateur ce qu'il lui reste à faire.
+   *
+   * Le serveur envoie les identifiants par courriel et ne renvoie le mot de
+   * passe temporaire QUE si cet envoi a échoué (voir
+   * `organisation.controller.js#ajouterMembre`). Deux situations opposées,
+   * donc deux messages : soit le membre a reçu ses accès, soit il faut les lui
+   * transmettre — et c'est la seule fois où ce mot de passe sera affiché.
+   *
+   * Un « Membre créé. » unique laissait le second cas sans issue : le compte
+   * existait, personne ne pouvait s'y connecter.
+   */
+  const annoncerCreation = async (resultat) => {
+    const temporaire = resultat?.motDePasseTemporaire;
+    if (!temporaire) {
+      SwalCustom.success(t('membres.modal.succesCreation'));
+      return;
+    }
+    // `fire` et non `info` : les helpers de notification se referment tout
+    // seuls au bout de trois secondes. Ce mot de passe ne sera plus JAMAIS
+    // affiché — il doit rester à l'écran jusqu'à ce qu'on l'ait noté.
+    await SwalCustom.fire({
+      icon: 'warning',
+      title: t('membres.modal.succesCreation'),
+      text: t('membres.modal.mailNonEnvoye', { motDePasse: temporaire }),
+      confirmButtonText: t('membres.modal.motDePasseNote'),
+      allowOutsideClick: false,
+    });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -180,9 +216,9 @@ function MemberModal({ open, onClose, member, onSaved }) {
     if (!form.nom.trim()) errs.nom = t('validation.champRequis', { champ: t('champs.nom') });
     if (!form.prenom.trim()) errs.prenom = t('validation.champRequis', { champ: t('champs.prenom') });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = t('validation.emailInvalide');
-    if (!isEdit) {
-      if (!validateIdentifiant(form.identifiant)) errs.identifiant = t('membres.modal.identifiantInvalide');
-      if (!validatePassword(form.motDePasse)) errs.motDePasse = t('validation.motDePasseFaible');
+    // Le mot de passe n'est exigé que si l'on a choisi de le fixer soi-même.
+    if (!isEdit && !motDePasseAuto && !validatePassword(form.motDePasse)) {
+      errs.motDePasse = t('validation.motDePasseFaible');
     }
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -197,8 +233,16 @@ function MemberModal({ open, onClose, member, onSaved }) {
         await modifierMembre(member.id, payload);
         SwalCustom.success(t('membres.modal.succesModif'));
       } else {
-        await ajouterMembre({ ...payload, identifiant: form.identifiant, motDePasse: form.motDePasse });
-        SwalCustom.success(t('membres.modal.succesCreation'));
+        // `mot_de_passe` et non `motDePasse` : le schéma Joi du serveur est en
+        // snake_case et valide avec `stripUnknown`. La clé camelCase envoyée
+        // jusqu'ici disparaissait sans le moindre message — le mot de passe
+        // saisi n'était jamais celui du compte créé, et personne ne pouvait
+        // s'en apercevoir depuis l'écran.
+        const resultat = await ajouterMembre({
+          ...payload,
+          ...(motDePasseAuto ? {} : { mot_de_passe: form.motDePasse }),
+        });
+        await annoncerCreation(resultat);
       }
       onClose();
       onSaved();
@@ -234,10 +278,34 @@ function MemberModal({ open, onClose, member, onSaved }) {
           </Select>
         </div>
         <Input label={t('champs.fonction')} value={form.fonction} onChange={(e) => setForm({ ...form, fonction: e.target.value })} />
+        {/* Plus de champ « Identifiant » : aucune colonne de ce nom n'existe
+            côté serveur, et le schéma Joi le retirait silencieusement. On se
+            connecte avec son ADRESSE E-MAIL — la demander deux fois sous deux
+            noms différents ne pouvait qu'égarer. */}
         {!isEdit && (
           <>
-            <Input label={t('membres.modal.identifiant')} value={form.identifiant} onChange={(e) => setForm({ ...form, identifiant: e.target.value })} error={errors.identifiant} hint={t('membres.modal.identifiantHint')} />
-            <Input label={t('membres.modal.motDePasseInitial')} type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} error={errors.motDePasse} hint={t('membres.modal.motDePasseHint')} autoComplete="new-password" />
+            <label className="champ-bascule">
+              <input
+                type="checkbox"
+                checked={motDePasseAuto}
+                onChange={(e) => setMotDePasseAuto(e.target.checked)}
+              />
+              <span>
+                <strong>{t('membres.modal.motDePasseAuto')}</strong>
+                <em>{t('membres.modal.motDePasseAutoHint')}</em>
+              </span>
+            </label>
+            {!motDePasseAuto && (
+              <Input
+                label={t('membres.modal.motDePasseInitial')}
+                type="password"
+                value={form.motDePasse}
+                onChange={(e) => setForm({ ...form, motDePasse: e.target.value })}
+                error={errors.motDePasse}
+                hint={t('membres.modal.motDePasseHint')}
+                autoComplete="new-password"
+              />
+            )}
           </>
         )}
       </form>
@@ -250,7 +318,29 @@ function ImportModal({ open, onClose, onImported }) {
   const { t } = useTranslation('organisation');
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
-  const templateUrl = '/uploads/templates/membres.csv';
+
+  /**
+   * Modèle CSV, fabriqué ici.
+   *
+   * Le lien pointait vers `/uploads/templates/membres.csv` — un fichier qui
+   * n'existe nulle part, et qu'un lien nu aurait de toute façon demandé sans
+   * session, sur le domaine de l'admin. Les colonnes sont celles que lit
+   * réellement le serveur (`organisation.service.js#importContacts`) ; l'aide
+   * annonçait « identifiant » et « mot de passe », deux colonnes ignorées — le
+   * serveur génère un mot de passe provisoire pour chaque membre.
+   */
+  const telechargerModele = () => {
+    const contenu = '\uFEFFprenom,nom,email,telephone,fonction,role\n'
+      + 'Awa,Diop,awa.diop@exemple.sn,+221770000000,Conductrice de travaux,\n';
+    const url = URL.createObjectURL(new Blob([contenu], { type: 'text/csv;charset=utf-8' }));
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = 'modele-membres.csv';
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -278,10 +368,12 @@ function ImportModal({ open, onClose, onImported }) {
       <form onSubmit={submit}>
         <div className="field">
           <label>{t('champs.fichier')}</label>
-          <input type="file" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => setFile(e.target.files[0] || null)} />
+          {/* CSV seulement : le serveur lit le fichier avec `csv-parse`. Un
+              classeur Excel était proposé ici, et échouait en « CSV illisible ». */}
+          <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files[0] || null)} />
           <div className="hint">{t('membres.import.hint')}</div>
         </div>
-        <a className="btn btn-ghost btn-sm" href={templateUrl} target="_blank" rel="noreferrer"><Download size={14} /> {t('membres.import.modele')}</a>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={telechargerModele}><Download size={14} /> {t('membres.import.modele')}</button>
       </form>
     </Modal>
   );

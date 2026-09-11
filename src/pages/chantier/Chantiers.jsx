@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Pencil, Trash2, Copy, MapPin, ArrowRight, X, RefreshCw } from 'lucide-react';
 
 import PageHeader from '../../components/PageHeader.jsx';
@@ -11,15 +12,13 @@ import EmptyState from '../../components/EmptyState.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
 import { SkeletonListe } from '../../components/Skeleton.jsx';
 import { Input, Textarea, Select, Field } from '../../components/FormControls.jsx';
-import SelectRecherche from '../../components/SelectRecherche.jsx';
 import { useServerList } from '../../hooks/useServerList.js';
 import {
-  listerChantiers, creerChantier, modifierChantier, supprimerChantier, dupliquerChantier,
+  listerChantiers, modifierChantier, supprimerChantier, dupliquerChantier,
 } from '../../service/chantier/chantierService.js';
-import { listerOrganisations } from '../../service/admin/adminService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, formatBudget, toDateInputValue } from '../../utils/format.js';
-import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_OPERATIONNELS, peutGerer, enumLabel, ROLE_TITULAIRE } from '../../utils/constants.js';
+import { STATUTS_CHANTIER, STATUTS_CHANTIER_CIRCUIT, ROLES_OPERATIONNELS, ROLES_DEPOSANT, peutGerer, enumLabel, ROLE_TITULAIRE } from '../../utils/constants.js';
 import { useUser } from '../../context/useUser.js';
 import SwalCustom from '../../utils/swal.config.js';
 import { useEnum } from '../../hooks/useEnums.js';
@@ -36,10 +35,23 @@ export default function Chantiers() {
   // chantier dans une entreprise cliente. Pour tous les autres rôles, la règle
   // est inchangée.
   const canManage = peutGerer(role, ROLES_OPERATIONNELS);
+
+  /**
+   * Qui peut DEMANDER un chantier — miroir du groupe `DEPOSANT` du serveur,
+   * celui qui garde `POST /chantiers`.
+   *
+   * Plus large que [canManage] : le bureau de contrôle et le maître d'ouvrage
+   * déposent des demandes sans conduire les chantiers. C'est exactement la
+   * règle du mobile (`user_role.dart#peutDemanderChantier`), et c'est le
+   * serveur qui l'impose de toute façon.
+   */
+  const canDemander = peutGerer(role, ROLES_DEPOSANT);
   const canDelete = role === 'ChefProjet' || role === 'Admin' || role === ROLE_TITULAIRE;
 
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({ search: '', statut: '' });
-  const [showCreate, setShowCreate] = useState(false);
+  // Plus de `showCreate` : la modale ne sert QU'À MODIFIER. La création passe
+  // par le dépôt de plans (voir `demanderChantier`), comme sur mobile.
   const [editing, setEditing] = useState(null);
 
   const { items, total, page, setPage, loading, reload, accessDenied, error: erreur,} = useServerList(listerChantiers, {
@@ -72,10 +84,41 @@ export default function Chantiers() {
     } catch (err) { SwalCustom.error({ title: t('commun.duplicationImpossible'), text: getErrorMessage(err) }); }
   };
 
+  /**
+   * Dépose une demande de chantier — et commence par les PLANS.
+   *
+   * ## Pourquoi cet écran ne crée plus directement
+   *
+   * Le bouton ouvrait un formulaire et appelait `POST /chantiers`. L'appel est
+   * correct, mais il portait un contresens : côté serveur, toute création par
+   * un compte non super-admin naît « en attente de validation »
+   * (`chantier.service.js#_naitEnAttente`). L'écran annonçait donc « Nouveau
+   * chantier » et « Créer » pour produire une DEMANDE — qui disparaissait
+   * aussitôt de cette liste, le serveur y écartant les demandes. On croyait
+   * avoir raté la création.
+   *
+   * ## Pourquoi les plans d'abord
+   *
+   * C'est le parcours du mobile, et celui que le client a demandé : plan
+   * global, bâtiments, sections, puis « Envoyer », et le formulaire de demande
+   * au bout. C'est aussi le seul ordre où le courriel des valideurs annonce une
+   * demande COMPLÈTE — le formulaire en premier leur envoyait un chantier vide,
+   * les plans arrivant après.
+   *
+   * La demande elle-même est créée par l'écran de dépôt, à l'appui sur
+   * « Envoyer ». La modale de cette page ne sert donc plus qu'à MODIFIER un
+   * chantier existant.
+   */
+  const demanderChantier = () => navigate('/depot-plans');
+
   return (
     <>
       <PageHeader title={t('liste.titre')} subtitle={t('liste.sousTitre', { n: total })}>
-        {canManage && <button className="btn btn-primary" onClick={() => setShowCreate(true)}><Plus size={16} /> {t('liste.nouveau')}</button>}
+        {canDemander && (
+          <button className="btn btn-primary" onClick={demanderChantier}>
+            <Plus size={16} /> {t('liste.demander')}
+          </button>
+        )}
       </PageHeader>
 
       <div className="filter-bar">
@@ -106,7 +149,20 @@ export default function Chantiers() {
           <ErrorState message={erreur} onRetry={reload} />
         )
         : loading ? <SkeletonListe lignes={6} />
-        : items.length === 0 ? <EmptyState title={t('liste.videTitre')} message={t('liste.videMessage')} />
+        : items.length === 0 ? (
+          <EmptyState
+            title={t('liste.videTitre')}
+            message={canDemander ? t('liste.videMessageDeposant') : t('liste.videMessage')}
+            /* L'état vide portait un message qui renvoyait ailleurs sans rien
+               proposer. C'est pourtant le moment exact où l'on cherche par où
+               commencer — le mobile y met le même bouton. */
+            action={canDemander ? (
+              <button className="btn btn-primary" onClick={demanderChantier}>
+                <Plus size={16} /> {t('liste.demander')}
+              </button>
+            ) : undefined}
+          />
+        )
         : (
           <>
             <div className="grid-2">
@@ -148,32 +204,33 @@ export default function Chantiers() {
           </>
         )}
 
-      <ChantierModal open={showCreate || !!editing} onClose={() => { setShowCreate(false); setEditing(null); }} chantier={editing} onSaved={reload} />
+      <ChantierEditionModal open={!!editing} onClose={() => setEditing(null)} chantier={editing} onSaved={reload} />
     </>
   );
 }
 
-function ChantierModal({ open, onClose, chantier, onSaved }) {
+/**
+ * Modification d'un chantier EXISTANT.
+ *
+ * Elle a longtemps servi aussi à en créer un. Ce n'est plus le cas : une
+ * création est en réalité une DEMANDE (le serveur la pose en
+ * « en attente de validation » pour tout compte non super-admin), et le
+ * parcours de demande commence par les plans — voir `demanderChantier`
+ * plus haut. Les branches de création ont donc été retirées plutôt que
+ * laissées inatteignables : une modale qui prétend savoir créer finit par
+ * être rebranchée un jour, et le contresens revient avec elle.
+ */
+function ChantierEditionModal({ open, onClose, chantier, onSaved }) {
   const statutsChantier = useEnum('statutsChantier');
   const { t } = useTranslation('chantier');
   const { user } = useUser();
-  const isEdit = !!chantier;
-  // Le super-admin plateforme n'appartient à aucune organisation : il désigne
-  // celle à qui le chantier revient. Pour tout autre rôle, le backend impose
-  // l'organisation du compte et refuse toute autre valeur — inutile de
-  // demander quoi que ce soit.
-  const choisitOrganisation = user?.role === 'Admin' && !isEdit;
-  // En MODIFICATION, l'organisation est rappelée mais pas modifiable :
-  // déplacer un chantier vers un autre client emporterait ses réserves, ses
-  // plans et ses documents, alors que son responsable, ses membres affectés et
-  // les entreprises assignées à ses réserves resteraient dans l'organisation
-  // d'origine. Le super-admin voyant le portefeuille de TOUS les clients, il
-  // lui faut au moins savoir lequel il est en train de modifier.
-  const afficheOrganisation = user?.role === 'Admin' && isEdit;
-  // Même règle que le serveur : « n'importe qui qui crée le chantier sauf
-  // Admin reste en attente » (chantier.service.js#_naitEnAttente).
-  const passeParValidation = !isEdit && user?.role !== 'Admin';
-  const [organisations, setOrganisations] = useState([]);
+  // L'organisation est rappelée mais PAS modifiable : déplacer un chantier vers
+  // un autre client emporterait ses réserves, ses plans et ses documents, alors
+  // que son responsable, ses membres affectés et les entreprises assignées à
+  // ses réserves resteraient dans l'organisation d'origine. Le super-admin
+  // voyant le portefeuille de TOUS les clients, il lui faut au moins savoir
+  // lequel il est en train de modifier.
+  const afficheOrganisation = user?.role === 'Admin';
   const [form, setForm] = useState({
     // Noms alignés sur le contrat de l'API (snake_case) : le schéma Joi valide
     // avec stripUnknown, une clé en camelCase serait retirée sans erreur.
@@ -188,32 +245,21 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
   const [errors, setErrors] = useState({});
 
   const reset = () => {
-    if (chantier) {
-      setForm({
-        nom: chantier.nom || '', code: chantier.code || '', description: chantier.description || '',
-        adresse: chantier.adresse || '',
-        date_debut: toDateInputValue(chantier.date_debut), date_fin: toDateInputValue(chantier.date_fin),
-        budget: chantier.budget ?? '', statut: chantier.statut || 'en_preparation',
-      });
-    } else {
-      setForm({ nom: '', code: '', description: '', adresse: '', date_debut: '', date_fin: '', budget: '', statut: 'en_preparation', organisationId: '' });
-    }
+    if (!chantier) return;
+    setForm({
+      nom: chantier.nom || '', code: chantier.code || '', description: chantier.description || '',
+      adresse: chantier.adresse || '',
+      date_debut: toDateInputValue(chantier.date_debut), date_fin: toDateInputValue(chantier.date_fin),
+      budget: chantier.budget ?? '', statut: chantier.statut || 'en_preparation',
+    });
     setErrors({});
   };
   useEffect(() => { if (open) reset(); }, [open, chantier]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Chargé à l'ouverture seulement, et seulement pour le super-admin : la
-  // route /admin/organisations est fermée aux autres rôles (403).
-  useEffect(() => {
-    if (!open || !choisitOrganisation) return;
-    listerOrganisations({ limit: 200 }).then((d) => setOrganisations(d.items)).catch(() => setOrganisations([]));
-  }, [open, choisitOrganisation]);
 
   const submit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!form.nom.trim()) errs.nom = t('commun.nomRequis');
-    if (choisitOrganisation && !form.organisationId) errs.organisationId = t('liste.organisationRequise');
     if (form.date_debut && form.date_fin && new Date(form.date_debut) > new Date(form.date_fin)) errs.date_fin = t('liste.finApresDebut');
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -224,42 +270,25 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
       date_debut: form.date_debut || undefined, date_fin: form.date_fin || undefined,
       budget: form.budget === '' ? undefined : Number(form.budget),
       statut: form.statut,
-      ...(choisitOrganisation ? { organisationId: form.organisationId } : {}),
     };
     setSaving(true);
     try {
-      if (isEdit) {
-        await modifierChantier(chantier.id, payload);
-        SwalCustom.success(t('liste.misAJour'));
-      } else {
-        await creerChantier(payload);
-        SwalCustom.success(t('liste.cree'));
-      }
+      await modifierChantier(chantier.id, payload);
+      SwalCustom.success(t('liste.misAJour'));
       onClose();
       onSaved();
-    } catch (err) { SwalCustom.error({ title: isEdit ? t('commun.majImpossible') : t('commun.creationImpossible'), text: getErrorMessage(err) }); }
+    } catch (err) { SwalCustom.error({ title: t('commun.majImpossible'), text: getErrorMessage(err) }); }
     finally { setSaving(false); }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? t('liste.modalModifier') : t('liste.modalNouveau')} size="lg" footer={
+    <Modal open={open} onClose={onClose} title={t('liste.modalModifier')} size="lg" footer={
       <>
         <button className="btn btn-secondary" onClick={onClose}>{t('actions.annuler')}</button>
-        <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? '…' : isEdit ? t('actions.enregistrer') : t('actions.creer')}</button>
+        <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? '…' : t('actions.enregistrer')}</button>
       </>
     }>
       <form onSubmit={submit}>
-        {choisitOrganisation && (
-          <SelectRecherche
-            label={t('liste.organisationProprietaire')}
-            value={form.organisationId}
-            onChange={(e) => setForm({ ...form, organisationId: e.target.value })}
-            error={errors.organisationId}
-            placeholder={t('liste.choisirOrganisation')}
-            options={organisations.map((o) => ({ id: o.id, label: o.nom }))}
-            required
-          />
-        )}
         {afficheOrganisation && (
           <Field label={t('liste.organisationProprietaire')} hint={t('liste.organisationNonModifiable')}>
             <div className="champ-lecture">{chantier?.organisation?.nom || '—'}</div>
@@ -278,22 +307,14 @@ function ChantierModal({ open, onClose, chantier, onSaved }) {
           <Input label={t('champs.dateDebut')} type="date" value={form.date_debut} onChange={(e) => setForm({ ...form, date_debut: e.target.value })} />
           <Input label={t('champs.dateFin')} type="date" value={form.date_fin} onChange={(e) => setForm({ ...form, date_fin: e.target.value })} error={errors.date_fin} />
         </div>
-        {/* À la CRÉATION par un compte non super-admin, le statut choisi
-            n'a aucun effet : le chantier part en demande de validation quoi
-            qu'il arrive. Laisser la liste promettrait un « En cours » qui ne
-            se produirait pas — on annonce à la place ce qui va réellement se
-            passer. */}
-        {passeParValidation ? (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
-            {t('liste.passeParValidation')}
-          </p>
-        ) : (
-          <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
-            {statutsChantier
-              .filter((value) => !STATUTS_CHANTIER_CIRCUIT.includes(value))
-              .map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
-          </Select>
-        )}
+        {/* Les deux statuts du CIRCUIT de validation sont retirés : on valide ou
+            l'on refuse une demande, on ne bascule pas un chantier « en attente »
+            depuis une liste déroulante. Le serveur refuse ces transitions. */}
+        <Select label={t('champs.statut')} value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}>
+          {statutsChantier
+            .filter((value) => !STATUTS_CHANTIER_CIRCUIT.includes(value))
+            .map((value) => <option key={value} value={value}>{enumLabel(value, STATUTS_CHANTIER[value]?.label)}</option>)}
+        </Select>
       </form>
     </Modal>
   );

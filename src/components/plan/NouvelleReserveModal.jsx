@@ -30,9 +30,26 @@ export default function NouvelleReserveModal({
   open,
   onClose,
   chantierId,
-  /** { batiment, etage, zone, plan } — hérités du parcours de navigation. */
+  /**
+   * `{ batiment, etage, zone, plan, chemin }` — hérités du parcours.
+   *
+   * Les trois niveaux de STRUCTURE ne sont renseignés que par le parcours qui
+   * les traverse (`PlanNavigateur`). L'explorateur de plans, lui, ne fournit
+   * que `plan` : le serveur en déduit bâtiment, étage et zone
+   * (`reserve.service.js#_heriterLocalisationDuPlan`), et les lui renvoyer ne
+   * ferait que risquer de le contredire. `chemin` est alors la chaîne LISIBLE
+   * de la descente, affichée à la place — sans elle, l'encart de localisation
+   * annoncerait « chantier entier » sur une réserve pourtant posée au
+   * troisième niveau d'un plan.
+   */
   localisation = {},
-  /** { x, y } en % de la page — le point cliqué sur le plan. */
+  /**
+   * `{ x, y, page }` en % de la page — le point cliqué sur le plan.
+   *
+   * `page` est la page AFFICHÉE au moment du clic. Sans elle, les réserves d'un
+   * PDF de douze pages se redessinent toutes sur la page 1 : chacune à ses
+   * bonnes coordonnées, mais sur la mauvaise feuille.
+   */
   position,
   /** Entreprises sélectionnables (partenaires du chantier). */
   entreprises = [],
@@ -46,6 +63,15 @@ export default function NouvelleReserveModal({
   const { t: tPhase } = useTranslation('phase');
   const { phases, chargement: phasesChargement } = usePhasesActives();
   const [form, setForm] = useState(null);
+  /**
+   * Champs obligatoires encore vides, signalés TOUS ENSEMBLE.
+   *
+   * Les traiter l'un après l'autre — une alerte, on corrige, l'alerte
+   * suivante — faisait remplir le formulaire en trois allers-retours, chacun
+   * révélant le manque suivant. Ici ils partent d'un coup, chacun sous son
+   * champ.
+   */
+  const [manques, setManques] = useState({});
   const [photo, setPhoto] = useState(null);
   const [apercu, setApercu] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -57,7 +83,7 @@ export default function NouvelleReserveModal({
   };
 
   useEffect(() => {
-    if (open) { setForm(vierge); setPhoto(null); }
+    if (open) { setForm(vierge); setPhoto(null); setManques({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -73,18 +99,35 @@ export default function NouvelleReserveModal({
   const f = form || vierge;
   const maj = (champ) => (e) => setForm({ ...f, [champ]: e.target.value });
 
+  // La structure quand le parcours la connaît, la descente des plans sinon.
   const cheminLocalisation = [
     localisation.batiment?.nom,
     localisation.etage?.nom,
     localisation.zone?.nom,
-  ].filter(Boolean).join(' › ');
+  ].filter(Boolean).join(' › ') || localisation.chemin || '';
 
   const submit = async (e) => {
     e?.preventDefault();
-    if (!f.titre.trim()) return SwalCustom.error(t('reserves.titreRequis'));
-    // Obligatoire côté serveur aussi (creerReserveSchema) : ce contrôle évite
-    // simplement un aller-retour réseau pour un champ vide.
-    if (!f.phaseId) return SwalCustom.error(tPhase('selecteur.requise'));
+
+    // Les quatre champs que le cahier technique § 9 rend obligatoires.
+    //
+    //  - titre et phase : le serveur les impose aussi (`creerReserveSchema`) ;
+    //  - ENTREPRISE : une réserve sans entreprise n'est adressée à personne ;
+    //  - ÉCHÉANCE : sans elle, la réserve n'est jamais en retard et sort donc
+    //    de tout suivi — c'est le défaut le plus coûteux des deux, parce qu'il
+    //    ne se voit pas.
+    //
+    // Le serveur les accepte facultatifs pour ne pas casser les intégrations
+    // existantes ; c'est la SAISIE qui les exige, ici comme sur mobile.
+    const vides = {
+      titre: !f.titre.trim() && t('reserves.titreRequis'),
+      phaseId: !f.phaseId && tPhase('selecteur.requise'),
+      partenaireId: !f.partenaireId && t('reserves.entrepriseRequise'),
+      date_limite: !f.date_limite && t('reserves.delaiRequis'),
+    };
+    setManques(vides);
+    if (Object.values(vides).some(Boolean)) return;
+
     setSaving(true);
     try {
       const reserve = await creerReserve(chantierId, {
@@ -104,7 +147,9 @@ export default function NouvelleReserveModal({
         etageId: localisation.etage?.id || undefined,
         zoneId: localisation.zone?.id || undefined,
         planId: localisation.plan?.id || undefined,
-        position: position ? { x: position.x, y: position.y, zoom: 1 } : undefined,
+        position: position
+          ? { x: position.x, y: position.y, zoom: 1, page: position.page || 1 }
+          : undefined,
       });
 
       if (photo && reserve?.id) {
@@ -149,6 +194,7 @@ export default function NouvelleReserveModal({
           value={f.titre}
           onChange={maj('titre')}
           placeholder={t('reserves.titrePlaceholder')}
+          error={manques.titre || undefined}
           required
           autoFocus
         />
@@ -157,6 +203,7 @@ export default function NouvelleReserveModal({
           label={tPhase('selecteur.label')}
           value={f.phaseId}
           onChange={maj('phaseId')}
+          error={manques.phaseId || undefined}
           required
         >
           <option value="">{phasesChargement ? tPhase('selecteur.chargement') : tPhase('selecteur.choisir')}</option>
@@ -171,8 +218,14 @@ export default function NouvelleReserveModal({
           rows={3}
         />
 
-        <Select label={t('reserves.entrepriseConcernee')} value={f.partenaireId} onChange={maj('partenaireId')}>
-          <option value="">{t('reserves.aucuneF')}</option>
+        <Select
+          label={t('reserves.entrepriseConcernee')}
+          value={f.partenaireId}
+          onChange={maj('partenaireId')}
+          error={manques.partenaireId || undefined}
+          required
+        >
+          <option value="">{t('reserves.choisirEntreprise')}</option>
           {entreprises.map((en) => (
             <option key={en.id} value={en.id}>{en.nom}</option>
           ))}
@@ -214,7 +267,14 @@ export default function NouvelleReserveModal({
               <option key={v} value={v}>{enumLabel(v, SEVERITES[v]?.label)}</option>
             ))}
           </Select>
-          <Input label={t('reserves.delaiLevee')} type="date" value={f.date_limite} onChange={maj('date_limite')} />
+          <Input
+            label={t('reserves.delaiLevee')}
+            type="date"
+            value={f.date_limite}
+            onChange={maj('date_limite')}
+            error={manques.date_limite || undefined}
+            required
+          />
         </div>
 
         <Select label={tCorps('selecteur.label')} value={f.corpsEtatId} onChange={maj('corpsEtatId')}>
@@ -231,7 +291,8 @@ export default function NouvelleReserveModal({
             <span>{cheminLocalisation || t('reserves.chantierEntier')}</span>
             {position && (
               <span className="reserve-localisation-point">
-                x {position.x} · y {position.y}
+                {`x ${position.x} · y ${position.y}`}
+                {position.page > 1 && ` · p. ${position.page}`}
               </span>
             )}
           </div>

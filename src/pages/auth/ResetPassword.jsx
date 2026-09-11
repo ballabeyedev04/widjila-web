@@ -58,15 +58,16 @@ export default function ResetPassword() {
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="field">
-              <label>{t('resetPassword.emailLabel')}</label>
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+              <label htmlFor="reinit-email">{t('resetPassword.emailLabel')}</label>
+              <input id="reinit-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
             </div>
             <div className="field">
-              <label>{t('resetPassword.codeLabel')}</label>
+              <label htmlFor="reinit-code">{t('resetPassword.codeLabel')}</label>
               {/* Le code envoyé par le serveur est ALPHANUMÉRIQUE en majuscules
                   (alphabet ABCDEFGHJKLMNPQRSTUVWXYZ23456789, sans O/0/I/1).
                   Filtrer sur les chiffres rendait la réinitialisation impossible. */}
               <input
+                id="reinit-code"
                 className="input"
                 inputMode="text"
                 autoCapitalize="characters"
@@ -79,9 +80,10 @@ export default function ResetPassword() {
               />
             </div>
             <div className="field">
-              <label>{t('resetPassword.nouveauMotDePasse')}</label>
+              <label htmlFor="reinit-nouveau">{t('resetPassword.nouveauMotDePasse')}</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="reinit-nouveau"
                   className="input"
                   type={showPassword ? 'text' : 'password'}
                   value={nouveauMotDePasse}
@@ -101,8 +103,8 @@ export default function ResetPassword() {
               <div className="hint">{t('resetPassword.indiceMotDePasse')}</div>
             </div>
             <div className="field">
-              <label>{t('resetPassword.confirmerMotDePasse')}</label>
-              <input className="input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+              <label htmlFor="reinit-confirmation">{t('resetPassword.confirmerMotDePasse')}</label>
+              <input id="reinit-confirmation" className="input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
             </div>
 
             <button className="btn btn-primary w-full btn-lg" type="submit" disabled={loading}>

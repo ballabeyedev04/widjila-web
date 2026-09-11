@@ -1,4 +1,4 @@
-import api, { setUser, clearUser, setStoredToken } from '../api.js';
+import api, { setUser, clearUser, setStoredToken, annoncerFinDeSession } from '../api.js';
 import { unwrap } from '../helpers.js';
 import i18n from '../../i18n/index.js';
 
@@ -50,6 +50,10 @@ export const logout = async () => {
     // La déconnexion locale est prioritaire — on vide toujours l'état local.
   } finally {
     clearUser();
+    // Les autres onglets partagent le cookie que l'on vient de révoquer : on
+    // les prévient, plutôt que de les laisser ouverts avec un jeton encore
+    // valide une heure.
+    annoncerFinDeSession();
   }
 };
 

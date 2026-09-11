@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Calendar, ListChecks } from 'lucide-react';
+import { Plus, Pencil, Trash2, Calendar, ListChecks, TrendingUp } from 'lucide-react';
 
 import Badge from '../../../components/Badge.jsx';
 import Modal from '../../../components/Modal.jsx';
 import StatCard from '../../../components/StatCard.jsx';
+import AreaChart from '../../../components/charts/AreaChart.jsx';
+import { TEINTES } from '../../../components/charts/chartTokens.js';
 import EmptyState from '../../../components/EmptyState.jsx';
 import { Input, Textarea } from '../../../components/FormControls.jsx';
-import { statsChantier } from '../../../service/dashboard/dashboardService.js';
+import { statsChantier, evolution } from '../../../service/dashboard/dashboardService.js';
 import { listerPhases, creerPhase, modifierPhase, supprimerPhase, getCalendrier } from '../../../service/chantier/chantierService.js';
 import { getErrorMessage } from '../../../service/helpers.js';
 import { formatDate, toDateInputValue } from '../../../utils/format.js';
@@ -20,9 +22,26 @@ import SwalCustom from '../../../utils/swal.config.js';
 const PHASE_STATUTS = ['planifiee', 'en_cours', 'terminee'];
 const PHASE_STATUT_DEFAUT = 'planifiee';
 
+/**
+ * `2026-08` → `août`, dans la langue active.
+ *
+ * Même conversion que le tableau de bord global (`hooks/useDashboard.js`) : le
+ * serveur renvoie des clés `YYYY-MM`, jamais des libellés — c'est au client de
+ * les traduire, sans quoi une organisation anglophone lirait des mois français.
+ */
+function libelleMois(cle, langue) {
+  const [annee, mois] = String(cle).split('-').map(Number);
+  if (!annee || !mois) return cle;
+  return new Intl.DateTimeFormat(langue, { month: 'short' }).format(new Date(annee, mois - 1, 1));
+}
+
 export default function ApercuTab({ chantierId }) {
-  const { t } = useTranslation('chantier');
+  const { t, i18n } = useTranslation('chantier');
   const [stats, setStats] = useState(null);
+  // Évolution mensuelle des réserves de CE chantier. `null` tant qu'on ne sait
+  // pas : un tableau vide dirait « aucune réserve cette année », ce qui n'est
+  // pas la même chose qu'une section indisponible.
+  const [evo, setEvo] = useState(null);
   const [phases, setPhases] = useState([]);
   const [calendrier, setCalendrier] = useState([]);
   const [showPhase, setShowPhase] = useState(null); // null | {mode:'create'} | {mode:'edit', phase}
@@ -35,6 +54,12 @@ export default function ApercuTab({ chantierId }) {
       setStats(s);
       setPhases(p.items);
       setCalendrier(c?.evenements || []);
+      // Chargée À PART et sans `await` bloquant : c'est une section secondaire,
+      // et son indisponibilité (panne partielle, droits) ne doit pas priver
+      // l'utilisateur de ses indicateurs ni de ses phases.
+      evolution(chantierId)
+        .then((e) => setEvo(e?.series || []))
+        .catch(() => { /* section « Évolution » non affichée */ });
     } catch (err) {
       SwalCustom.error({ title: t('apercu.erreurChargement'), text: getErrorMessage(err) });
     } finally {
@@ -65,6 +90,37 @@ export default function ApercuTab({ chantierId }) {
         <StatCard label={t('apercu.statInspections')} value={stats?.inspections ?? '—'} tone="green" />
         <StatCard label={t('apercu.statDocuments')} value={stats?.documents ?? '—'} tone="navy" />
       </div>
+
+      {/* ── Évolution des réserves ──
+          Les indicateurs du dessus disent OÙ EN EST le chantier ; la courbe dit
+          DANS QUEL SENS il va. « 42 réserves ouvertes » se lit très différemment
+          selon qu'on en levait dix par mois ou qu'on n'en levait aucune. */}
+      {evo && evo.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-header">
+            <h2><TrendingUp size={17} style={{ verticalAlign: -2 }} /> {t('apercu.evolutionTitre')}</h2>
+            <span className="text-muted" style={{ fontSize: 12.5 }}>{t('apercu.evolutionSousTitre')}</span>
+          </div>
+          <div className="card-body">
+            <AreaChart
+              labels={evo.map((p) => libelleMois(p.mois, i18n.language))}
+              series={[
+                {
+                  label: t('apercu.evolutionCreees'),
+                  valeurs: evo.map((p) => p.creees || 0),
+                  couleur: TEINTES.primaire,
+                },
+                {
+                  label: t('apercu.evolutionValidees'),
+                  valeurs: evo.map((p) => p.validees || 0),
+                  couleur: TEINTES.succes,
+                },
+              ]}
+              hauteur={230}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid-2-panel">
         <div className="card">

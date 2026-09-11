@@ -13,6 +13,8 @@ import {
 import { getErrorMessage } from '../../service/helpers.js';
 import { initials } from '../../utils/format.js';
 import SwalCustom from '../../utils/swal.config.js';
+import { chargerToutesLesPages } from '../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../utils/monitoring.js';
 
 export default function Equipes() {
   const { t } = useTranslation('organisation');
@@ -98,7 +100,9 @@ function CreateEquipeModal({ open, onClose, onCreated }) {
   useEffect(() => {
     if (open) {
       setNom(''); setDescription(''); setChefId(''); setSelected([]);
-      listerMembres({ limit: 100 }).then((d) => setAll(d.items)).catch(() => {});
+      chargerToutesLesPages(listerMembres)
+        .then(setAll)
+        .catch((err) => reporter(err, { source: 'Equipes' }));
     }
   }, [open]);
 
@@ -162,7 +166,9 @@ function ManageEquipeModal({ equipe, onClose, onChanged }) {
   useEffect(() => {
     if (equipe) {
       setSelected((equipe.membres || []).map((m) => m.id));
-      listerMembres({ limit: 100 }).then((d) => setAll(d.items)).catch(() => {});
+      chargerToutesLesPages(listerMembres)
+        .then(setAll)
+        .catch((err) => reporter(err, { source: 'Equipes' }));
     }
   }, [equipe]);
 

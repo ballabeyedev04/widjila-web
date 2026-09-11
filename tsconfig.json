@@ -1,0 +1,58 @@
+{
+  "//": [
+    "Vérification de types sur du JavaScript — sans migrer un seul fichier.",
+    "",
+    "POURQUOI. L'audit a trouvé, dans du code de production, un champ envoyé",
+    "sous un nom que le serveur ignore : le formulaire d'ajout de membre",
+    "envoyait `motDePasse`, le schéma Joi attend `mot_de_passe`, et",
+    "`stripUnknown: true` le retirait en silence. Le mot de passe saisi n'a",
+    "donc jamais été celui du compte créé, et rien — ni erreur, ni journal, ni",
+    "test — ne pouvait le révéler. Un contrat typé l'aurait refusé à l'écriture.",
+    "",
+    "PORTÉE VOLONTAIREMENT ÉTROITE. `include` ne couvre que `src/service/` et",
+    "`src/utils/` : la couche où vivent les contrats d'API et les fonctions",
+    "pures, c'est-à-dire exactement là où ce bug s'est produit et là où le",
+    "typage rend le plus. Étendre à tout le JSX demanderait des types de props",
+    "sur 192 fichiers pour un bénéfice bien moindre — ce serait une migration,",
+    "pas un garde-fou.",
+    "",
+    "AUCUN FICHIER .ts. `allowJs` + `checkJs` font vérifier le JavaScript",
+    "existant à partir de ses annotations JSDoc. `noEmit` : ce projet est",
+    "construit par Vite, TypeScript ne sert qu'à contrôler.",
+    "",
+    "Élargir la portée est un choix délibéré, à faire fichier par fichier —",
+    "ajouter un chemin à `include` et corriger ce qui remonte."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    "strict": true,
+    "noImplicitAny": false,
+    "noUncheckedIndexedAccess": false,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/service/**/*.js",
+    "src/utils/**/*.js"
+  ],
+  "exclude": [
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "node_modules",
+    "dist"
+  ]
+}

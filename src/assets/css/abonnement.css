@@ -368,3 +368,191 @@
   text-decoration: none;
 }
 .plan-devis-contact a:hover { text-decoration: underline; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Votre formule (quotas) et historique des paiements
+
+   Les deux sections que le mobile affichait déjà et qui manquaient au web.
+   Leur absence avait un coût concret : un compte qui se voyait refuser la
+   création d'un chantier lisait « abonnement actif » et n'apprenait nulle part
+   qu'il était à 5 chantiers sur 5.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.abonnement-usage,
+.abonnement-historique {
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.abonnement-usage > header,
+.abonnement-historique > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.abonnement-usage h2,
+.abonnement-historique h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.abonnement-usage header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── Jauges d'usage ────────────────────────────────────────────────────── */
+
+.abonnement-usage-jauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.usage-jauge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usage-jauge-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.usage-jauge-libelle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.usage-jauge-valeur {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.usage-jauge-valeur.atteint { color: var(--danger); }
+
+.usage-jauge-piste {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.usage-jauge-remplissage {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+.usage-jauge-remplissage.atteint { background: var(--danger); }
+
+.usage-jauge-alerte {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+/* ── Historique des règlements ─────────────────────────────────────────── */
+
+.abonnement-historique-total {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.abonnement-historique-vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.abonnement-historique-vide strong {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.abonnement-historique-vide span { font-size: 12px; }
+
+.abonnement-historique-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.abonnement-historique-liste li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px 13px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.abonnement-historique-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.abonnement-historique-plan strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.abonnement-historique-plan span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.abonnement-historique-montant {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.abonnement-historique-periode {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ---------- Formule et historique : tablette et téléphone ---------- */
+@media (max-width: 640px) {
+  .abonnement-usage,
+  .abonnement-historique { padding: 14px 16px; }
+
+  /* Une jauge par ligne : à deux colonnes sur un écran étroit, « 12 sur 15 »
+     passait à la ligne sous son propre libellé. */
+  .abonnement-usage-jauges { grid-template-columns: 1fr; gap: 14px; }
+
+  /* La ligne d'historique s'empile : formule et date d'un côté, montant et
+     statut de l'autre. Sur une seule ligne, le nom de la formule était réduit
+     à trois caractères par le montant et le badge. */
+  .abonnement-historique-liste li {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .abonnement-historique-plan { flex-basis: 100%; }
+  .abonnement-historique-montant { font-size: 13.5px; }
+}

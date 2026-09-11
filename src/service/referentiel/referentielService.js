@@ -31,3 +31,36 @@ export const chargerPays = async () => {
   const response = await api.get('/referentiels/pays');
   return unwrap(response)?.pays ?? [];
 };
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Catalogues de CODES — niveaux et appartements.
+ *
+ * Le mobile les consomme depuis la même API. Le web saisissait ces valeurs
+ * en texte libre : « R+1 », « R + 1 » et « Etage 1 » désignaient le même
+ * niveau et produisaient trois niveaux. Le catalogue les fige.
+ *
+ * Chaque liste mêle le catalogue STANDARD de la plateforme (organisation
+ * nulle, servi à tous) et les codes propres à l'organisation. Un code ajouté
+ * ici vaut pour toute l'organisation, jamais pour le standard — voir
+ * `backend/src/modules/referentiel/service/codeNiveau.service.js`.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+export const listerCodesNiveau = async () => {
+  const response = await api.get('/referentiels/codes-niveau');
+  return unwrap(response)?.codes ?? [];
+};
+
+export const creerCodeNiveau = async (body) => {
+  const response = await api.post('/referentiels/codes-niveau', body);
+  return unwrap(response)?.code;
+};
+
+export const listerCodesAppartement = async () => {
+  const response = await api.get('/referentiels/codes-appartement');
+  return unwrap(response)?.codes ?? [];
+};
+
+export const creerCodeAppartement = async (body) => {
+  const response = await api.post('/referentiels/codes-appartement', body);
+  return unwrap(response)?.code;
+};

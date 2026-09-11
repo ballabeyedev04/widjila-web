@@ -38,10 +38,34 @@ function routesDeclarees() {
   );
 }
 
-/** Les entrées de menu déclarées dans `AdminLayout.jsx`. */
+/**
+ * Les entrées de menu déclarées dans `AdminLayout.jsx`.
+ *
+ * Les entrées d'ACTION en sont exclues. Deux d'entre elles — tableau de bord
+ * chantier, documents — n'ont pas de route à elles : elles ouvrent le sélecteur
+ * de chantier, puis mènent à l'onglet du chantier choisi. Leur `path` n'est
+ * qu'une clé de liste, et le `#` qui le préfixe le dit.
+ *
+ * Elles ne sont pas simplement ignorées : `actionsDuMenu` vérifie plus bas que
+ * tout chemin en `#` porte bien un `versChantier`. Sans cela, une faute de
+ * frappe dans un vrai chemin suffirait à faire disparaître l'entrée du
+ * contrôle.
+ */
 function cheminsDuMenu() {
   const src = sourceDe('layouts/AdminLayout.jsx');
-  return [...src.matchAll(/\{\s*path:\s*'([^']+)',\s*label:/g)].map(([, chemin]) => chemin);
+  return [...src.matchAll(/\{\s*path:\s*'([^']+)',\s*label:/g)]
+    .map(([, chemin]) => chemin)
+    .filter((chemin) => !chemin.startsWith('#'));
+}
+
+/** Les entrées-actions : `path` en `#`, et la destination qu'elles construisent. */
+function actionsDuMenu() {
+  const src = sourceDe('layouts/AdminLayout.jsx');
+  // Le bloc d'une entrée court de son `path` à l'accolade qui la ferme. Le
+  // quantificateur paresseux borné évite d'avaler l'entrée suivante si l'une
+  // d'elles perdait son accolade.
+  return [...src.matchAll(/path:\s*'(#[^']+)',[\s\S]{0,400}?\},/g)]
+    .map(([bloc, chemin]) => ({ chemin, aUneDestination: bloc.includes('versChantier:') }));
 }
 
 describe('portail plateforme — menu et routes', () => {
@@ -58,6 +82,15 @@ describe('portail plateforme — menu et routes', () => {
   it('chaque entrée de menu mène à une route déclarée', () => {
     const orphelines = menu.filter((chemin) => !routes.has(chemin));
     expect(orphelines).toEqual([]);
+  });
+
+  it('une entrée sans route est une ACTION, et le dit', () => {
+    // Le seul motif légitime de n'avoir aucune route : ouvrir le sélecteur de
+    // chantier. Un `#` sans `versChantier` serait une entrée morte — un clic
+    // qui ne fait rien, ce que rien d'autre ne signalerait.
+    const actions = actionsDuMenu();
+    expect(actions.length).toBeGreaterThan(0);
+    expect(actions.filter((a) => !a.aUneDestination)).toEqual([]);
   });
 
   it('les sept écrans du super-admin sont dans le menu plateforme', () => {

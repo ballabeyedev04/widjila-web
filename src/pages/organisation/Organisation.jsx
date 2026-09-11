@@ -26,7 +26,32 @@ import { ROLES_GESTION, roleAllowed } from '../../utils/constants.js';
 import '../../assets/css/abonnement.css';
 import { useUser } from '../../context/useUser.js';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+// Les chargements secondaires de cet écran n'interrompent rien en cas
+// d'échec — mais ils le SIGNALENT, au lieu de laisser une liste vide
+// que rien ne distingue d'une liste en panne.
+import { reporter } from '../../utils/monitoring.js';
+import AbonnementTab from './sections/OngletAbonnement.jsx';
+import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
+
+/**
+ * Le serveur porte-t-il désormais la formule qui vient d'être payée ?
+ *
+ * Compare par identifiant, puis par code, puis par nom : selon la version de
+ * l'API, `planActuelDetails` expose l'un ou l'autre. Une abonnement actif sur
+ * l'ANCIENNE formule ne compte pas — c'est justement l'état d'avant le webhook
+ * lors d'un changement de formule.
+ *
+ * @param {any} details  Réponse de `GET /abonnement/plan-details`.
+ * @param {any} plan     Formule choisie dans la grille.
+ * @returns {boolean}
+ */
+function correspondAuPlan(details, plan) {
+  if (!details?.isSubscribed || !plan) return false;
+  const actuel = details.planActuelDetails;
+  if (actuel?.id && plan.id) return actuel.id === plan.id;
+  if (actuel?.code && plan.code) return actuel.code === plan.code;
+  return Boolean(details.planActuel) && [plan.code, plan.nom].includes(details.planActuel);
+}
 
 export default function Organisation() {
   const { t } = useTranslation('organisation');
@@ -75,7 +100,7 @@ export default function Organisation() {
       const res = await getPlanDetails();
       if (res) setPlanDetails(res);
     } catch (err) {
-      console.warn('Impossible de charger les détails du plan:', err);
+      reporter(err, { source: 'Organisation/planDetails' });
     } finally {
       setPlanLoading(false);
     }
@@ -112,21 +137,15 @@ export default function Organisation() {
     return () => { cancelled = true; };
   }, [selectedPlan, planDetails?.isSubscribed]);
 
-  // Écouteur pour le retour Stripe (success_url)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      SwalCustom.success(t('abonnement.paiementReussi'));
-      loadPlanDetails();
-      load();
-      setSelectedPlan(null);
-      setClientSecret(null);
-    } else if (params.get('payment') === 'cancel') {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      SwalCustom.info(t('abonnement.paiementAnnule'));
-    }
-  }, [load, loadPlanDetails, t]);
+  // Pas d'écoute de `?payment=success`.
+  //
+  // Cet écran annonçait « Paiement réussi ! Votre abonnement est actif » à
+  // quiconque ouvrait `/organisation?payment=success` — sans rien vérifier.
+  // N'importe qui pouvait envoyer ce lien à un gestionnaire : l'écran lui
+  // affirmait un paiement qui n'avait jamais eu lieu. Et ce retour n'existe
+  // même pas : le paiement se fait DANS la page (Stripe Elements,
+  // `confirmCardPayment`), sans jamais la quitter. Le succès n'est annoncé que
+  // lorsque le SERVEUR le confirme — voir `handlePaymentSuccess`.
 
   const handleSelectPlan = (plan) => {
     setSelectedPlan(plan);
@@ -163,16 +182,38 @@ export default function Organisation() {
     }
   };
 
+  // Vrai pendant qu'on attend que le serveur confirme un paiement.
+  const [confirmationEnCours, setConfirmationEnCours] = useState(false);
+
+  /**
+   * Le débit est autorisé par la banque — reste à ce que le SERVEUR active la
+   * formule payée (webhook Stripe).
+   *
+   * L'écran rechargeait une seule fois, immédiatement : presque toujours AVANT
+   * le webhook, il retrouvait donc l'ancienne formule et ne disait rien. On
+   * interroge maintenant le serveur jusqu'à ce qu'il porte la formule choisie,
+   * avec la même règle que l'écran Abonnement — voir `attendreConfirmation`.
+   */
   const handlePaymentSuccess = async () => {
-    // Le webhook Stripe activera l'abonnement côté serveur
-    try {
-      await loadPlanDetails();
-      await load();
-    } catch (err) {
-      console.warn('Rechargement statut échoué:', err);
-    }
+    const planPaye = selectedPlan;
+    // Le formulaire disparaît tout de suite : le débit est autorisé, le laisser
+    // à l'écran inviterait à payer une seconde fois.
     setSelectedPlan(null);
     setClientSecret(null);
+    setConfirmationEnCours(true);
+
+    const confirme = await attendreConfirmation(async () => {
+      const details = await getPlanDetails();
+      if (details) setPlanDetails(details);
+      return correspondAuPlan(details, planPaye);
+    });
+
+    setConfirmationEnCours(false);
+    await load();
+    if (confirme) SwalCustom.success(t('abonnement.paiementReussi'));
+    // Ni succès ni échec : le paiement est parti, l'activation n'est pas encore
+    // visible. Annoncer l'un ou l'autre serait mentir.
+    else SwalCustom.info(t('plateforme:abonnement.paiementNonConfirme'));
   };
 
   if (loading) return <Spinner label={t('org.chargement')} />;
@@ -201,7 +242,11 @@ export default function Organisation() {
                 {org.abonnement && <span className="badge badge-info">{org.abonnement}</span>}
               </div>
             </div>
-            <div className="kv-list" style={{ minWidth: 300 }}>
+            {/* `flexBasis` et non `minWidth` : un plancher de 300 px déborde
+                d'un téléphone de 320 px une fois les marges déduites. Une base
+                flexible garde la même largeur quand il y a la place, et cède
+                quand il n'y en a pas. */}
+            <div className="kv-list" style={{ flex: '1 1 300px', minWidth: 0 }}>
               {org.telephone && <div className="kv-item"><span className="k"><Phone size={13} /> {t('org.telCourt')}</span><span className="v">{org.telephone}</span></div>}
               {org.email && <div className="kv-item"><span className="k"><Mail size={13} /> {t('champs.email')}</span><span className="v">{org.email}</span></div>}
               {org.adresse && <div className="kv-item"><span className="k"><MapPin size={13} /> {t('champs.adresse')}</span><span className="v">{org.adresse}</span></div>}
@@ -239,7 +284,13 @@ export default function Organisation() {
           ) : tab === 'organigramme' ? (
             <OrganigrammeTree data={organigramme} onLoad={() => getOrganigramme().then(setOrganigramme).catch((err) => SwalCustom.error(getErrorMessage(err)))} />
           ) : (
-            <AbonnementTab
+            <>
+              {confirmationEnCours && (
+                <div className="abonnement-alert" role="status" aria-live="polite">
+                  {t('plateforme:abonnement.confirmationEnCours')}
+                </div>
+              )}
+              <AbonnementTab
               planDetails={planDetails}
               planLoading={planLoading}
               selectedPlan={selectedPlan}
@@ -251,7 +302,8 @@ export default function Organisation() {
               onCancelSelection={handleCancelSelection}
               onCancelSubscription={handleCancelSubscription}
               onPaymentSuccess={handlePaymentSuccess}
-            />
+              />
+            </>
           )}
         </div>
       </div>
@@ -513,7 +565,7 @@ function CreateEntityModal({ open, onClose, type, initialParentId = '', onCreate
   useEffect(() => {
     if (open) {
       setForm({ nom: '', parentId: initialParentId, telephone: '', email: '' });
-      listerFiliales().then((d) => setFiliales(d.items)).catch(() => {});
+      listerFiliales().then((d) => setFiliales(d.items)).catch((err) => reporter(err, { source: 'Organisation' }));
     }
   }, [open, type, initialParentId]);
 
@@ -567,244 +619,4 @@ function CreateEntityModal({ open, onClose, type, initialParentId = '', onCreate
 
 /* ============ Onglet Abonnement ============ */
 
-/** Icône illustrant un plan (starter / pro / business). */
-function PlanIcon({ planId, size = 28 }) {
-  if (planId === 'starter') return <Star size={size} />;
-  if (planId === 'pro') return <Zap size={size} />;
-  if (planId === 'business') return <InfinityIcon size={size} />;
-  return <CreditCard size={size} />;
-}
 
-/** Formulaire carte bancaire — isolé pour pouvoir utiliser les hooks Stripe. */
-function AbonnementPaymentForm({ plan, clientSecret, loading, onSuccess }) {
-  const { t } = useTranslation('organisation');
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) {
-      setError(t('abonnement.paiement.stripeNonCharge'));
-      return;
-    }
-    if (!clientSecret) {
-      setError(t('abonnement.paiement.nonInitialise'));
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setError(t('abonnement.paiement.carteIntrouvable'));
-      setProcessing(false);
-      return;
-    }
-
-    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-      clientSecret,
-      { payment_method: { card: cardElement } }
-    );
-
-    if (stripeError) {
-      setError(stripeError.message || t('abonnement.paiement.erreur'));
-      setProcessing(false);
-    } else if (paymentIntent?.status === 'succeeded') {
-      onSuccess();
-    } else {
-      setError(t('abonnement.paiement.enAttente'));
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="payment-form">
-      <div className="payment-form-header">
-        <Shield size={20} className="secure-icon" />
-        <span>{t('abonnement.paiement.securise')}</span>
-      </div>
-
-      <div className="payment-field">
-        <label>{t('abonnement.paiement.carte')}</label>
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '15px',
-                color: '#1e293b',
-                '::placeholder': { color: '#94a3b8' },
-                padding: '12px',
-              },
-              invalid: { color: '#ef4444', iconColor: '#ef4444' },
-            },
-          }}
-        />
-      </div>
-
-      {error && <div className="payment-error"><AlertCircle size={14} /> {error}</div>}
-
-      <button type="submit" className="btn btn-primary w-full btn-lg" disabled={processing || loading || !stripe}>
-        {processing ? (
-          <><Loader2 size={16} className="spin" /> {t('abonnement.paiement.traitement')}</>
-        ) : loading ? (
-          <><Loader2 size={16} className="spin" /> {t('abonnement.paiement.preparation')}</>
-        ) : (
-          <>{t('abonnement.paiement.confirmer', { prix: plan.prix })} <CreditCard size={16} /></>
-        )}
-      </button>
-
-      <p className="payment-hint">
-        <Shield size={12} /> {t('abonnement.paiement.hint')}
-      </p>
-    </form>
-  );
-}
-
-/**
- * Onglet « Abonnement » de la page Organisation.
- *
- * Composant purement présentationnel : l'état (plan sélectionné, clientSecret,
- * chargements) et les actions vivent dans Organisation() et sont reçus en props.
- *
- * `planDetails` est le payload de GET /abonnement/plan-details :
- * { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt, planActuel,
- *   planActuelDetails, allPlans[] }
- */
-function AbonnementTab({
-  planDetails, planLoading, selectedPlan, clientSecret, paymentLoading, paymentError,
-  stripePromise, onSelectPlan, onCancelSelection, onCancelSubscription, onPaymentSuccess,
-}) {
-  const { t } = useTranslation('organisation');
-  if (planLoading && !planDetails) return <Spinner label={t('abonnement.chargement')} />;
-  if (!planDetails) {
-    return <EmptyState title={t('abonnement.indisponible.titre')} message={t('abonnement.indisponible.message')} />;
-  }
-
-  const { isSubscribed, trialEnded, joursRestantsTrial, trialEndsAt, planActuelDetails } = planDetails;
-  const plans = planDetails.allPlans || [];
-
-  // ── Écran de paiement (un plan est sélectionné) ────────────────────────────
-  if (selectedPlan) {
-    return (
-      <section className="payment-section" aria-label={t('abonnement.paiement.aria')}>
-        <div className="payment-header">
-          <button className="btn btn-ghost" onClick={onCancelSelection}>← {t('abonnement.paiement.retourPlans')}</button>
-          <div className="payment-plan-summary">
-            <div className="payment-plan-icon"><PlanIcon planId={selectedPlan.id} size={24} /></div>
-            <div>
-              <strong>{selectedPlan.nom}</strong>
-              <span>{selectedPlan.prix} {t('abonnement.paiement.parMois')}</span>
-            </div>
-          </div>
-        </div>
-
-        {paymentError && <div className="abonnement-alert" role="alert"><AlertCircle size={18} /> {paymentError}</div>}
-
-        {stripePromise ? (
-          <Elements stripe={stripePromise}>
-            <AbonnementPaymentForm
-              plan={selectedPlan}
-              clientSecret={clientSecret}
-              loading={paymentLoading}
-              onSuccess={onPaymentSuccess}
-            />
-          </Elements>
-        ) : (
-          <div className="stripe-unavailable">
-            <AlertCircle size={32} />
-            <h3>{t('abonnement.stripeIndispo.titre')}</h3>
-            <p><Trans t={t} i18nKey="abonnement.stripeIndispo.cleManquante" components={{ code: <code /> }} /></p>
-            <p className="hint"><Trans t={t} i18nKey="abonnement.stripeIndispo.hint" components={{ code: <code /> }} /></p>
-          </div>
-        )}
-      </section>
-    );
-  }
-
-  // ── Écran principal : statut + choix du plan ───────────────────────────────
-  return (
-    <section className="plans-section" aria-label={t('abonnement.plans.aria')}>
-      {/* Statut actuel */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        {isSubscribed ? (
-          <span className="badge badge-success"><Check size={12} /> {t('abonnement.statut.actif', { plan: planActuelDetails?.nom || planDetails.planActuel || t('abonnement.statut.planEnCours') })}</span>
-        ) : trialEnded ? (
-          <span className="badge badge-danger"><AlertCircle size={12} /> {t('abonnement.statut.essaiExpire')}</span>
-        ) : (
-          <span className="badge badge-warning">
-            <Zap size={12} /> {t('abonnement.statut.essai', { count: joursRestantsTrial })}
-            {trialEndsAt ? ` (${t('abonnement.statut.jusquAu', { date: formatDate(trialEndsAt) })})` : ''}
-          </span>
-        )}
-
-        {isSubscribed && (
-          <button className="btn btn-secondary btn-sm" onClick={onCancelSubscription} disabled={paymentLoading}>
-            <RotateCcw size={14} /> {t('abonnement.annuler.bouton')}
-          </button>
-        )}
-      </div>
-
-      {paymentError && <div className="abonnement-alert" role="alert"><AlertCircle size={18} /> {paymentError}</div>}
-
-      {plans.length === 0 ? (
-        <EmptyState title={t('abonnement.plans.aucun.titre')} message={t('abonnement.plans.aucun.message')} />
-      ) : (
-        <div className="plans-grid">
-          {plans.map((plan) => {
-            const estPlanActuel = isSubscribed && planActuelDetails?.id === plan.id;
-            return (
-              <article key={plan.id} className={`plan-card ${plan.id === 'pro' ? 'popular' : ''}`} data-plan={plan.id}>
-                {plan.id === 'pro' && <div className="plan-popular-badge">{t('abonnement.plans.populaire')}</div>}
-
-                <div className="plan-header">
-                  <div className="plan-icon-wrapper"><PlanIcon planId={plan.id} /></div>
-                  <h2 className="plan-name">{plan.nom}</h2>
-                  <p className="plan-description">{plan.description}</p>
-                </div>
-
-                <div className="plan-price">
-                  <span className="plan-amount">{plan.prix}</span>
-                  <span className="plan-period">{t('abonnement.plans.parMois')}</span>
-                </div>
-
-                <ul className="plan-features">
-                  {(plan.features || []).map((feature, i) => (
-                    <li key={i}><Check size={14} className="feature-check" /> {feature}</li>
-                  ))}
-                </ul>
-
-                <div className="plan-limits">
-                  {plan.limiteChantiers !== 0 && (
-                    <div className="limit-item">
-                      <Users size={14} /> {plan.limiteChantiers === -1 ? t('abonnement.plans.chantiersIllimites') : t('abonnement.plans.chantiersMax', { n: plan.limiteChantiers })}
-                    </div>
-                  )}
-                  {plan.limiteUtilisateurs !== 0 && (
-                    <div className="limit-item">
-                      <Users size={14} /> {plan.limiteUtilisateurs === -1 ? t('abonnement.plans.utilisateursIllimites') : t('abonnement.plans.utilisateursMax', { n: plan.limiteUtilisateurs })}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  className={`btn ${plan.id === 'pro' ? 'btn-accent' : 'btn-primary'} w-full btn-lg plan-cta`}
-                  onClick={() => onSelectPlan(plan)}
-                  disabled={estPlanActuel || paymentLoading}
-                >
-                  {estPlanActuel ? t('abonnement.plans.planActuel') : isSubscribed ? t('abonnement.plans.changer') : t('abonnement.plans.choisir')}
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      <p className="plans-note">
-        <Shield size={14} /> {t('abonnement.plans.note')}
-      </p>
-    </section>
-  );
-}

@@ -256,12 +256,15 @@ export default function Register() {
               <div className="grid-2">
                 {userFields.map(({ name, label, icon: Icon, type = 'text', required }) => (
                   <div key={name} className="field" style={{ marginBottom: 0 }}>
-                    <label>
+                    <label htmlFor={`champ-${name}`}>
                       {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
                     </label>
                     <div style={{ position: 'relative' }}>
                       <Icon size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                       <input
+                        id={`champ-${name}`}
+                        aria-invalid={errors[name] ? true : undefined}
+                        aria-describedby={errors[name] ? `champ-${name}-erreur` : undefined}
                         className={`input ${errors[name] ? 'invalid' : ''}`}
                         style={{ paddingLeft: 38 }}
                         type={type}
@@ -273,16 +276,21 @@ export default function Register() {
                         autoComplete={name === 'email' ? 'email' : name === 'telephone' ? 'tel' : 'off'}
                       />
                     </div>
-                    {errors[name] && <div className="error">{errors[name]}</div>}
+                    {errors[name] && (
+                      <div className="error" id={`champ-${name}-erreur`} role="alert">{errors[name]}</div>
+                    )}
                   </div>
                 ))}
               </div>
 
               <div className="field" style={{ marginTop: 16, marginBottom: 0 }}>
-                <label>{t('champs.motDePasse')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <label htmlFor="inscription-mot-de-passe">{t('champs.motDePasse')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                   <input
+                    id="inscription-mot-de-passe"
+                    aria-invalid={errors.mot_de_passe ? true : undefined}
+                    aria-describedby={errors.mot_de_passe ? 'inscription-mot-de-passe-erreur' : undefined}
                     className={`input ${errors.mot_de_passe ? 'invalid' : ''}`}
                     style={{ paddingLeft: 38, paddingRight: 40 }}
                     type={showPassword ? 'text' : 'password'}
@@ -302,14 +310,19 @@ export default function Register() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {errors.mot_de_passe && <div className="error">{errors.mot_de_passe}</div>}
+                {errors.mot_de_passe && (
+                  <div className="error" id="inscription-mot-de-passe-erreur" role="alert">{errors.mot_de_passe}</div>
+                )}
               </div>
 
               <div className="field" style={{ marginTop: 16, marginBottom: 0 }}>
-                <label>{t('register.champs.confirmerMotDePasse')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <label htmlFor="inscription-confirmation">{t('register.champs.confirmerMotDePasse')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                   <input
+                    id="inscription-confirmation"
+                    aria-invalid={errors.confirm_mot_de_passe ? true : undefined}
+                    aria-describedby={errors.confirm_mot_de_passe ? 'inscription-confirmation-erreur' : undefined}
                     className={`input ${errors.confirm_mot_de_passe ? 'invalid' : ''}`}
                     style={{ paddingLeft: 38, paddingRight: 40 }}
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -329,7 +342,9 @@ export default function Register() {
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {errors.confirm_mot_de_passe && <div className="error">{errors.confirm_mot_de_passe}</div>}
+                {errors.confirm_mot_de_passe && (
+                  <div className="error" id="inscription-confirmation-erreur" role="alert">{errors.confirm_mot_de_passe}</div>
+                )}
               </div>
             </fieldset>
 
@@ -343,11 +358,12 @@ export default function Register() {
                   plus bas obligeait à ressaisir, et laissait afficher des
                   champs sans rapport avec le pays. */}
               <div className="field" style={{ marginBottom: 16 }}>
-                <label>
+                <label htmlFor="inscription-pays">
                   {t('register.champs.organisationPays')}{' '}
                   <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <select
+                  id="inscription-pays"
                   className="input"
                   name="organisationPays"
                   value={form.organisationPays}
@@ -363,7 +379,9 @@ export default function Register() {
                     </option>
                   ))}
                 </select>
-                {errors.organisationPays && <div className="error">{errors.organisationPays}</div>}
+                {errors.organisationPays && (
+                  <div className="error" role="alert">{errors.organisationPays}</div>
+                )}
                 {/* Sans catalogue, aucun pays n'est proposable : on le DIT,
                     plutôt que d'afficher une liste vide inexplicable. */}
                 {paysErreur && <div className="error">{t('register.paysIndisponibles')}</div>}
@@ -372,12 +390,15 @@ export default function Register() {
               <div className="grid-2">
                 {orgFields.map(({ name, label, icon: Icon, type = 'text', required, maxLength, inputMode, aide }) => (
                   <div key={name} className="field" style={{ marginBottom: 0 }}>
-                    <label>
+                    <label htmlFor={`champ-${name}`}>
                       {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
                     </label>
                     <div style={{ position: 'relative' }}>
                       <Icon size={17} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                       <input
+                        id={`champ-${name}`}
+                        aria-invalid={errors[name] ? true : undefined}
+                        aria-describedby={errors[name] ? `champ-${name}-erreur` : undefined}
                         className={`input ${errors[name] ? 'invalid' : ''}`}
                         style={{ paddingLeft: 38 }}
                         type={type}
@@ -391,7 +412,9 @@ export default function Register() {
                         autoComplete={name === 'organisationEmail' ? 'email' : 'off'}
                       />
                     </div>
-                    {errors[name] && <div className="error">{errors[name]}</div>}
+                    {errors[name] && (
+                      <div className="error" id={`champ-${name}-erreur`} role="alert">{errors[name]}</div>
+                    )}
                     {!errors[name] && aide && (
                       <div className="hint" style={{ fontSize: 11.5 }}>{aide}</div>
                     )}

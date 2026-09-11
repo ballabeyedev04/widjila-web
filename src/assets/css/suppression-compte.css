@@ -36,7 +36,7 @@
 .sc-etape strong {
   display: block;
   font-size: 14.5px;
-  color: var(--text-primary);
+  color: var(--text);
   margin-bottom: 3px;
 }
 
@@ -70,7 +70,7 @@
 .sc-champ label {
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .sc-champ label span {
@@ -83,7 +83,7 @@
   padding: 12px 14px;
   font-size: 14.5px;
   font-family: inherit;
-  color: var(--text-primary);
+  color: var(--text);
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -172,7 +172,7 @@ textarea.sc-input {
 .sc-succes h3 {
   margin: 12px 0 8px;
   font-size: 17px;
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .sc-succes p {
@@ -200,6 +200,9 @@ textarea.sc-input {
 
 .sc-tableau {
   width: 100%;
+  /* Plancher VOULU : en dessous de 480 px, les trois colonnes deviennent
+     illisibles. Le conteneur `.sc-tableau-wrap` porte `overflow-x: auto` —
+     c'est LUI qui défile sur un téléphone, pas la page. */
   min-width: 480px;
   border-collapse: collapse;
   font-size: 13.5px;
@@ -220,7 +223,7 @@ textarea.sc-input {
 .sc-tableau tbody td {
   padding: 13px 16px;
   border-bottom: 1px solid var(--border);
-  color: var(--text-primary);
+  color: var(--text);
   vertical-align: middle;
 }
 

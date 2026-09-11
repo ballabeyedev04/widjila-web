@@ -18,9 +18,9 @@ on:
       - main
 
 jobs:
-  # ── Vérification (lint + build) ─────────────────────────────────────────
+  # ── Vérification (lint + types + tests + build) ─────────────────────────
   build:
-    name: Lint & Build
+    name: Lint, types, tests & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +38,31 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # CORRECTIF (audit — O-01) : le projet est en JavaScript, sans aucune
+      # vérification de types. `tsconfig.json` active `checkJs` sur la couche
+      # `service/` et `utils/` — celle qui porte les contrats d'API — et cette
+      # étape la fait respecter.
+      #
+      # Ce n'est pas un principe : l'audit a trouvé DANS LE CODE DE PRODUCTION
+      # un champ envoyé sous un nom que le serveur ignore (`motDePasse` contre
+      # `mot_de_passe`), retiré en silence par `stripUnknown`. Le mot de passe
+      # saisi n'a jamais été celui du compte créé, et rien ne pouvait le
+      # révéler. Cette étape refuse désormais ce genre d'écriture.
+      - name: Vérification des types
+        run: npm run typecheck
+
+      # CORRECTIF (audit) : ce job ne lançait PAS la suite de tests. Le dépôt
+      # en porte plus de 250 — sur l'authentification, les rôles, les gardes de
+      # route, la création de réserve, la déduplication des écritures — et
+      # aucun ne bloquait un déploiement. Un test qui n'empêche rien n'est que
+      # de la documentation ; c'est le raisonnement déjà appliqué côté backend,
+      # dont le pipeline exécute sa suite avant tout déploiement.
+      #
+      # Placé AVANT le build : un test rouge doit couper le pipeline le plus
+      # tôt possible, et compiler un code défectueux ne renseigne sur rien.
+      - name: Tests
+        run: npm test
+
       - name: Build
         run: npm run build
 
@@ -45,7 +70,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    needs: build   # jamais de déploiement d'un build cassé ou non lintré
+    needs: build   # jamais de déploiement d'un build cassé, non lintré ou dont un test échoue
 
     steps:
       - name: Deploy via SSH

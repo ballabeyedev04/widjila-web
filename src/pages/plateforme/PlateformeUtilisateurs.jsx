@@ -22,6 +22,8 @@ import SwalCustom from '../../utils/swal.config.js';
 import { validatePassword, validateIdentifiant } from '../../service/auth/authService.js';
 import { useEnum } from '../../hooks/useEnums.js';
 import { useUser } from '../../context/useUser.js';
+import { chargerToutesLesPages } from '../../utils/chargerToutesLesPages.js';
+import { reporter } from '../../utils/monitoring.js';
 
 export default function PlateformeUtilisateurs() {
   // Rôles et statuts servis par l'API — voir hooks/useEnums.js.
@@ -43,7 +45,12 @@ export default function PlateformeUtilisateurs() {
   });
 
   useEffect(() => {
-    listerOrganisations({ limit: 200 }).then((d) => setOrganisations(d.items)).catch(() => {});
+    chargerToutesLesPages(listerOrganisations)
+      .then(setOrganisations)
+      // Le silence d'origine (`catch(() => {})`) rendait un sélecteur
+      // vide indiscernable d'un sélecteur en panne. On journalise, sans
+      // interrompre l'écran : c'est une liste de confort.
+      .catch((err) => reporter(err, { source: 'pages/plateforme/PlateformeUtilisateurs.jsx' }));
   }, []);
 
   const remove = async (u) => {
@@ -216,7 +223,12 @@ function UtilisateurModal({ open, onClose, utilisateur, organisations, onSaved }
         await modifierUtilisateurAdmin(utilisateur.id, payload);
         SwalCustom.success(t('utilisateurs.modal.succesMaj'));
       } else {
-        await creerUtilisateurAdmin({ ...payload, identifiant: form.identifiant, motDePasse: form.motDePasse });
+        // `mot_de_passe`, la clé du schéma serveur. Envoyé en `motDePasse`, il
+        // était retiré par la validation (`stripUnknown`) et TOUS les comptes
+        // créés ici recevaient le même mot de passe codé en dur côté serveur
+        // (audit sécurité). `identifiant` n'existe pas côté serveur : il
+        // n'est plus envoyé.
+        await creerUtilisateurAdmin({ ...payload, mot_de_passe: form.motDePasse });
         SwalCustom.success(t('utilisateurs.modal.succesCreation'));
       }
       onClose();
