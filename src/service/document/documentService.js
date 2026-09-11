@@ -49,6 +49,10 @@ export const restaurerDocument = async (id) => {
   return unwrap(response)?.document;
 };
 
+/**
+ * @param {string} id
+ * @param {{ donnees?: unknown }} [options] Tracé de la signature (facultatif).
+ */
 export const signerDocument = async (id, { donnees } = {}) => {
   const response = await api.post(`/documents/${id}/signature`, { donnees });
   return unwrap(response)?.signature;
