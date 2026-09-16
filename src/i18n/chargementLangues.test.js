@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import i18n, {
   applyLanguage, chargerLangue, NAMESPACES, SUPPORTED_LANGUAGES, FALLBACK_LANGUAGE,
+  langueInitialePrete,
 } from './index.js';
 
 /**
@@ -31,6 +32,12 @@ import i18n, {
 const LANGUE_INITIALE = i18n.language;
 
 beforeAll(async () => {
+  // La bascule automatique vers la langue du navigateur part au chargement
+  // du module, en arrière-plan : l'attendre AVANT de fixer le français, sinon
+  // elle retombe après et remplace le repli — c'est ce qui rendait le test
+  // « rend un vrai libellé » dépendant de la langue du poste (vert en
+  // français, rouge sur un runner en `en-US`).
+  await langueInitialePrete;
   await i18n.changeLanguage(FALLBACK_LANGUAGE);
 });
 

@@ -186,9 +186,18 @@ export async function applyLanguage(lang) {
 
 // Bascule vers la langue voulue dès que ses ressources sont là. Sans effet
 // quand c'est déjà le repli — le cas de la quasi-totalité des comptes.
-if (langueVoulue !== FALLBACK_LANGUAGE) {
-  applyLanguage(langueVoulue);
-}
+//
+// La promesse est EXPORTÉE : cette bascule part au chargement du module,
+// en tâche de fond, et rien ne pouvait l'attendre. Un test qui forçait le
+// français dans son `beforeAll` se faisait ensuite doubler par cette bascule
+// vers l'anglais — sur le runner d'intégration continue, dont le navigateur
+// simulé se déclare `en-US`. Sur un poste réglé en français elle ne partait
+// jamais : le test passait ici et échouait là-bas, sans qu'aucun code ne
+// diffère. `chargementLangues.test.js` attend maintenant cette promesse avant
+// de fixer la langue.
+export const langueInitialePrete = langueVoulue !== FALLBACK_LANGUAGE
+  ? applyLanguage(langueVoulue)
+  : Promise.resolve();
 
 // <html lang="…"> suit la langue active (accessibilité, moteurs de recherche,
 // césure et correction orthographique du navigateur).
