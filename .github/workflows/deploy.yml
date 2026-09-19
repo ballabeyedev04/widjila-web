@@ -101,8 +101,8 @@ jobs:
             git pull --rebase origin main
 
             # .env n'est jamais committé (voir .gitignore) — doit déjà exister
-            # sur le VPS avec VITE_API_BASE_URL, VITE_STRIPE_PUBLISHABLE_KEY,
-            # etc. remplis. Sans lui, le build embarque les valeurs par défaut
+            # sur le VPS avec VITE_API_BASE_URL, etc. remplis (plus de clé
+            # Stripe : le paiement passe par la page hébergée de Stripe). Sans lui, le build embarque les valeurs par défaut
             # de développement (proxy localhost).
             if [ ! -f ".env" ]; then
               echo "ERREUR : ${APP_DIR}/.env manquant — copier .env.example et le remplir avant le premier déploiement." >&2

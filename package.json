@@ -17,8 +17,6 @@
   },
   "dependencies": {
     "@sentry/react": "^10.70.0",
-    "@stripe/react-stripe-js": "^6.8.1",
-    "@stripe/stripe-js": "^9.13.0",
     "axios": "^1.13.5",
     "i18next": "^26.3.6",
     "jwt-decode": "^4.0.0",

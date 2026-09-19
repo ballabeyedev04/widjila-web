@@ -6,7 +6,7 @@ import i18n from '../../i18n/index.js';
 
 import Abonnement from './Abonnement.jsx';
 import {
-  getPlans, getStatus, getDroits, getHistorique, creerPaymentIntent,
+  getPlans, getStatus, getDroits, getHistorique, creerCheckoutSession, getEtatPaiement,
 } from '../../service/subscription/subscriptionService.js';
 import { ROLE_TITULAIRE } from '../../utils/constants.js';
 
@@ -36,20 +36,15 @@ const { etat, swal } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../context/useUser.js', () => ({ useUser: () => etat }));
+vi.mock('../../context/SubscriptionContext.jsx', () => ({ useSubscription: () => ({ refreshStatus: vi.fn() }) }));
 vi.mock('../../utils/swal.config.js', () => ({ default: swal }));
 vi.mock('../../service/subscription/subscriptionService.js', () => ({
   getPlans: vi.fn(),
   getStatus: vi.fn(),
   getDroits: vi.fn(),
   getHistorique: vi.fn(),
-  creerPaymentIntent: vi.fn(),
-}));
-vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve({}) }));
-vi.mock('@stripe/react-stripe-js', () => ({
-  Elements: ({ children }) => children,
-  CardElement: () => null,
-  useStripe: () => null,
-  useElements: () => null,
+  creerCheckoutSession: vi.fn(),
+  getEtatPaiement: vi.fn(),
 }));
 
 const ESSENTIEL = {
@@ -97,7 +92,13 @@ beforeEach(() => {
   getStatus.mockResolvedValue(EN_ESSAI);
   getDroits.mockResolvedValue({ droits: null, usage: null });
   getHistorique.mockResolvedValue([]);
-  creerPaymentIntent.mockResolvedValue({ clientSecret: 'pi_1_secret_2' });
+  creerCheckoutSession.mockResolvedValue({ url: 'https://checkout.stripe.com/c/pay/cs_test_1', sessionId: 'cs_test_1' });
+  getEtatPaiement.mockResolvedValue({ paiement: { statut: 'en_attente' }, droits: null });
+  // `window.location.assign` : la page part vers Stripe — on observe sans partir.
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...window.location, assign: vi.fn() },
+  });
 });
 
 describe('sans session', () => {
@@ -107,7 +108,7 @@ describe('sans session', () => {
     await screen.findByRole('heading', { name: 'Pro' });
     expect(getStatus).not.toHaveBeenCalled();
     expect(getDroits).not.toHaveBeenCalled();
-    expect(creerPaymentIntent).not.toHaveBeenCalled();
+    expect(creerCheckoutSession).not.toHaveBeenCalled();
   });
 
   it('session pas encore tranchée : rien ne part, et rien n’est cliquable', async () => {
@@ -141,17 +142,47 @@ describe('sans session', () => {
 });
 
 describe('arrivée depuis le mobile avec ?plan=', () => {
-  it('le titulaire arrive DIRECTEMENT sur le paiement de la formule choisie', async () => {
+  it('le titulaire arrive DIRECTEMENT sur le récapitulatif de la formule choisie', async () => {
     etat.user = TITULAIRE;
 
     afficher('/abonnement?plan=pro');
 
-    await waitFor(() => expect(creerPaymentIntent).toHaveBeenCalledWith(PRO.id));
-    expect(creerPaymentIntent).toHaveBeenCalledTimes(1);
-    // Le récapitulatif annonce le montant dans la devise de la formule.
-    expect(await screen.findByText(/^89\s€ \/ mois$/)).toBeTruthy();
+    // Le récapitulatif annonce la formule et le montant dans sa devise.
+    expect(await screen.findByRole('heading', { name: 'Récapitulatif' })).toBeTruthy();
+    expect(screen.getByText('Pro')).toBeTruthy();
+    expect(screen.getByText('89 €')).toBeTruthy();
     // Et qui paie : la session peut venir du téléphone.
     expect(screen.getByText('Connecté en tant que Balla Beye')).toBeTruthy();
+    // RIEN ne part vers le serveur tant que l'utilisateur n'a pas cliqué « Payer ».
+    expect(creerCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('« Payer » demande la session au serveur, puis part vers Stripe — une seule fois', async () => {
+    etat.user = TITULAIRE;
+
+    afficher('/abonnement?plan=pro');
+
+    const payer = await screen.findByRole('button', { name: /^Payer/ });
+    fireEvent.click(payer);
+    fireEvent.click(payer); // double clic
+
+    await waitFor(() => expect(creerCheckoutSession).toHaveBeenCalledWith(PRO.id));
+    expect(creerCheckoutSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('https://checkout.stripe.com/c/pay/cs_test_1'));
+    // Aucun secret, aucune clé Stripe dans la page : seule l'adresse compte.
+    expect(payer.disabled).toBe(true);
+  });
+
+  it('serveur indisponible au clic « Payer » : un message, pas de départ', async () => {
+    etat.user = TITULAIRE;
+    creerCheckoutSession.mockRejectedValue({ response: { data: { message: 'Formule inconnue' } } });
+
+    afficher('/abonnement?plan=pro');
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Payer/ }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 
   it('un rôle hors facturation : pas de paiement ouvert, et le bouton dit pourquoi', async () => {
@@ -162,7 +193,8 @@ describe('arrivée depuis le mobile avec ?plan=', () => {
     const boutons = await screen.findAllByRole('button', { name: "Réservé au responsable de l'abonnement" });
     expect(boutons).toHaveLength(2);
     boutons.forEach((bouton) => expect(bouton.disabled).toBe(true));
-    expect(creerPaymentIntent).not.toHaveBeenCalled();
+    expect(creerCheckoutSession).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: 'Récapitulatif' })).toBeNull();
   });
 
   it('la formule DÉJÀ payée n’est jamais repayée par ce raccourci', async () => {
@@ -174,7 +206,7 @@ describe('arrivée depuis le mobile avec ?plan=', () => {
     await screen.findByRole('button', { name: 'Plan actuel' });
     // Laisse aux effets le temps de trancher.
     await new Promise((r) => setTimeout(r, 30));
-    expect(creerPaymentIntent).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: 'Récapitulatif' })).toBeNull();
   });
 });
 
@@ -191,6 +223,64 @@ describe('abonnement en cours', () => {
     const choisir = screen.getByRole('button', { name: 'Choisir ce plan' });
     expect(choisir.disabled).toBe(false);
     fireEvent.click(choisir);
-    await waitFor(() => expect(creerPaymentIntent).toHaveBeenCalledWith(PRO.id));
+    expect(await screen.findByRole('heading', { name: 'Récapitulatif' })).toBeTruthy();
   });
+});
+
+describe('retour de Stripe Checkout — le serveur seul fait foi', () => {
+  beforeEach(() => { etat.user = TITULAIRE; });
+
+  it('le serveur confirme (webhook passé) → « Paiement confirmé », état rechargé', async () => {
+    getEtatPaiement
+      .mockResolvedValueOnce({ paiement: { statut: 'en_attente' } })
+      .mockResolvedValueOnce({ paiement: { statut: 'active', planCode: 'pro' } });
+    getStatus
+      .mockResolvedValueOnce(EN_ESSAI)
+      .mockResolvedValue({ isSubscribed: true, planCode: 'pro', planActuel: 'Pro' });
+
+    afficher('/abonnement?paiement=retour&session=cs_test_1');
+
+    // Pendant l'attente : un bandeau de vérification, aucune annonce.
+    expect(await screen.findByRole('status')).toBeTruthy();
+    expect(swal.success).not.toHaveBeenCalled();
+
+    await waitFor(
+      () => expect(swal.success).toHaveBeenCalledWith('Paiement confirmé. Votre abonnement est maintenant actif.'),
+      { timeout: 5000 },
+    );
+    expect(getEtatPaiement).toHaveBeenCalledWith('cs_test_1');
+    // Le badge d'en-tête reflète l'abonnement actif, sans rechargement manuel.
+    expect(await screen.findByText(/Abonnement actif — Pro/)).toBeTruthy();
+  });
+
+  it("revenir sur l'adresse de succès SANS paiement n'annonce jamais un succès", async () => {
+    // Le lien de retour peut être tapé, partagé, rejoué : seul l'état serveur compte.
+    getEtatPaiement.mockResolvedValue({ paiement: { statut: 'en_attente' } });
+
+    afficher('/abonnement?paiement=retour&session=cs_test_1');
+
+    await waitFor(() => expect(getEtatPaiement).toHaveBeenCalled());
+    // Les sept essais s'étalent sur ~27 s : on attend la fin des paliers.
+    await screen.findByText(/en cours de vérification/, {}, { timeout: 40000 });
+    expect(swal.success).not.toHaveBeenCalled();
+    expect(getEtatPaiement).toHaveBeenCalledTimes(7);
+  }, 45000);
+
+  it('paiement refusé côté serveur → message d’échec, pas de succès', async () => {
+    getEtatPaiement.mockResolvedValue({ paiement: { statut: 'echec' } });
+
+    afficher('/abonnement?paiement=retour&session=cs_test_1');
+
+    expect(await screen.findByText(/n'a pas pu être finalisé/, {}, { timeout: 5000 })).toBeTruthy();
+    expect(swal.success).not.toHaveBeenCalled();
+  });
+
+  it('`?paiement=annule` → « annulé », aucun appel de vérification', async () => {
+    afficher('/abonnement?paiement=annule');
+
+    expect(await screen.findByText(/Le paiement a été annulé/)).toBeTruthy();
+    expect(getEtatPaiement).not.toHaveBeenCalled();
+    expect(swal.success).not.toHaveBeenCalled();
+  });
+
 });

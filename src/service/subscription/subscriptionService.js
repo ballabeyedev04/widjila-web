@@ -72,6 +72,32 @@ export const creerPaymentIntent = async (planId) => {
  * Nécessite authentification.
  * @param {string} planId - ID du nouveau plan
  */
+/**
+ * Session Stripe CHECKOUT — la page de paiement hébergée par Stripe.
+ *
+ * Répond `{ url, sessionId }` : l'adresse vers laquelle rediriger le
+ * navigateur, et la référence que la page de retour interrogera. Aucune
+ * donnée de carte ne passe par nos pages : c'est Stripe qui la collecte.
+ */
+export const creerCheckoutSession = async (planId) => {
+  const response = await api.post('/abonnement/checkout-session', { planId });
+  return unwrap(response);
+};
+
+/**
+ * État d'un paiement, tel que le SERVEUR le connaît (alimenté par le webhook).
+ *
+ * `{ paiement: { statut: 'en_attente' | 'active' | 'echec' | 'annulee' | 'expiree', … } | null, droits }`.
+ * Revenir de Stripe sur la page de succès ne prouve rien : c'est cette
+ * réponse, et elle seule, qui autorise à annoncer un paiement.
+ */
+export const getEtatPaiement = async (reference) => {
+  const response = await api.get('/abonnement/paiement/etat', {
+    params: reference ? { reference } : undefined,
+  });
+  return unwrap(response);
+};
+
 export const changerPlan = async (planId) => {
   const response = await api.post('/abonnement/change-plan', { planId });
   return unwrap(response);

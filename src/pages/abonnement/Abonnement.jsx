@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check, Loader2, AlertCircle, Shield, Zap, Users, LogIn,
@@ -6,24 +6,30 @@ import {
 } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 
-import { getPlans, getStatus, getDroits, getHistorique, creerPaymentIntent } from '../../service/subscription/subscriptionService.js';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
+import {
+  getPlans, getStatus, getDroits, getHistorique, creerCheckoutSession, getEtatPaiement,
+} from '../../service/subscription/subscriptionService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { useUser } from '../../context/useUser.js';
+import { useSubscription } from '../../context/SubscriptionContext.jsx';
 import { roleAllowed, ROLES_GESTION } from '../../utils/constants.js';
 import { estPeriodeAnnuelle, formatPrix } from '../../utils/format.js';
 import SwalCustom from '../../utils/swal.config.js';
 import '../../assets/css/abonnement.css';
-import PaymentForm from './sections/FormulaireCarte.jsx';
+import RecapitulatifPaiement from './sections/RecapitulatifPaiement.jsx';
 import { CarteUsage, SectionHistorique } from './sections/EtatAbonnement.jsx';
 import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
 
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+/**
+ * Attentes entre deux interrogations du serveur au retour de Stripe.
+ *
+ * Le webhook arrive en général dans la seconde ; les paliers suivants
+ * couvrent un Stripe lent ou un serveur occupé — une trentaine de secondes
+ * au total, après quoi on cesse SANS conclure : le paiement est peut-être
+ * passé, l'activation pas encore visible. On le dit tel quel.
+ */
+const ATTENTES_VERIFICATION = [0, 1500, 2500, 3500, 5000, 6500, 8000];
 
-const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
-
-/* ── Composant interne pour le formulaire de carte (isolé pour hooks Stripe) ── */
 /**
  * Icône d'une formule, choisie sur son CODE.
  *
@@ -46,6 +52,9 @@ export default function Abonnement() {
   // La page s'affiche aussi pour un visiteur non connecté, qui doit pouvoir
   // consulter les offres avant de s'inscrire.
   const { user, pretAuthentification, transfertEchoue } = useUser();
+  // Le statut GLOBAL (bandeau d'essai de la mise en page) : rafraîchi après
+  // un paiement confirmé, sinon l'en-tête continuait d'annoncer l'essai.
+  const { refreshStatus } = useSubscription();
   const utilisateurId = user?.id;
   // `?plan=<code>` : formule choisie AILLEURS — sur le mobile, qui ouvre cette
   // page dans le navigateur, ou avant une connexion. Voir la présélection.
@@ -57,11 +66,14 @@ export default function Abonnement() {
   // Vrai une fois le statut connu (ou sa demande tranchée) : la présélection
   // en dépend, pour ne jamais proposer de repayer la formule en cours.
   const [statusPret, setStatusPret] = useState(false);
-  // Vrai pendant qu'on attend le verdict du serveur apres un paiement.
-  const [confirmation, setConfirmation] = useState(false);
+  // Vrai pendant qu'on attend le verdict du serveur au retour de Stripe.
+  const [verification, setVerification] = useState(false);
+  // Message d'information (paiement annulé, en cours de vérification…) :
+  // distinct de `error`, ce n'est pas une panne.
+  const [info, setInfo] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [clientSecret, setClientSecret] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Vrai entre le clic « Payer » et le départ vers Stripe.
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState(null);
   // Droits et usage réels (`/abonnement/droits`) : la formule en cours, ses
@@ -143,7 +155,7 @@ export default function Abonnement() {
   //
   // L'utilisateur a DÉJÀ choisi sa formule sur le mobile : lui redemander ici
   // de la retrouver dans la grille serait un aller-retour inutile. On ouvre
-  // donc directement le formulaire de paiement de CETTE formule — une fois
+  // donc directement le récapitulatif de CETTE formule — une fois
   // catalogue, session et statut connus, et seulement si ce choix est payable
   // par ce compte. Sinon la grille s'affiche normalement.
   useEffect(() => {
@@ -167,84 +179,139 @@ export default function Abonnement() {
     setError(null);
   }, [planDemande, loading, pretAuthentification, statusPret, utilisateurId, plans, voitLaFacturation, status, setParams]);
 
-  // Si un plan est sélectionné, créer la PaymentIntent
+  /* ---------- Retour de Stripe Checkout ---------- */
+  //
+  // `?paiement=retour&session=cs_…` : l'utilisateur revient de la page de
+  // paiement. Ce retour ne PROUVE rien — on y arrive aussi en tapant
+  // l'adresse — et la page n'annonce donc rien d'elle-même : elle interroge
+  // le serveur, que seul le webhook Stripe (signé) renseigne, jusqu'à ce que
+  // la souscription soit active. Échec et annulation sont annoncés tels que
+  // le serveur les connaît ; « en attente » au bout des essais est dit tel
+  // quel, sans promettre.
+  //
+  // `?paiement=annule` : l'utilisateur a quitté Stripe par « Retour ».
+  //
+  // Les paramètres sont CAPTURÉS une fois, au montage : l'effet les efface
+  // de l'adresse dès qu'il démarre (une actualisation ne doit pas rejouer la
+  // vérification), et un effet qui dépendrait d'eux serait alors nettoyé au
+  // milieu de sa propre vérification — plus rien ne s'afficherait.
+  const [retour] = useState(() => (
+    params.get('paiement') ? { type: params.get('paiement'), session: params.get('session') } : null
+  ));
+  const retourLanceRef = useRef(false);
+  const monteRef = useRef(true);
   useEffect(() => {
-    if (!selectedPlan) {
-      setClientSecret(null);
+    monteRef.current = true;
+    return () => { monteRef.current = false; };
+  }, []);
+
+  const rechargerEtat = useCallback(async () => {
+    const [s, d, h] = await Promise.all([
+      getStatus().catch(() => null),
+      getDroits().catch(() => null),
+      voitLaFacturation ? getHistorique().catch(() => null) : Promise.resolve(null),
+    ]);
+    if (!monteRef.current) return;
+    if (s) setStatus(s);
+    if (d) { setDroits(d.droits || null); setUsage(d.usage || null); }
+    if (h) setHistorique(h);
+    refreshStatus();
+  }, [voitLaFacturation, refreshStatus]);
+
+  useEffect(() => {
+    if (!retour || retourLanceRef.current || !pretAuthentification) return;
+    retourLanceRef.current = true;
+
+    // Consommé une seule fois : une actualisation de la page ne doit pas
+    // relancer la vérification, ni réafficher « annulé ».
+    setParams((courants) => {
+      const suivants = new URLSearchParams(courants);
+      suivants.delete('paiement');
+      suivants.delete('session');
+      return suivants;
+    }, { replace: true });
+
+    if (retour.type === 'annule') {
+      setInfo(t('abonnement.retour.annule'));
       return;
     }
+    if (retour.type !== 'retour' || !retour.session || !utilisateurId) return;
 
-    let cancelled = false;
-    setPaymentLoading(true);
-    creerPaymentIntent(selectedPlan.id)
-      .then((res) => {
-        if (!cancelled && res.clientSecret) {
-          setClientSecret(res.clientSecret);
+    setVerification(true);
+    setError(null);
+    setInfo(null);
+
+    (async () => {
+      let verdict = 'en_attente';
+      let reseauEnPanne = false;
+      const confirme = await attendreConfirmation(async () => {
+        try {
+          const res = await getEtatPaiement(retour.session);
+          reseauEnPanne = false;
+          const statut = res?.paiement?.statut;
+          if (statut === 'active') { verdict = 'active'; return true; }
+          if (statut === 'echec' || statut === 'annulee') { verdict = statut; return true; }
+          return false;
+        } catch (err) {
+          reseauEnPanne = !err?.response;
+          return false;
         }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(getErrorMessage(err));
-          setSelectedPlan(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPaymentLoading(false);
-      });
+      }, { attentes: ATTENTES_VERIFICATION });
+      if (!monteRef.current) return;
 
-    return () => { cancelled = true; };
-  }, [selectedPlan]);
+      await rechargerEtat();
+      if (!monteRef.current) return;
+      setVerification(false);
 
-  /**
-   * Interroge le serveur jusqu'a ce qu'il confirme l'abonnement.
-   *
-   * `stripe.confirmCardPayment` rend `succeeded` des que la banque autorise le
-   * debit -- mais l'abonnement, lui, n'est active que par le webhook, quelques
-   * centaines de millisecondes a quelques secondes plus tard. Un seul appel a
-   * `getStatus()` juste apres tombait donc presque toujours AVANT le webhook :
-   * l'ecran rechargeait l'ancien statut, en silence, et celui qui venait de
-   * payer ne voyait rien changer.
-   *
-   * Attentes croissantes plutot qu'un intervalle fixe : le cas normal se regle
-   * au premier ou deuxieme essai, les suivants n'existent que pour les
-   * lendemains difficiles. Une quinzaine de secondes au total, puis on renonce
-   * -- sans jamais affirmer que le paiement a echoue, ce que nous ignorons.
-   *
-   * Pour un CHANGEMENT de formule, l'organisation était déjà abonnée :
-   * `isSubscribed` seul serait vrai dès le premier essai. On attend donc que
-   * la formule en cours soit celle qui vient d'être payée.
-   */
-  const attendreConfirmationServeur = useCallback((planCode) => attendreConfirmation(async () => {
-    const res = await getStatus();
-    if (res) setStatus(res);
-    return Boolean(res?.isSubscribed && (!planCode || res.planCode === planCode));
-  }), []);
+      if (confirme && verdict === 'active') {
+        SwalCustom.success(t('abonnement.retour.confirme'));
+      } else if (verdict === 'echec') {
+        setError(t('abonnement.retour.echec'));
+      } else if (verdict === 'annulee') {
+        setInfo(t('abonnement.retour.annule'));
+      } else if (reseauEnPanne) {
+        setError(t('abonnement.retour.reseau'));
+      } else {
+        setInfo(t('abonnement.retour.enAttente'));
+      }
+    })();
+    // `t`, `setParams` et `rechargerEtat` sont stables ; l'effet ne doit
+    // repartir que lorsque la session est tranchée.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pretAuthentification, utilisateurId]);
 
   const handleSelectPlan = (plan) => {
     setSelectedPlan(plan);
     setError(null);
+    setInfo(null);
   };
 
-  const handlePaymentSuccess = async () => {
-    const planPaye = selectedPlan?.code;
-    // Le formulaire disparait tout de suite : le debit est autorise, le
-    // laisser a l'ecran inviterait a payer une seconde fois.
-    setSelectedPlan(null);
-    setClientSecret(null);
-
-    setConfirmation(true);
-    const actif = await attendreConfirmationServeur(planPaye);
-    setConfirmation(false);
-
-    if (actif) SwalCustom.success(t('abonnement.paiementReussi'));
-    // Ni succes ni echec : le paiement est parti, l'activation n'est pas
-    // encore visible. Annoncer l'un ou l'autre serait mentir.
-    else SwalCustom.info(t('abonnement.paiementNonConfirme'));
+  /**
+   * Départ vers Stripe Checkout.
+   *
+   * Le serveur crée la session (montant relu en base) et rend son adresse ;
+   * le navigateur y va. Tout ce qui suit — carte, 3-D Secure, confirmation —
+   * se passe chez Stripe, puis Stripe ramène ici avec `?paiement=retour`.
+   * Le bouton est neutralisé dès le clic : deux clics ouvriraient deux
+   * sessions.
+   */
+  const handlePayer = async () => {
+    if (!selectedPlan || paymentLoading) return;
+    setPaymentLoading(true);
+    setError(null);
+    try {
+      const res = await creerCheckoutSession(selectedPlan.id);
+      if (!res?.url) throw new Error(t('abonnement.recap.sessionIndisponible'));
+      window.location.assign(res.url);
+      // La page est en train de partir : on laisse le bouton neutralisé.
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setPaymentLoading(false);
+    }
   };
 
   const handleCancelSelection = () => {
     setSelectedPlan(null);
-    setClientSecret(null);
   };
 
   /** Vers la connexion, avec retour ici — formule demandée comprise. */
@@ -366,13 +433,20 @@ export default function Abonnement() {
         </div>
       )}
 
-      {/* ── Attente du verdict du serveur ──
-          Le debit est autorise, l'abonnement pas encore active : c'est le
-          webhook Stripe qui tranche. Sans ce bandeau, l'ecran paraissait
-          n'avoir rien fait pendant les quelques secondes de l'aller-retour. */}
-      {confirmation && (
-        <div className="abonnement-alert" role="status" aria-live="polite">
-          <Loader2 size={18} className="spin" /> {t('abonnement.confirmationEnCours')}
+      {/* ── Vérification du paiement au retour de Stripe ──
+          Le retour n'est pas une preuve : c'est le webhook Stripe qui tranche,
+          côté serveur. Sans ce bandeau, l'écran paraissait n'avoir rien fait
+          pendant les quelques secondes de l'aller-retour. */}
+      {verification && (
+        <div className="abonnement-alert abonnement-alert-info" role="status" aria-live="polite">
+          <Loader2 size={18} className="spin" /> {t('abonnement.retour.verification')}
+        </div>
+      )}
+
+      {/* ── Message d'information (annulation, activation en attente) ── */}
+      {info && !verification && (
+        <div className="abonnement-alert abonnement-alert-info" role="status">
+          <AlertCircle size={18} /> {info}
         </div>
       )}
 
@@ -486,50 +560,20 @@ export default function Abonnement() {
           </p>
         </section>
       ) : (
-        /* ── Formulaire de paiement ── */
-        <section className="payment-section" aria-label={t('abonnement.paiementAriaLabel')}>
-          <div className="payment-header">
-            <button className="btn btn-ghost" onClick={handleCancelSelection}>
-              {t('abonnement.retourPlans')}
-            </button>
-            <div className="payment-plan-summary">
-              <div className="payment-plan-icon">
-                <IconePlan code={selectedPlan.code} size={24} />
-              </div>
-              <div>
-                <strong>{selectedPlan.nom}</strong>
-                <span>{formatPrix(selectedPlan.prix, selectedPlan.devise)} {periodeCourte(selectedPlan.periode)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Paiement par carte bancaire ──
-              Un SEUL moyen de paiement : la carte, via Stripe. C'est aussi la
-              surface de paiement du MOBILE, qui n'encaisse rien lui-même et
-              ouvre cette page dans le navigateur (voir `Env.abonnementUrl`
-              côté Flutter). Les deux plateformes passent donc exactement par
-              le même parcours. */}
-          <div className="payment-methods">
-            {/* Stripe - Carte bancaire */}
-            {stripePromise ? (
-              <Elements stripe={stripePromise}>
-                <PaymentForm
-                  plan={selectedPlan}
-                  clientSecret={clientSecret}
-                  onSuccess={handlePaymentSuccess}
-                  loading={paymentLoading}
-                />
-              </Elements>
-            ) : (
-              <div className="stripe-unavailable">
-                <AlertCircle size={32} />
-                <h3>{t('abonnement.carteIndisponibleTitre')}</h3>
-                <p><Trans t={t} i18nKey="abonnement.cleManquante" components={{ code: <code /> }} /></p>
-                <p className="hint"><Trans t={t} i18nKey="abonnement.ajoutezCle" components={{ code: <code /> }} /></p>
-              </div>
-            )}
-          </div>
-
+        /* ── Récapitulatif, puis Stripe Checkout ──
+            Un SEUL moyen de paiement, sur la page hébergée par Stripe. C'est
+            aussi la surface de paiement du MOBILE, qui n'encaisse rien
+            lui-même et ouvre cette page dans le navigateur (voir
+            `Env.abonnementUrl` côté Flutter). */
+        <>
+          <RecapitulatifPaiement
+            plan={selectedPlan}
+            payeur={user ? nomAffiche(user) : null}
+            enCours={paymentLoading}
+            erreur={null}
+            onPayer={handlePayer}
+            onRetour={handleCancelSelection}
+          />
           <p className="payment-footer-note">
             <Trans
               t={t}
@@ -540,7 +584,7 @@ export default function Abonnement() {
               }}
             />
           </p>
-        </section>
+        </>
       )}
 
       {/* ── Footer ── */}

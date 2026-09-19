@@ -18,13 +18,6 @@ import { versDetailsOnglet } from './detailsAbonnement.js';
  * l'onglet espérait.
  */
 
-vi.mock('@stripe/react-stripe-js', () => ({
-  Elements: ({ children }) => children,
-  CardElement: () => null,
-  useStripe: () => null,
-  useElements: () => null,
-}));
-
 /** Réponse de `subscription.service.js#getPlanDetails`, telle quelle. */
 const REPONSE_SERVEUR = {
   droits: {
@@ -56,11 +49,8 @@ const afficher = (props = {}) => render(
   <AbonnementTab
     planDetails={versDetailsOnglet(REPONSE_SERVEUR)}
     planLoading={false}
-    selectedPlan={null}
-    clientSecret={null}
     paymentLoading={false}
     paymentError={null}
-    stripePromise={null}
     onSelectPlan={vi.fn()}
     onCancelSelection={vi.fn()}
     onCancelSubscription={vi.fn()}
@@ -129,11 +119,6 @@ describe('cas limites qui plantaient', () => {
     expect(screen.getByText('Aucun plan disponible')).toBeTruthy();
   });
 
-  it('clé Stripe absente : l’explication s’affiche, pas une ReferenceError', () => {
-    afficher({ selectedPlan: REPONSE_SERVEUR.plans[1] });
-
-    expect(screen.getByText('Paiement par carte non disponible')).toBeTruthy();
-  });
 });
 
 describe('versDetailsOnglet', () => {

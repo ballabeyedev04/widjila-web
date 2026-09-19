@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import {
   Building2, MapPin, Mail, Phone, Globe, Save, Plus, Network, Pencil,
   CreditCard, Zap, Star, Infinity as InfinityIcon, Users, RotateCcw, AlertCircle, Check,
@@ -16,8 +16,9 @@ import { Input, Select } from '../../components/FormControls.jsx';
 import {
   getOrganisation, modifierOrganisation, listerFiliales, creerFiliale, creerAgence, getOrganigramme,
 } from '../../service/organisation/organisationService.js';
+import { useNavigate } from 'react-router-dom';
 import {
-  getPlanDetails, creerPaymentIntent, annulerAbonnement,
+  getPlanDetails, annulerAbonnement,
 } from '../../service/subscription/subscriptionService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { formatDate, initials } from '../../utils/format.js';
@@ -25,38 +26,17 @@ import SwalCustom from '../../utils/swal.config.js';
 import { ROLES_GESTION, roleAllowed } from '../../utils/constants.js';
 import '../../assets/css/abonnement.css';
 import { useUser } from '../../context/useUser.js';
-import { loadStripe } from '@stripe/stripe-js';
 // Les chargements secondaires de cet écran n'interrompent rien en cas
 // d'échec — mais ils le SIGNALENT, au lieu de laisser une liste vide
 // que rien ne distingue d'une liste en panne.
 import { reporter } from '../../utils/monitoring.js';
 import AbonnementTab from './sections/OngletAbonnement.jsx';
 import { versDetailsOnglet } from './sections/detailsAbonnement.js';
-import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
-
-/**
- * Le serveur porte-t-il désormais la formule qui vient d'être payée ?
- *
- * Compare par identifiant, puis par code, puis par nom : selon la version de
- * l'API, `planActuelDetails` expose l'un ou l'autre. Une abonnement actif sur
- * l'ANCIENNE formule ne compte pas — c'est justement l'état d'avant le webhook
- * lors d'un changement de formule.
- *
- * @param {any} details  Réponse de `GET /abonnement/plan-details`.
- * @param {any} plan     Formule choisie dans la grille.
- * @returns {boolean}
- */
-function correspondAuPlan(details, plan) {
-  if (!details?.isSubscribed || !plan) return false;
-  const actuel = details.planActuelDetails;
-  if (actuel?.id && plan.id) return actuel.id === plan.id;
-  if (actuel?.code && plan.code) return actuel.code === plan.code;
-  return Boolean(details.planActuel) && [plan.code, plan.nom].includes(details.planActuel);
-}
 
 export default function Organisation() {
   const { t } = useTranslation('organisation');
   const { user } = useUser();
+  const navigate = useNavigate();
   const canManageOrg = roleAllowed(user?.role, ROLES_GESTION);
 
   const [org, setOrg] = useState(null);
@@ -73,11 +53,7 @@ export default function Organisation() {
   // État pour l'onglet abonnement
   const [planDetails, setPlanDetails] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [clientSecret, setClientSecret] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
-  const [stripePromise] = useState(() => loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,56 +87,16 @@ export default function Organisation() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadPlanDetails(); }, [loadPlanDetails]);
 
-  // Créer PaymentIntent quand un plan est sélectionné (nouveau ou changement)
-  useEffect(() => {
-    if (!selectedPlan) {
-      setClientSecret(null);
-      return;
-    }
-    let cancelled = false;
-    setPaymentLoading(true);
-    setPaymentError(null);
-    // `creerPaymentIntent` aussi pour un CHANGEMENT de formule, comme l'écran
-    // Abonnement : côté serveur, `changerPlan` fait exactement la même chose
-    // mais sans transmettre qui paie — le reçu partait alors à l'adresse de
-    // l'organisation au lieu de celle du payeur. C'est le webhook qui remplace
-    // la souscription en cours, quelle que soit la route.
-    creerPaymentIntent(selectedPlan.id)
-      .then((res) => {
-        if (!cancelled && res.clientSecret) {
-          setClientSecret(res.clientSecret);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setPaymentError(getErrorMessage(err));
-          setSelectedPlan(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPaymentLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [selectedPlan]);
-
-  // Pas d'écoute de `?payment=success`.
-  //
-  // Cet écran annonçait « Paiement réussi ! Votre abonnement est actif » à
-  // quiconque ouvrait `/organisation?payment=success` — sans rien vérifier.
-  // N'importe qui pouvait envoyer ce lien à un gestionnaire : l'écran lui
-  // affirmait un paiement qui n'avait jamais eu lieu. Et ce retour n'existe
-  // même pas : le paiement se fait DANS la page (Stripe Elements,
-  // `confirmCardPayment`), sans jamais la quitter. Le succès n'est annoncé que
-  // lorsque le SERVEUR le confirme — voir `handlePaymentSuccess`.
-
+  /**
+   * Choisir une formule ici mène à la page Abonnement, qui porte le SEUL
+   * parcours de paiement (récapitulatif puis Stripe Checkout). Cet onglet
+   * avait son propre formulaire de carte, copie de l'autre : deux surfaces
+   * de paiement divergeaient à chaque correction, et une page qui annonçait
+   * « paiement réussi » sur un simple `?payment=success` a existé ici.
+   * `?plan=` ouvre directement le récapitulatif de la formule choisie.
+   */
   const handleSelectPlan = (plan) => {
-    setSelectedPlan(plan);
-    setPaymentError(null);
-  };
-
-  const handleCancelSelection = () => {
-    setSelectedPlan(null);
-    setClientSecret(null);
+    navigate(`/abonnement?plan=${encodeURIComponent(plan.code)}`);
   };
 
   const handleCancelSubscription = async () => {
@@ -186,40 +122,6 @@ export default function Organisation() {
     } finally {
       setPaymentLoading(false);
     }
-  };
-
-  // Vrai pendant qu'on attend que le serveur confirme un paiement.
-  const [confirmationEnCours, setConfirmationEnCours] = useState(false);
-
-  /**
-   * Le débit est autorisé par la banque — reste à ce que le SERVEUR active la
-   * formule payée (webhook Stripe).
-   *
-   * L'écran rechargeait une seule fois, immédiatement : presque toujours AVANT
-   * le webhook, il retrouvait donc l'ancienne formule et ne disait rien. On
-   * interroge maintenant le serveur jusqu'à ce qu'il porte la formule choisie,
-   * avec la même règle que l'écran Abonnement — voir `attendreConfirmation`.
-   */
-  const handlePaymentSuccess = async () => {
-    const planPaye = selectedPlan;
-    // Le formulaire disparaît tout de suite : le débit est autorisé, le laisser
-    // à l'écran inviterait à payer une seconde fois.
-    setSelectedPlan(null);
-    setClientSecret(null);
-    setConfirmationEnCours(true);
-
-    const confirme = await attendreConfirmation(async () => {
-      const details = versDetailsOnglet(await getPlanDetails());
-      if (details) setPlanDetails(details);
-      return correspondAuPlan(details, planPaye);
-    });
-
-    setConfirmationEnCours(false);
-    await load();
-    if (confirme) SwalCustom.success(t('abonnement.paiementReussi'));
-    // Ni succès ni échec : le paiement est parti, l'activation n'est pas encore
-    // visible. Annoncer l'un ou l'autre serait mentir.
-    else SwalCustom.info(t('plateforme:abonnement.paiementNonConfirme'));
   };
 
   if (loading) return <Spinner label={t('org.chargement')} />;
@@ -290,26 +192,13 @@ export default function Organisation() {
           ) : tab === 'organigramme' ? (
             <OrganigrammeTree data={organigramme} onLoad={() => getOrganigramme().then(setOrganigramme).catch((err) => SwalCustom.error(getErrorMessage(err)))} />
           ) : (
-            <>
-              {confirmationEnCours && (
-                <div className="abonnement-alert" role="status" aria-live="polite">
-                  {t('plateforme:abonnement.confirmationEnCours')}
-                </div>
-              )}
-              <AbonnementTab
+            <AbonnementTab
               planDetails={planDetails}
               planLoading={planLoading}
-              selectedPlan={selectedPlan}
-              clientSecret={clientSecret}
               paymentLoading={paymentLoading}
-              paymentError={paymentError}
-              stripePromise={stripePromise}
               onSelectPlan={handleSelectPlan}
-              onCancelSelection={handleCancelSelection}
               onCancelSubscription={handleCancelSubscription}
-              onPaymentSuccess={handlePaymentSuccess}
-              />
-            </>
+            />
           )}
         </div>
       </div>

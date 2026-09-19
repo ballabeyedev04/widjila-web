@@ -8,7 +8,7 @@ import { STATUTS_RESERVE, SEVERITES, enumLabel } from '../utils/constants.js';
 import { COULEUR_STATUT, COULEUR_SEVERITE, TEINTES, couleurPourIndex } from '../components/charts/chartTokens.js';
 
 /** Statuts qui ferment le cycle de vie d'une réserve — miroir du back. */
-const STATUTS_FERMES = ['validee', 'cloturee'];
+const STATUTS_FERMES = ['validee', 'levee', 'cloturee'];
 
 /** `2026-08` → `août` dans la langue active. */
 function libelleMois(cle, langue) {

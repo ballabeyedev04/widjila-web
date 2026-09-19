@@ -10,18 +10,11 @@
  * même morceau que le formulaire de coordonnées, et toute modification de l'un
  * obligeait à faire défiler l'autre.
  */
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle, Check, Infinity as InfinityIcon, RotateCcw, Shield, Star, Users, Zap,
 } from 'lucide-react';
-import { Elements } from '@stripe/react-stripe-js';
 
-import PaymentForm from '../../abonnement/sections/FormulaireCarte.jsx';
-
-// `EmptyState` et `Trans` étaient utilisés sans être importés : l'onglet
-// levait une ReferenceError dès qu'aucune formule n'était lue — c'est-à-dire
-// à chaque ouverture, tant qu'il lisait un format de réponse périmé (voir
-// `detailsAbonnement.js`).
 import EmptyState from '../../../components/EmptyState.jsx';
 import Spinner from '../../../components/Spinner.jsx';
 import { estPeriodeAnnuelle, formatDate, formatPrix } from '../../../utils/format.js';
@@ -44,16 +37,18 @@ const estIllimite = (valeur) => valeur === null || valeur === undefined || valeu
 /**
  * Onglet « Abonnement » de la page Organisation.
  *
- * Composant purement présentationnel : l'état (plan sélectionné, clientSecret,
- * chargements) et les actions vivent dans Organisation() et sont reçus en props.
+ * Composant purement présentationnel : l'état et les actions vivent dans
+ * Organisation() et sont reçus en props. Il ne PAIE rien : « Choisir » mène
+ * à la page Abonnement, seul parcours de paiement (récapitulatif puis Stripe
+ * Checkout). L'onglet portait autrefois son propre formulaire de carte —
+ * deux surfaces de paiement qui divergeaient à chaque correction.
  *
  * `planDetails` : réponse de GET /abonnement/plan-details passée par
  * `versDetailsOnglet` — { isSubscribed, trialEnded, joursRestantsTrial,
  * trialEndsAt, planActuel, planActuelDetails, allPlans[] }.
  */
 export default function AbonnementTab({
-  planDetails, planLoading, selectedPlan, clientSecret, paymentLoading, paymentError,
-  stripePromise, onSelectPlan, onCancelSelection, onCancelSubscription, onPaymentSuccess,
+  planDetails, planLoading, paymentLoading, paymentError, onSelectPlan, onCancelSubscription,
 }) {
   const { t } = useTranslation('organisation');
   if (planLoading && !planDetails) return <Spinner label={t('abonnement.chargement')} />;
@@ -69,47 +64,6 @@ export default function AbonnementTab({
   const periode = (p) => (
     estPeriodeAnnuelle(p) ? t('plateforme:abonnement.parAnCourt') : t('plateforme:abonnement.parMoisCourt')
   );
-
-  // ── Écran de paiement (un plan est sélectionné) ────────────────────────────
-  if (selectedPlan) {
-    return (
-      <section className="payment-section" aria-label={t('abonnement.paiement.aria')}>
-        <div className="payment-header">
-          <button className="btn btn-ghost" onClick={onCancelSelection}>← {t('abonnement.paiement.retourPlans')}</button>
-          <div className="payment-plan-summary">
-            <div className="payment-plan-icon"><PlanIcon code={selectedPlan.code} size={24} /></div>
-            <div>
-              <strong>{selectedPlan.nom}</strong>
-              <span>{formatPrix(selectedPlan.prix, selectedPlan.devise)} {periode(selectedPlan.periode)}</span>
-            </div>
-          </div>
-        </div>
-
-        {paymentError && <div className="abonnement-alert" role="alert"><AlertCircle size={18} /> {paymentError}</div>}
-
-        {stripePromise ? (
-          <Elements stripe={stripePromise}>
-            {/* Le MÊME formulaire que l'écran Abonnement. L'onglet avait le
-                sien, qui traitait un paiement `processing` comme une erreur
-                et divergeait de l'autre à chaque correction. */}
-            <PaymentForm
-              plan={selectedPlan}
-              clientSecret={clientSecret}
-              loading={paymentLoading}
-              onSuccess={onPaymentSuccess}
-            />
-          </Elements>
-        ) : (
-          <div className="stripe-unavailable">
-            <AlertCircle size={32} />
-            <h3>{t('abonnement.stripeIndispo.titre')}</h3>
-            <p><Trans t={t} i18nKey="abonnement.stripeIndispo.cleManquante" components={{ code: <code /> }} /></p>
-            <p className="hint"><Trans t={t} i18nKey="abonnement.stripeIndispo.hint" components={{ code: <code /> }} /></p>
-          </div>
-        )}
-      </section>
-    );
-  }
 
   // ── Écran principal : statut + choix du plan ───────────────────────────────
   return (

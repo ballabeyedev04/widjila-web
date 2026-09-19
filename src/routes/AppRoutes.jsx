@@ -7,9 +7,9 @@ const Register = lazy(() => import('../pages/auth/Register.jsx'));
 const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('../pages/auth/ResetPassword.jsx'));
 // Écrans différés — voir le commentaire de `Suspense` plus bas.
-// `/abonnement` tire tout le SDK Stripe : le charger d'emblée le mettait
-// dans le premier octet servi à chaque visiteur, pour un écran que la
-// plupart n'ouvre jamais.
+// `/abonnement` reste chargé à la demande : c'est un écran que la plupart
+// des visiteurs n'ouvrent jamais (le paiement lui-même se fait sur la page
+// hébergée par Stripe, plus aucun SDK Stripe n'est embarqué ici).
 const Abonnement = lazy(() => import('../pages/abonnement/Abonnement.jsx'));
 const ConditionsUtilisation = lazy(() => import('../pages/legal/ConditionsUtilisation.jsx'));
 const PolitiqueConfidentialite = lazy(() => import('../pages/legal/PolitiqueConfidentialite.jsx'));

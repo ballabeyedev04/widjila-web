@@ -49,6 +49,12 @@
 
 .abonnement-alert svg { flex-shrink: 0; }
 
+.abonnement-alert-info {
+  background: var(--primary-light, #eef2ff);
+  border-color: var(--primary, #4f46e5);
+  color: var(--text);
+}
+
 /* ── Grille des plans ── */
 .plans-section {
   margin-bottom: 32px;
@@ -212,35 +218,54 @@
 .payment-plan-summary strong { font-size: 15px; color: var(--text); display: block; }
 .payment-plan-summary span { font-size: 13px; color: var(--text-secondary); }
 
-.payment-form {
+/* ── Récapitulatif avant Stripe Checkout ──
+   Sobre à dessein : formule, montant, payeur, un bouton. Le paiement
+   lui-même se fait sur la page de Stripe, pas ici. */
+.recap-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 28px;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
-.payment-form-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--success);
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-.secure-icon { flex-shrink: 0; }
-
-.payment-field { margin-bottom: 16px; }
-.payment-field label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
+.recap-title {
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text);
-  margin-bottom: 8px;
+  margin: 0 0 18px;
 }
+
+.recap-lignes {
+  margin: 0 0 18px;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.recap-ligne {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.recap-ligne dt { color: var(--text-secondary); margin: 0; }
+.recap-ligne dd { color: var(--text); margin: 0; text-align: right; }
+.recap-ligne dd strong { font-size: 18px; font-weight: 700; }
+
+.recap-redirection {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+.recap-redirection svg { flex-shrink: 0; margin-top: 2px; color: var(--success); }
 
 .payment-error {
   display: flex;
@@ -265,16 +290,6 @@
   gap: 6px;
 }
 
-.stripe-unavailable {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-secondary);
-}
-.stripe-unavailable svg { color: var(--danger); margin-bottom: 12px; }
-.stripe-unavailable h3 { margin-bottom: 8px; color: var(--text); }
-.stripe-unavailable code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
-.stripe-unavailable .hint { margin-top: 12px; font-size: 12.5px; color: var(--text-muted); }
-
 .payment-footer-note {
   margin-top: 20px;
   text-align: center;
@@ -282,38 +297,6 @@
   color: var(--text-muted);
 }
 
-/* ── Méthodes de paiement ── */
-.payment-methods {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.payment-method-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-weight: 600;
-}
-
-.payment-divider {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  position: relative;
-}
-.payment-divider::before,
-.payment-divider::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 40%;
-  height: 1px;
-  background: var(--border);
-}
 .payment-divider::before { left: 0; }
 .payment-divider::after { right: 0; }
 

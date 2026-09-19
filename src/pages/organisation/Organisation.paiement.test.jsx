@@ -16,9 +16,10 @@ import { getOrganisation } from '../../service/organisation/organisationService.
  * un paiement qui n'avait jamais eu lieu — le point de départ classique d'une
  * fraude au support (« j'ai payé, votre écran le dit »).
  *
- * Le paiement se fait DANS la page (Stripe Elements) : ce retour par URL
- * n'existe même pas. Ce test garantit qu'aucun paramètre d'URL ne produit
- * jamais d'annonce de paiement.
+ * Le paiement ne se fait plus du tout sur cette page : « Choisir » mène à
+ * l'écran Abonnement, seul parcours (récapitulatif puis Stripe Checkout), et
+ * c'est lui qui interroge le serveur au retour. Ce test garantit qu'ici,
+ * aucun paramètre d'URL ne produit jamais d'annonce de paiement.
  */
 
 const { swal } = vi.hoisted(() => ({
@@ -26,7 +27,6 @@ const { swal } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../utils/swal.config.js', () => ({ default: swal }));
-vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => null }));
 vi.mock('../../context/useUser.js', () => ({
   useUser: () => ({ user: { id: 'u1', role: 'Entreprise' } }),
 }));
@@ -41,7 +41,6 @@ vi.mock('../../service/organisation/organisationService.js', () => ({
 vi.mock('../../service/subscription/subscriptionService.js', () => ({
   getPlanDetails: vi.fn().mockResolvedValue({ isSubscribed: false, allPlans: [] }),
   getStatus: vi.fn().mockResolvedValue(null),
-  creerPaymentIntent: vi.fn(),
   changerPlan: vi.fn(),
   annulerAbonnement: vi.fn(),
 }));
