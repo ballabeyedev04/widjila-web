@@ -409,6 +409,7 @@ export default {
     abonnementActif: 'Suscripción activa',
     essaiExpire: 'Prueba caducada',
     essaiGratuit: 'Prueba gratuita',
+    offreGratuite: 'Plan gratuito',
     planEnCours: 'Plan actual',
     titre: 'Suscripción',
     sousTitre: 'Elija el plan adecuado para su equipo. Prueba gratuita de 2 días, sin compromiso.',

@@ -409,6 +409,7 @@ export default {
     abonnementActif: 'Active subscription',
     essaiExpire: 'Trial expired',
     essaiGratuit: 'Free trial',
+    offreGratuite: 'Free plan',
     planEnCours: 'Current plan',
     titre: 'Subscription',
     sousTitre: 'Choose the plan that fits your team. 2-day free trial, no commitment.',

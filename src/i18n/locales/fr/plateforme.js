@@ -417,6 +417,7 @@ export default {
     abonnementActif: 'Abonnement actif',
     essaiExpire: 'Essai expiré',
     essaiGratuit: 'Essai gratuit',
+    offreGratuite: 'Offre gratuite',
     planEnCours: 'Plan en cours',
     titre: 'Abonnement',
     sousTitre: 'Choisissez le plan adapté à votre équipe. Essai gratuit de 2 jours, sans engagement.',

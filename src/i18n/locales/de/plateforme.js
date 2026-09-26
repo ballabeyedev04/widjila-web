@@ -409,6 +409,7 @@ export default {
     abonnementActif: 'Aktives Abonnement',
     essaiExpire: 'Testphase abgelaufen',
     essaiGratuit: 'Kostenlose Testphase',
+    offreGratuite: 'Kostenloses Angebot',
     planEnCours: 'Aktueller Tarif',
     titre: 'Abonnement',
     sousTitre: 'Wählen Sie den passenden Tarif für Ihr Team. 2 Tage kostenlos testen, ohne Verpflichtung.',

@@ -354,6 +354,11 @@ export default function Abonnement() {
   const getTrialInfo = () => {
     if (!status) return null;
     if (status.isSubscribed) return { type: 'subscribed', label: t('abonnement.abonnementActif'), plan: status.planActuel };
+    // L'essai fini ne laisse plus l'organisation sans rien : elle bascule sur
+    // l'offre gratuite (un chantier, deux comptes — voir
+    // `backend/src/config/offreGratuite.js`). Annoncer « essai expiré » en
+    // rouge ferait croire à une coupure qui n'a pas lieu.
+    if (status.source === 'gratuit') return { type: 'gratuit', label: t('abonnement.offreGratuite') };
     if (status.trialEnded) return { type: 'expired', label: t('abonnement.essaiExpire'), jours: 0 };
     if (status.joursRestantsTrial !== undefined) {
       return {
@@ -407,6 +412,9 @@ export default function Abonnement() {
                 <span className="badge badge-warning">
                   <Zap size={12} /> {trialInfo.label} — {t('abonnement.joursRestants', { count: trialInfo.jours })}
                 </span>
+              )}
+              {trialInfo.type === 'gratuit' && (
+                <span className="badge badge-neutral">{trialInfo.label}</span>
               )}
               {trialInfo.type === 'expired' && (
                 <span className="badge badge-danger">
