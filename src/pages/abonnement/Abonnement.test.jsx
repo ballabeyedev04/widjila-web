@@ -7,6 +7,7 @@ import i18n from '../../i18n/index.js';
 import Abonnement from './Abonnement.jsx';
 import {
   getPlans, getStatus, getDroits, getHistorique, creerCheckoutSession, getEtatPaiement,
+  listerDevis,
 } from '../../service/subscription/subscriptionService.js';
 import { ROLE_TITULAIRE } from '../../utils/constants.js';
 
@@ -45,6 +46,13 @@ vi.mock('../../service/subscription/subscriptionService.js', () => ({
   getHistorique: vi.fn(),
   creerCheckoutSession: vi.fn(),
   getEtatPaiement: vi.fn(),
+  // Parcours « Premium sur devis » — couvert par `Devis.test.jsx`. Simulé
+  // ici pour que la page se monte, sans quoi la section lèverait au montage.
+  demanderDevis: vi.fn(),
+  listerDevis: vi.fn(),
+  accepterDevis: vi.fn(),
+  refuserDevis: vi.fn(),
+  payerDevis: vi.fn(),
 }));
 
 const ESSENTIEL = {
@@ -94,6 +102,7 @@ beforeEach(() => {
   getHistorique.mockResolvedValue([]);
   creerCheckoutSession.mockResolvedValue({ url: 'https://checkout.stripe.com/c/pay/cs_test_1', sessionId: 'cs_test_1' });
   getEtatPaiement.mockResolvedValue({ paiement: { statut: 'en_attente' }, droits: null });
+  listerDevis.mockResolvedValue([]);
   // `window.location.assign` : la page part vers Stripe — on observe sans partir.
   Object.defineProperty(window, 'location', {
     configurable: true,
@@ -191,7 +200,10 @@ describe('arrivée depuis le mobile avec ?plan=', () => {
     afficher('/abonnement?plan=pro');
 
     const boutons = await screen.findAllByRole('button', { name: "Réservé au responsable de l'abonnement" });
-    expect(boutons).toHaveLength(2);
+    // Trois formules au catalogue, « Entreprise » comprise : depuis que la
+    // demande de devis entre dans le produit, elle est elle aussi réservée au
+    // responsable de l'abonnement.
+    expect(boutons).toHaveLength(3);
     boutons.forEach((bouton) => expect(bouton.disabled).toBe(true));
     expect(creerCheckoutSession).not.toHaveBeenCalled();
     expect(screen.queryByRole('heading', { name: 'Récapitulatif' })).toBeNull();

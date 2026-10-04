@@ -101,6 +101,8 @@ describe('portail plateforme — menu et routes', () => {
       '/plateforme/demandes',
       '/plateforme/suppressions',
       '/plateforme/prix-abonnements',
+      // Devis d'abonnement : le seul écran du produit où un montant se pose.
+      '/plateforme/devis',
       '/plateforme/audit',
     ];
     for (const chemin of attendus) expect(menu).toContain(chemin);
@@ -112,7 +114,10 @@ describe('portail plateforme — menu et routes', () => {
     // Chaque bloc `<Route …>…</Route>` ou `<Route … />` dont le chemin
     // commence par « plateforme » doit porter la garde dans son élément.
     const blocs = [...src.matchAll(/<Route\s+path="(plateforme[^"]*)"([\s\S]*?)\/>/g)];
-    expect(blocs.length).toBe(7);
+    // Le compte est un garde-fou : une route ajoutée sans garde ferait
+    // échouer ici avant d'atteindre la production. 8 depuis l'écran des
+    // devis d'abonnement (`plateforme/devis`).
+    expect(blocs.length).toBe(8);
 
     const sansGarde = blocs
       .filter(([, , corps]) => !corps.includes('<SuperAdminRoute>'))

@@ -539,3 +539,99 @@
   .abonnement-historique-plan { flex-basis: 100%; }
   .abonnement-historique-montant { font-size: 13.5px; }
 }
+
+/* ── « Premium sur devis » ──
+   Demande, devis reçu, acceptation, paiement. Sobre comme le récapitulatif
+   de paiement : c'est une pièce contractuelle, pas une page d'offre. */
+.devis-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.devis-section-titre {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.devis-titre { font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 4px; }
+.devis-sous-titre { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.5; }
+.devis-vide { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 16px; }
+
+/* Deux colonnes sur grand écran, une seule sur téléphone : un formulaire de
+   demande se remplit souvent depuis le chantier. */
+.devis-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 16px;
+}
+
+.devis-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.devis-liste { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+
+.devis-carte {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  background: var(--bg);
+}
+
+.devis-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.devis-numero {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.devis-date { font-size: 12.5px; color: var(--text-muted); margin: 2px 0 0; }
+
+.devis-attente {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.devis-conditions {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 14px 0 0;
+  white-space: pre-line;
+}
+
+.devis-regle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--success);
+  margin: 14px 0 0;
+}
+
+.devis-refus { margin-top: 14px; }

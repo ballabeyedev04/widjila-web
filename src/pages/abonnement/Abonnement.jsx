@@ -8,6 +8,7 @@ import { useTranslation, Trans } from 'react-i18next';
 
 import {
   getPlans, getStatus, getDroits, getHistorique, creerCheckoutSession, getEtatPaiement,
+  demanderDevis, listerDevis, accepterDevis, refuserDevis, payerDevis,
 } from '../../service/subscription/subscriptionService.js';
 import { getErrorMessage } from '../../service/helpers.js';
 import { useUser } from '../../context/useUser.js';
@@ -17,6 +18,7 @@ import { estPeriodeAnnuelle, formatPrix } from '../../utils/format.js';
 import SwalCustom from '../../utils/swal.config.js';
 import '../../assets/css/abonnement.css';
 import RecapitulatifPaiement from './sections/RecapitulatifPaiement.jsx';
+import DevisSection from './sections/DevisSection.jsx';
 import { CarteUsage, SectionHistorique } from './sections/EtatAbonnement.jsx';
 import { attendreConfirmation } from '../../utils/attendreConfirmation.js';
 
@@ -84,6 +86,15 @@ export default function Abonnement() {
   // signifierait « aucun paiement », ce qui n'est pas la même chose.
   const [historique, setHistorique] = useState(null);
 
+  // ── « Premium sur devis » ──
+  //
+  // Les devis de l'organisation, tels que le SERVEUR les connaît : c'est lui
+  // qui dit ce qui est acceptable et payable, jamais cet écran.
+  const [devis, setDevis] = useState([]);
+  const [formulaireDevis, setFormulaireDevis] = useState(false);
+  const [devisEnCours, setDevisEnCours] = useState(false);
+  const [erreurDevis, setErreurDevis] = useState(null);
+
   // Le serveur réserve l'historique ET le paiement au groupe FACTURATION :
   // l'appeler pour un autre rôle produit un 403.
   const voitLaFacturation = roleAllowed(user?.role, ROLES_GESTION);
@@ -146,6 +157,12 @@ export default function Abonnement() {
       getHistorique()
         .then((lignes) => { if (vivant) setHistorique(lignes); })
         .catch(() => { /* section « Historique » non affichée */ });
+
+      // Réservés au groupe FACTURATION côté serveur : les demander pour un
+      // autre rôle ne produirait qu'un 403.
+      listerDevis()
+        .then((lignes) => { if (vivant) setDevis(lignes); })
+        .catch(() => { /* section « Devis » non affichée */ });
     }
 
     return () => { vivant = false; };
@@ -206,15 +223,19 @@ export default function Abonnement() {
   }, []);
 
   const rechargerEtat = useCallback(async () => {
-    const [s, d, h] = await Promise.all([
+    const [s, d, h, q] = await Promise.all([
       getStatus().catch(() => null),
       getDroits().catch(() => null),
       voitLaFacturation ? getHistorique().catch(() => null) : Promise.resolve(null),
+      // Le devis réglé porte désormais sa date de paiement : la section doit
+      // le montrer au retour de Stripe, sans rechargement manuel.
+      voitLaFacturation ? listerDevis().catch(() => null) : Promise.resolve(null),
     ]);
     if (!monteRef.current) return;
     if (s) setStatus(s);
     if (d) { setDroits(d.droits || null); setUsage(d.usage || null); }
     if (h) setHistorique(h);
+    if (q) setDevis(q);
     refreshStatus();
   }, [voitLaFacturation, refreshStatus]);
 
@@ -314,6 +335,73 @@ export default function Abonnement() {
     setSelectedPlan(null);
   };
 
+  /* ---------- « Premium sur devis » ---------- */
+  //
+  // Chaque action rend le devis mis à jour par le SERVEUR : on remplace la
+  // ligne concernée par ce qu'il renvoie, plutôt que de recalculer son état
+  // ici — c'est lui qui connaît la règle (validité, statut, droit de payer).
+  const remplacerDevis = (maj) => setDevis((liste) => {
+    const existe = liste.some((d) => d.id === maj.id);
+    return existe ? liste.map((d) => (d.id === maj.id ? maj : d)) : [maj, ...liste];
+  });
+
+  const avecDevis = async (action) => {
+    setDevisEnCours(true);
+    setErreurDevis(null);
+    try {
+      return await action();
+    } catch (err) {
+      setErreurDevis(getErrorMessage(err));
+      return null;
+    } finally {
+      if (monteRef.current) setDevisEnCours(false);
+    }
+  };
+
+  const handleDemanderDevis = async (demande) => {
+    const cree = await avecDevis(() => demanderDevis(demande));
+    if (!cree) return;
+    remplacerDevis(cree);
+    setFormulaireDevis(false);
+    SwalCustom.success(t('abonnement.devis.demandeEnvoyee'));
+  };
+
+  const handleAccepterDevis = async (d) => {
+    const maj = await avecDevis(() => accepterDevis(d.id));
+    if (maj) remplacerDevis(maj);
+  };
+
+  const handleRefuserDevis = async (d, motif) => {
+    const maj = await avecDevis(() => refuserDevis(d.id, motif));
+    if (maj) remplacerDevis(maj);
+  };
+
+  /**
+   * Départ vers Stripe pour un devis accepté.
+   *
+   * Même règle que le catalogue : le serveur crée la session à partir du
+   * montant qu'il a lui-même posé, et c'est le webhook — pas ce retour — qui
+   * activera l'abonnement.
+   */
+  const handlePayerDevis = async (d) => {
+    // Son propre try/catch, et non `avecDevis` : il faut distinguer l'échec
+    // du succès, et le message du SERVEUR (« ce devis a expiré ») doit
+    // arriver tel quel. Le relire dans `erreurDevis` juste après le `set`
+    // donnait la valeur du rendu précédent — donc toujours nulle, donc le
+    // message générique à la place du vrai.
+    setDevisEnCours(true);
+    setErreurDevis(null);
+    try {
+      const session = await payerDevis(d.id);
+      if (!session?.url) throw new Error('session absente');
+      window.location.assign(session.url);
+      // La page part : on laisse les boutons neutralisés.
+    } catch (err) {
+      setErreurDevis(getErrorMessage(err, t('abonnement.recap.sessionIndisponible')));
+      setDevisEnCours(false);
+    }
+  };
+
   /** Vers la connexion, avec retour ici — formule demandée comprise. */
   const allerConnexion = (planCode) => {
     const retour = planCode ? `/abonnement?plan=${encodeURIComponent(planCode)}` : '/abonnement';
@@ -333,9 +421,24 @@ export default function Abonnement() {
       return { libelle: t('abonnement.planActuel'), desactive: true };
     }
     if (plan.surDevis) {
+      // Plus de `mailto:` : la demande entre dans le produit, elle y laisse
+      // une trace, et le client suivra son devis depuis son espace.
+      if (!pretAuthentification) return { libelle: t('abonnement.devis.demander'), desactive: true };
+      if (!user) {
+        return { libelle: t('abonnement.seConnecterPourChoisir'), action: () => allerConnexion(plan.code) };
+      }
+      if (!voitLaFacturation) return { libelle: t('abonnement.reserveFacturation'), desactive: true };
       return {
-        libelle: t('abonnement.nousContacter'),
-        action: () => { window.location.href = 'mailto:contact@widjila.com'; },
+        libelle: t('abonnement.devis.demander'),
+        action: () => {
+          setFormulaireDevis(true);
+          setErreurDevis(null);
+          // La section vit sous la grille : sans ce recentrage, le clic
+          // paraissait sans effet sur un petit écran.
+          requestAnimationFrame(() => {
+            document.querySelector('.devis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        },
       };
     }
     // Session pas encore tranchée : ni « se connecter » (elle arrive peut-être
@@ -473,6 +576,23 @@ export default function Abonnement() {
 
       {/* ── Historique des règlements ── */}
       {voitLaFacturation && historique && <SectionHistorique lignes={historique} />}
+
+      {/* ── « Premium sur devis » : demande, devis reçu, paiement ──
+          Réservée au groupe FACTURATION, comme les routes qui la servent. */}
+      {voitLaFacturation && (
+        <DevisSection
+          devis={devis}
+          enCours={devisEnCours}
+          erreur={erreurDevis}
+          formuleOuverte={formulaireDevis}
+          onOuvrirFormulaire={() => setFormulaireDevis(true)}
+          onFermerFormulaire={() => { setFormulaireDevis(false); setErreurDevis(null); }}
+          onDemander={handleDemanderDevis}
+          onAccepter={handleAccepterDevis}
+          onRefuser={handleRefuserDevis}
+          onPayer={handlePayerDevis}
+        />
+      )}
 
       {/* ── Grille des plans ── */}
       {!selectedPlan ? (

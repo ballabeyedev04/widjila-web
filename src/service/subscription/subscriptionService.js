@@ -98,6 +98,53 @@ export const getEtatPaiement = async (reference) => {
   return unwrap(response);
 };
 
+/* ── DEVIS « Premium sur devis » ──────────────────────────────────────────
+ *
+ * Le client DEMANDE, il ne chiffre pas : aucune de ces fonctions n'envoie de
+ * montant. Le prix est posé par le super-admin et relu en base au moment de
+ * créer la session de paiement — un montant qui partirait d'ici serait de
+ * toute façon refusé par le serveur, dont le schéma ne l'accepte pas.
+ */
+
+/** Demande de devis — société, volumes, durée souhaitée, besoins. */
+export const demanderDevis = async (demande) => {
+  const response = await api.post('/abonnement/devis', demande);
+  return unwrap(response)?.devis;
+};
+
+/** Devis de mon organisation, du plus récent au plus ancien. */
+export const listerDevis = async () => {
+  const response = await api.get('/abonnement/devis');
+  return unwrap(response)?.devis || [];
+};
+
+export const getDevis = async (id) => {
+  const response = await api.get(`/abonnement/devis/${id}`);
+  return unwrap(response)?.devis;
+};
+
+export const accepterDevis = async (id) => {
+  const response = await api.post(`/abonnement/devis/${id}/accepter`);
+  return unwrap(response)?.devis;
+};
+
+export const refuserDevis = async (id, motif) => {
+  const response = await api.post(`/abonnement/devis/${id}/refuser`, { motif });
+  return unwrap(response)?.devis;
+};
+
+/**
+ * Session de paiement du devis accepté.
+ *
+ * Rend `{ url, sessionId }` : l'adresse de la page Stripe. Comme pour le
+ * catalogue, le retour sur notre page ne prouve rien — c'est
+ * `getEtatPaiement` qui tranche, alimenté par le webhook.
+ */
+export const payerDevis = async (id) => {
+  const response = await api.post(`/abonnement/devis/${id}/paiement`);
+  return unwrap(response);
+};
+
 export const changerPlan = async (planId) => {
   const response = await api.post('/abonnement/change-plan', { planId });
   return unwrap(response);

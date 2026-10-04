@@ -89,6 +89,7 @@ const PlateformeOrganisations = lazy(() => import('../pages/plateforme/Plateform
 const PlateformeDemandes = lazy(() => import('../pages/plateforme/PlateformeDemandes.jsx'));
 const PlateformeAudit = lazy(() => import('../pages/plateforme/PlateformeAudit.jsx'));
 const PlateformePrixAbonnements = lazy(() => import('../pages/plateforme/PlateformePrixAbonnements.jsx'));
+const PlateformeDevis = lazy(() => import('../pages/plateforme/PlateformeDevis.jsx'));
 const PlateformeSuppressions = lazy(() => import('../pages/plateforme/PlateformeSuppressions.jsx'));
 const SuppressionCompte = lazy(() => import('../pages/legal/SuppressionCompte.jsx'));
 const ToutesReserves = lazy(() => import('../pages/reserve/ToutesReserves.jsx'));
@@ -203,6 +204,16 @@ export default function AppRoutes() {
               <PlateformeDashboard />
             </SuperAdminRoute>
           }
+        />
+        {/* Devis d'abonnement : le SEUL endroit du produit où un montant se
+            pose. Réservé au super-admin, comme les routes qui le servent. */}
+        <Route
+          path="plateforme/devis"
+          element={(
+            <SuperAdminRoute>
+              <PlateformeDevis />
+            </SuperAdminRoute>
+          )}
         />
         <Route
           path="plateforme/utilisateurs"

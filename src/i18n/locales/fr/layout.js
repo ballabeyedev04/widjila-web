@@ -36,6 +36,7 @@ export default {
     documents: 'Documents',
     abonnement: 'Abonnement',
     prixAbonnements: 'Prix abonnements',
+    devis: "Devis",
     phases: 'Phases',
     corpsEtat: 'Corps d’état',
     typesDocument: 'Types de document',

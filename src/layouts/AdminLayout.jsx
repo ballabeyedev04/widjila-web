@@ -281,6 +281,7 @@ export default function AdminLayout() {
     { path: '/plateforme/demandes', label: t('nav.demandesInscription'), icon: UserCheck },
     { path: '/plateforme/suppressions', label: t('nav.demandesSuppression'), icon: UserX },
     { path: '/plateforme/prix-abonnements', label: t('nav.prixAbonnements'), icon: CreditCard },
+    { path: '/plateforme/devis', label: t('nav.devis'), icon: FileSearch },
     { path: '/plateforme/audit', label: t('nav.journalAudit'), icon: FileSearch },
   ];
 
