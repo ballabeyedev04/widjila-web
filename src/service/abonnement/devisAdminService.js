@@ -10,8 +10,15 @@ import { unwrap } from '../helpers.js';
  * l'authentification à deux facteurs, comme l'activation manuelle.
  */
 
-/** Tous les devis, filtrables par statut et par organisation. */
-export const listerDevisAdmin = async ({ statut, organisationId, page, limit } = {}) => {
+/**
+ * Tous les devis, filtrables par statut et par organisation.
+ *
+ * Les valeurs par défaut sont toutes FAUSSES au sens de JavaScript : un
+ * filtre non renseigné n'est pas transmis, et le serveur applique le sien.
+ * Elles sont là pour que la vérification de types connaisse la forme de
+ * l'objet — sans elles, `tsc` ne voit qu'un `{}` et refuse le fichier.
+ */
+export const listerDevisAdmin = async ({ statut = '', organisationId = '', page = 0, limit = 0 } = {}) => {
   const response = await api.get('/admin/abonnements/devis', {
     params: {
       ...(statut ? { statut } : {}),
